@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h2>Gestion des Participants - {{ event.name }}</h2>
+<a href="/event/{{ event.id }}" class="btn btn-secondary mb-3">Retour à l'événement</a>
+
+<div class="table-responsive">
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Nom</th>
+                <th>Email</th>
+                <th>Type</th>
+                <th>Groupe</th>
+                <th>Paiement</th>
+                <th>Commentaire</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for p in participants %}
+            <tr>
+                <form method="POST" action="/event/{{ event.id }}/participant/{{ p.id }}/update">
+                    <td>{{ p.user.nom }} {{ p.user.prenom }}</td>
+                    <td>{{ p.user.email }}</td>
+                    <td>
+                        <select name="type" class="form-select form-select-sm">
+                            <option value="organisateur" {% if p.type=='organisateur' %}selected{% endif %}>Organisateur
+                            </option>
+                            <option value="PJ" {% if p.type=='PJ' %}selected{% endif %}>PJ</option>
+                            <option value="PNJ" {% if p.type=='PNJ' %}selected{% endif %}>PNJ</option>
+                        </select>
+                    </td>
+                    <td><input type="text" name="group" value="{{ p.group or '' }}"
+                            class="form-control form-control-sm"></td>
+                    <td>
+                        <div class="input-group input-group-sm">
+                            <input type="number" step="0.01" name="payment_amount" value="{{ p.payment_amount }}"
+                                class="form-control">
+                            <input type="text" name="payment_method" value="{{ p.payment_method or '' }}"
+                                class="form-control" placeholder="Moyen">
+                        </div>
+                    </td>
+                    <td><textarea name="comment" class="form-control form-control-sm">{{ p.comment or '' }}</textarea>
+                    </td>
+                    <td>
+                        <button type="submit" class="btn btn-sm btn-primary">Enregistrer</button>
+                    </td>
+                </form>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

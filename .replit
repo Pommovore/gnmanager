@@ -1,0 +1,7 @@
+{
+  "deps": [
+    "python3",
+    "uv"
+  ],
+  "run": "sh run.sh"
+}

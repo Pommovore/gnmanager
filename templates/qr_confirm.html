@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-md-6 text-center">
+        <div class="card">
+            <div class="card-header">Connexion par QR Code</div>
+            <div class="card-body">
+                <p>Vous essayez de vous connecter sur un autre appareil.</p>
+                <p>Confirmez-vous cette demande ?</p>
+                <form method="POST">
+                    <button type="submit" class="btn btn-success btn-lg w-100">Confirmer la connexion</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

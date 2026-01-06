@@ -1,0 +1,30 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="row">
+    <div class="col-md-12">
+        <div class="card mb-4">
+            {% if event.background_image %}
+            <img src="{{ event.background_image }}" class="card-img-top" alt="Event Image"
+                style="height: 200px; object-fit: cover;">
+            {% endif %}
+            <div class="card-body">
+                <h1 class="card-title">{{ event.name }}</h1>
+                <p class="text-muted">{{ event.date.strftime('%d/%m/%Y') }} - {{ event.location }}</p>
+                <p>Status: <span class="badge bg-info">{{ event.status }}</span></p>
+
+                {% if is_organizer %}
+                <div class="alert alert-warning">Vous êtes organisateur de cet événement.</div>
+                <button class="btn btn-secondary">Gérer les participants</button>
+                <button class="btn btn-secondary">Gérer les rôles</button>
+                {% endif %}
+
+                {% if participant %}
+                <p>Votre rôle : {{ participant.type }}</p>
+                {% else %}
+                <button class="btn btn-success">Rejoindre l'événement</button>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

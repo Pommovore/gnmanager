@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block content %}
+<ul class="nav nav-tabs" id="myTab" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button"
+            role="tab">Événements</button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="me-tab" data-bs-toggle="tab" data-bs-target="#me" type="button"
+            role="tab">Moi</button>
+    </li>
+    {% if user.is_admin %}
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button"
+            role="tab">Admin Système</button>
+    </li>
+    {% endif %}
+</ul>
+<div class="tab-content" id="myTabContent">
+    <div class="tab-pane fade show active p-3" id="events" role="tabpanel">
+        <div class="d-flex justify-content-between align-items-center mb-3">
+            <h3>Mes Événements</h3>
+            <a href="/event/create" class="btn btn-primary">Créer un événement</a>
+        </div>
+
+        {% if events_participating %}
+        <h4>Je participe</h4>
+        <div class="list-group mb-4">
+            {% for p in events_participating %}
+            <a href="/event/{{ p.event.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ p.event.name }}</h5>
+                    <small>{{ p.event.date.strftime('%d/%m/%Y') }}</small>
+                </div>
+                <p class="mb-1">{{ p.event.location }}</p>
+                <small>Rôle: {{ p.type }}</small>
+            </a>
+            {% endfor %}
+        </div>
+        {% endif %}
+
+        <h4>Événements à venir</h4>
+        <div class="list-group">
+            {% for e in events_upcoming %}
+            <a href="/event/{{ e.id }}" class="list-group-item list-group-item-action">
+                <div class="d-flex w-100 justify-content-between">
+                    <h5 class="mb-1">{{ e.name }}</h5>
+                    <small>{{ e.date.strftime('%d/%m/%Y') }}</small>
+                </div>
+                <p class="mb-1">{{ e.location }}</p>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+    <div class="tab-pane fade p-3" id="me" role="tabpanel">
+        <h3>Mon Profil</h3>
+        <form method="POST" action="/profile" enctype="multipart/form-data">
+            <div class="mb-3">
+                <label class="form-label">Avatar (max 80x80)</label>
+                <input type="file" class="form-control" name="avatar">
+                {% if user.avatar_url %}
+                <img src="{{ user.avatar_url }}" class="mt-2" alt="Avatar">
+                {% endif %}
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Nom</label>
+                <input type="text" class="form-control" name="nom" value="{{ user.nom or '' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Prénom</label>
+                <input type="text" class="form-control" name="prenom" value="{{ user.prenom or '' }}">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Age</label>
+                <input type="number" class="form-control" name="age" value="{{ user.age or '' }}">
+            </div>
+            <hr>
+            <h4>Changer le mot de passe</h4>
+            <div class="mb-3">
+                <label class="form-label">Nouveau mot de passe (4 lettres, 4 chiffres)</label>
+                <input type="text" class="form-control" name="new_password" placeholder="ABCD1234">
+            </div>
+            <button type="submit" class="btn btn-primary">Mettre à jour</button>
+        </form>
+    </div>
+    <div class="tab-pane fade p-3" id="admin" role="tabpanel">
+        <h3>Gestion des Utilisateurs</h3>
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5>Ajouter un utilisateur</h5>
+                <form method="POST" action="/admin/user/add" class="row g-3">
+                    <div class="col-auto">
+                        <input type="email" class="form-control" name="email" placeholder="email@example.com" required>
+                    </div>
+                    <div class="col-auto">
+                        <button type="submit" class="btn btn-success mb-3">Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Statut</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for u in users %}
+                <tr>
+                    <td>{{ u.email }}</td>
+                    <td>{{ u.nom or '-' }}</td>
+                    <td>{{ u.prenom or '-' }}</td>
+                    <td>
+                        {% if u.is_deleted %}
+                        <span class="badge bg-danger">Supprimé</span>
+                        {% else %}
+                        <span class="badge bg-success">Actif</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <a href="/admin/user/delete/{{ u.id }}"
+                            class="btn btn-sm btn-{{ 'warning' if u.is_deleted else 'danger' }}">
+                            {{ 'Restaurer' if u.is_deleted else 'Supprimer' }}
+                        </a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
