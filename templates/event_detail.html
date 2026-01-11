@@ -13,6 +13,8 @@
                 href="#list-status" role="tab">Statut</a>
             <a class="list-group-item list-group-item-action" id="list-dates-list" data-bs-toggle="list"
                 href="#list-dates" role="tab">Les dates</a>
+            <a class="list-group-item list-group-item-action" id="list-groups-list" data-bs-toggle="list"
+                href="#list-groups" role="tab">Configuration Groupes</a>
             <a class="list-group-item list-group-item-action" href="/event/{{ event.id }}/participants">Participants</a>
             {% endif %}
         </div>
@@ -36,20 +38,45 @@
                             }}<br>
                             {{ event.location }}
                         </p>
-                        <p>Status actuel : <span class="badge bg-info">{{ event.computed_status }}</span></p>
+                        <p>Status actuel : <span class="badge bg-info">{{ event.statut }}</span></p>
+                        <p class="mt-3">{{ event.description }}</p>
+                        {% if event.external_link %}
+                        <a href="{{ event.external_link }}" target="_blank"
+                            class="btn btn-outline-primary mb-3">Formulaire Externe</a>
+                        {% endif %}
 
                         {% if is_organizer %}
                         <div class="alert alert-warning">Vous êtes organisateur de cet événement.</div>
                         {% endif %}
 
                         {% if participant %}
-                        <p>Votre rôle : {{ participant.type }}</p>
-                        {% elif event.computed_status == 'annulé' %}
+                        {% if participant.type %}
+                        {% set badge_class = "bg-secondary" %}
+                        {% if participant.type.lower() == 'organisateur' %}
+                        {% set badge_class = "bg-danger" %}
+                        {% elif participant.type == 'PJ' %}
+                        {% set badge_class = "bg-success" %}
+                        {% elif participant.type == 'PNJ' %}
+                        {% set badge_class = "bg-primary" %}
+                        {% endif %}
+
+                        <p>Votre rôle :
+                            <span class="badge {{ badge_class }}">
+                                {{ participant.type }}
+                                {% if participant.group and participant.group != 'Peu importe' %}
+                                - {{ participant.group }}
+                                {% endif %}
+                            </span>
+                        </p>
+                        {% endif %}
+                        <p>Statut inscription : {{ participant.registration_status }}</p>
+                        {% elif event.statut == 'Annulé' %}
                         <button class="btn btn-secondary" disabled>Événement annulé</button>
                         {% else %}
-                        <form action="/event/{{ event.id }}/join" method="POST">
-                            <button type="submit" class="btn btn-success">Rejoindre l'événement</button>
-                        </form>
+                        <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                            data-bs-target="#joinModal">
+                            Rejoindre l'événement
+                        </button>
                         {% endif %}
                     </div>
                 </div>
@@ -86,22 +113,28 @@
                     <div class="card-header">Statut de l'événement</div>
                     <div class="card-body">
                         <div class="alert alert-info">
-                            Statut actuel (calculé) : <strong>{{ event.computed_status }}</strong>
+                            Statut actuel : <strong>{{ event.statut }}</strong>
                         </div>
                         <form method="POST" action="/event/{{ event.id }}/update_status">
                             <div class="list-group mb-3">
                                 {% set statuses = [
-                                'en préparation',
-                                'inscriptions ouvertes',
-                                'inscriptions fermées - casting en cours',
-                                'casting terminé - finalisation des préparations',
-                                'annulé',
-                                'reporté à une date indéfinie'
+                                'En préparation',
+                                'Inscriptions ouvertes',
+                                'Inscriptions fermées',
+                                'Casting en cours',
+                                'Casting terminé',
+                                'Rôles en cours de préparation',
+                                'Rôles en cours d\'envois',
+                                'Rôles envoyés, préparatifs de l\'événement',
+                                'Événement en cours',
+                                'Terminé',
+                                'Annulé',
+                                'Reporté'
                                 ] %}
                                 {% for s in statuses %}
                                 <label class="list-group-item">
-                                    <input class="form-check-input me-1" type="radio" name="status" value="{{ s }}" {%
-                                        if event.status==s %}checked{% endif %}>
+                                    <input class="form-check-input me-1" type="radio" name="statut" value="{{ s }}" {%
+                                        if event.statut==s %}checked{% endif %}>
                                     {{ s|capitalize }}
                                 </label>
                                 {% endfor %}
@@ -149,9 +182,116 @@
                     }
                 }
             </script>
+            <!-- Groups Tab (Organizer only) -->
+            <div class="tab-pane fade" id="list-groups" role="tabpanel">
+                <div class="card">
+                    <div class="card-header">Configuration des Groupes</div>
+                    <div class="card-body">
+                        <form method="POST" action="/event/{{ event.id }}/update_groups">
+                            <div class="alert alert-info">
+                                <small>Définissez ici les listes de choix de groupes pour chaque type de participant.
+                                    Séparez les valeurs par des virgules.</small><br>
+                                <small><strong>Exemple:</strong> <em>Garde de Nuit, Sauvageons, Marcheurs
+                                        Blancs</em></small>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Groupes pour les PJ</label>
+                                <input type="text" class="form-control" name="groups_pj"
+                                    value="{{ groups_config.get('PJ', [])|join(', ') }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Groupes pour les PNJ</label>
+                                <input type="text" class="form-control" name="groups_pnj"
+                                    value="{{ groups_config.get('PNJ', [])|join(', ') }}">
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label">Groupes pour les Organisateurs</label>
+                                <input type="text" class="form-control" name="groups_org"
+                                    value="{{ groups_config.get('Organisateur', [])|join(', ') }}">
+                            </div>
+
+                            <button type="submit" class="btn btn-primary">Enregistrer la configuration</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
             {% endif %}
 
         </div>
     </div>
 </div>
+</div>
+
+<!-- Join Modal -->
+<div class="modal fade" id="joinModal" tabindex="-1" aria-labelledby="joinModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="joinModalLabel">Inscription à {{ event.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="/event/{{ event.id }}/join" method="POST">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Type d'inscription</label>
+                        <select name="type" class="form-select" id="joinTypeSelect" onchange="updateGroupOptions()">
+                            <option value="PJ">PJ</option>
+                            <option value="PNJ">PNJ</option>
+                            <option value="Organisateur">Organisateur</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Groupe souhaité</label>
+                        <select name="group" class="form-select" id="joinGroupSelect">
+                            <!-- Populated by JS -->
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">Valider ma demande</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+    const groupsConfig = {{ groups_config| tojson }};
+
+    function updateGroupOptions() {
+        const typeSelect = document.getElementById('joinTypeSelect');
+        const groupSelect = document.getElementById('joinGroupSelect');
+        const selectedType = typeSelect.value;
+
+        // Clear options
+        groupSelect.innerHTML = '';
+
+        // Get groups for this type
+        let groups = [];
+        if (selectedType === 'PJ') groups = groupsConfig.PJ || [];
+        else if (selectedType === 'PNJ') groups = groupsConfig.PNJ || [];
+        else if (selectedType === 'Organisateur') groups = groupsConfig.Organisateur || []; // Case sensitive match with key
+
+        // Default if empty
+        if (groups.length === 0) groups = ['Peu importe'];
+
+        // Populate
+        groups.forEach(g => {
+            const opt = document.createElement('option');
+            opt.value = g;
+            opt.textContent = g;
+            groupSelect.appendChild(opt);
+        });
+    }
+
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', updateGroupOptions);
+</script>
 {% endblock %}

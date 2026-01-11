@@ -35,36 +35,53 @@
 
         <div class="list-group">
             {% for e in events %}
-            {% set role = my_roles.get(e.id) %}
+            {% set participation = my_roles.get(e.id) %}
             {% set row_class = "" %}
             {% set badge_class = "" %}
             {% set badge_text = "" %}
 
-            {% if role == 'organisateur' %}
+            {% if participation %}
+            {% if participation.type == 'organisateur' or participation.type == 'Organisateur' %}
             {% set row_class = "list-group-item-danger" %}
             {% set badge_class = "bg-danger" %}
             {% set badge_text = "Organisateur" %}
-            {% elif role == 'PJ' %}
+            {% elif participation.type == 'PJ' %}
             {% set row_class = "list-group-item-success" %}
             {% set badge_class = "bg-success" %}
             {% set badge_text = "PJ" %}
-            {% elif role == 'PNJ' %}
+            {% elif participation.type == 'PNJ' %}
             {% set row_class = "list-group-item-primary" %}
             {% set badge_class = "bg-primary" %}
             {% set badge_text = "PNJ" %}
-            {% elif role %}
+            {% else %}
             {% set row_class = "list-group-item-success" %}
             {% set badge_class = "bg-success" %}
-            {% set badge_text = "Inscrit" %}
+            {% set badge_text = participation.type %}
+            {% endif %}
+            {% endif %}
+
+            {% set status_color = "bg-secondary" %}
+            {% if e.statut == "Événement en cours" %}
+            {% set status_color = "bg-success" %}
+            {% elif e.statut == "Terminé" %}
+            {% set status_color = "bg-dark" %}
+            {% elif e.statut == "Annulé" %}
+            {% set status_color = "bg-danger" %}
+            {% elif e.statut == "En préparation" %}
+            {% set status_color = "bg-info text-dark" %}
             {% endif %}
 
             <a href="/event/{{ e.id }}" class="list-group-item list-group-item-action {{ row_class }}">
                 <div class="d-flex w-100 justify-content-between">
                     <h5 class="mb-1">
                         {{ e.name }}
-                        <span class="badge bg-secondary">{{ e.computed_status }}</span>
-                        {% if role %}
-                        <span class="badge {{ badge_class }} ms-2">{{ badge_text }}</span>
+                        <span class="badge {{ status_color }}">{{ e.statut }}</span>
+                        {% if participation %}
+                        <span class="badge {{ badge_class }} ms-2">{{ badge_text }}
+                            {% if participation.group and participation.group != 'Peu importe' %}
+                            - {{ participation.group }}
+                            {% endif %}
+                        </span>
                         {% endif %}
                     </h5>
                     <small>Du {{ e.date_start.strftime('%d/%m/%Y') }} au {{ e.date_end.strftime('%d/%m/%Y') }}</small>
@@ -77,7 +94,7 @@
         </div>
     </div>
     <div class="tab-pane fade p-3" id="me" role="tabpanel">
-        <h3>Mon Profil</h3>
+        <h3>Mon Profil <span class="badge bg-secondary fs-6 align-middle ms-2">{{ user.email }}</span></h3>
         <form method="POST" action="/profile" enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label">Avatar (max 80x80)</label>
@@ -98,11 +115,24 @@
                 <label class="form-label">Age</label>
                 <input type="number" class="form-control" name="age" value="{{ user.age or '' }}">
             </div>
+            <div class="mb-3">
+                <label class="form-label">Genre</label>
+                <select class="form-select" name="genre">
+                    <option value="" {% if not user.genre %}selected{% endif %}>Choisir...</option>
+                    <option value="H" {% if user.genre=='H' %}selected{% endif %}>Homme</option>
+                    <option value="F" {% if user.genre=='F' %}selected{% endif %}>Femme</option>
+                    <option value="X" {% if user.genre=='X' %}selected{% endif %}>Indéterminé</option>
+                </select>
+            </div>
             <hr>
             <h4>Changer le mot de passe</h4>
             <div class="mb-3">
-                <label class="form-label">Nouveau mot de passe (4 lettres, 4 chiffres)</label>
-                <input type="text" class="form-control" name="new_password" placeholder="ABCD1234">
+                <label class="form-label">Nouveau mot de passe</label>
+                <input type="password" class="form-control" name="new_password">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Confirmer le mot de passe</label>
+                <input type="password" class="form-control" name="confirm_password">
             </div>
             <button type="submit" class="btn btn-primary">Mettre à jour</button>
         </form>

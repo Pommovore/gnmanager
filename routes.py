@@ -1,10 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, Event, Participant, PasswordResetToken
+from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken
 from auth import generate_password, send_email
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import uuid
+import json
 from flask import jsonify
 
 main = Blueprint('main', __name__)
@@ -58,19 +59,52 @@ def register():
             flash('Cet email est déjà utilisé.', 'warning')
             return redirect(url_for('main.login'))
             
-        password = generate_password()
-        hashed_password = generate_password_hash(password)
-        
-        new_user = User(email=email, nom=nom, prenom=prenom, age=age, password_hash=hashed_password)
+        # Create user without password first
+        new_user = User(email=email, nom=nom, prenom=prenom, age=age)
         db.session.add(new_user)
         db.session.commit()
         
-        send_email(email, "Validation de votre inscription", f"Votre mot de passe est : {password}\\nCliquez ici pour valider : http://localhost:5000/login")
+        # Generator validation token
+        token_str = str(uuid.uuid4())
+        token = AccountValidationToken(token=token_str, email=email)
+        db.session.add(token)
+        db.session.commit()
         
-        flash('Inscription réussie ! Vérifiez vos emails pour votre mot de passe.', 'success')
+        validation_url = url_for('main.validate_account', token=token_str, _external=True)
+        send_email(email, "Validation de votre compte", f"Veuillez cliquer sur ce lien pour définir votre mot de passe et valider votre compte : {validation_url}")
+        
+        flash('Inscription enregistrée ! Vérifiez vos emails pour valider votre compte.', 'success')
         return redirect(url_for('main.login'))
         
     return render_template('register.html')
+
+@main.route('/validate_account/<token>', methods=['GET', 'POST'])
+def validate_account(token):
+    token_entry = AccountValidationToken.query.filter_by(token=token).first()
+    
+    if not token_entry or datetime.utcnow() - token_entry.created_at > timedelta(hours=24):
+        flash('Lien invalide ou expiré.', 'danger')
+        return redirect(url_for('main.register'))
+        
+    if request.method == 'POST':
+        password = request.form.get('password')
+        # Simple validation
+        if len(password) < 6:
+             flash('Mot de passe trop court.', 'danger')
+             return render_template('set_password.html', token=token)
+
+        user = User.query.filter_by(email=token_entry.email).first()
+        if user:
+            user.password_hash = generate_password_hash(password)
+            db.session.delete(token_entry)
+            db.session.commit()
+            flash('Compte validé ! Vous pouvez vous connecter.', 'success')
+            return redirect(url_for('main.login'))
+        else:
+            flash('Utilisateur introuvable.', 'danger')
+            return redirect(url_for('main.register'))
+
+    return render_template('set_password.html', token=token)
 
 @main.route('/dashboard')
 @login_required
@@ -82,11 +116,10 @@ def dashboard():
     # Filter Logic
     filter_type = request.args.get('filter', 'all')
     
-    # Identify my event IDs for highlighting and filter 'mine'
+    # Identify my event IDs for highlighting    # Get user's roles in these events
     my_participations = Participant.query.filter_by(user_id=current_user.id).all()
     my_event_ids = [p.event_id for p in my_participations]
-    # Map event_id to role type for dashboard display
-    my_roles = {p.event_id: p.type for p in my_participations}
+    my_roles = {p.event_id: p for p in my_participations} # Map event_id -> Participant object
     
     events = []
     now = datetime.now()
@@ -111,6 +144,7 @@ def update_profile():
     current_user.nom = request.form.get('nom')
     current_user.prenom = request.form.get('prenom')
     current_user.age = request.form.get('age')
+    current_user.genre = request.form.get('genre') # Added
     
     # Avatar upload
     if 'avatar' in request.files:
@@ -144,14 +178,15 @@ def update_profile():
 
     # Password reset logic
     new_password = request.form.get('new_password')
+    confirm_password = request.form.get('confirm_password')
+    
     if new_password:
-        # Validate format <4letters4digits>
-        import re
-        if re.match(r'^[a-zA-Z]{4}\d{4}$', new_password):
+        if new_password == confirm_password:
             current_user.password_hash = generate_password_hash(new_password)
             flash('Mot de passe mis à jour.', 'success')
         else:
-            flash('Format de mot de passe invalide. Doit être 4 lettres suivies de 4 chiffres.', 'danger')
+            flash('Les mots de passe ne correspondent pas.', 'danger')
+            return redirect(url_for('main.dashboard'))
 
     db.session.commit()
     flash('Profil mis à jour.', 'success')
@@ -254,11 +289,13 @@ def create_event():
         
         new_event = Event(
             name=name, 
+            description=request.form.get('description', ''),
             date_start=date_start, 
             date_end=date_end, 
             location=location, 
             visibility=visibility, 
-            status='en préparation' # Default per spec/new model default
+            statut='En préparation',
+            external_link=request.form.get('external_link', '')
         )
         db.session.add(new_event)
         db.session.commit()
@@ -320,9 +357,9 @@ def update_event_status(event_id):
         flash('Action non autorisée.', 'danger')
         return redirect(url_for('main.event_detail', event_id=event.id))
         
-    status = request.form.get('status')
-    if status:
-        event.status = status
+    statut = request.form.get('statut')
+    if statut:
+        event.statut = statut
         db.session.commit()
         flash('Statut mis à jour.', 'success')
         
@@ -337,7 +374,48 @@ def event_detail(event_id):
     
     is_organizer = participant and participant.type == 'organisateur'
     
-    return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer)
+    is_organizer = participant and participant.type == 'organisateur'
+    
+    groups_config = json.loads(event.groups_config or '{}')
+
+    groups_config = json.loads(event.groups_config or '{}')
+    
+    breadcrumbs = [
+        ('GN Manager', '/dashboard'),
+        (event.name, '#') # Current page
+    ]
+
+    return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs)
+
+@main.route('/event/<int:event_id>/update_groups', methods=['POST'])
+@login_required
+def update_event_groups(event_id):
+    event = Event.query.get_or_404(event_id)
+    # Check permissions
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not participant or participant.type != 'organisateur':
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    # Expecting form data: groups_pj, groups_pnj, groups_org (comma separated strings)
+    groups_pj = [g.strip() for g in request.form.get('groups_pj', '').split(',') if g.strip()]
+    groups_pnj = [g.strip() for g in request.form.get('groups_pnj', '').split(',') if g.strip()]
+    groups_org = [g.strip() for g in request.form.get('groups_org', '').split(',') if g.strip()]
+    
+    # Ensure "Peu importe" is there if list is empty? Or user defines it.
+    # Spec says "initialisée avec la valeur 'peu importe'". User can change it.
+    
+    config = {
+        "PJ": groups_pj,
+        "PNJ": groups_pnj,
+        "Organisateur": groups_org
+    }
+    
+    event.groups_config = json.dumps(config)
+    db.session.commit()
+    
+    flash('Configuration des groupes mise à jour.', 'success')
+    return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>/join', methods=['POST'])
 @login_required
@@ -354,12 +432,20 @@ def join_event(event_id):
     # Let's assume the button on event_detail posts here with a type.
     
     p_type = request.form.get('type', 'PJ')
+    p_group = request.form.get('group', 'Aucun')
     
-    participant = Participant(event_id=event.id, user_id=current_user.id, type=p_type)
+    # Registration status default 'À valider'
+    participant = Participant(
+        event_id=event.id, 
+        user_id=current_user.id, 
+        type=p_type, 
+        group=p_group,
+        registration_status='À valider'
+    )
     db.session.add(participant)
     db.session.commit()
     
-    flash('Inscription validée !', 'success')
+    flash('Demande d\'inscription envoyée ! En attente de validation.', 'success')
     return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>/participants')
@@ -377,7 +463,52 @@ def manage_participants(event_id):
     for p in participants:
         p.user = User.query.get(p.user_id)
         
-    return render_template('manage_participants.html', event=event, participants=participants)
+    # Attach user info
+    for p in participants:
+        p.user = User.query.get(p.user_id)
+        
+    groups_config = json.loads(event.groups_config or '{}')
+        
+    groups_config = json.loads(event.groups_config or '{}')
+    
+    breadcrumbs = [
+        ('GN Manager', '/dashboard'),
+        (event.name, url_for('main.event_detail', event_id=event.id)),
+        ('Gestion des Participants', '#')
+    ]
+        
+    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs)
+
+@main.route('/event/<int:event_id>/participants/bulk_update', methods=['POST'])
+@login_required
+def bulk_update_participants(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    
+    if not participant or participant.type != 'organisateur':
+        flash('Accès non autorisé.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    p_ids = request.form.getlist('participant_ids')
+    
+    for p_id in p_ids:
+        p = Participant.query.get(p_id)
+        if p and p.event_id == event.id:
+            # Update fields based on ID-suffixed names
+            p.registration_status = request.form.get(f'status_{p_id}', p.registration_status)
+            p.type = request.form.get(f'type_{p_id}', p.type)
+            p.group = request.form.get(f'group_{p_id}', p.group)
+            
+            # Use 0.0 if empty string provided
+            pay_amt = request.form.get(f'pay_amount_{p_id}', '')
+            p.payment_amount = float(pay_amt) if pay_amt else 0.0
+            
+            p.payment_method = request.form.get(f'pay_method_{p_id}', p.payment_method)
+            p.comment = request.form.get(f'comment_{p_id}', p.comment)
+            
+    db.session.commit()
+    flash('Participants mis à jour avec succès.', 'success')
+    return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>/participant/<int:p_id>/update', methods=['POST'])
 @login_required
@@ -385,6 +516,7 @@ def update_participant(event_id, p_id):
     # Check organizer rights... (omitted for brevity, should be a decorator or helper)
     p = Participant.query.get_or_404(p_id)
     p.type = request.form.get('type')
+    p.registration_status = request.form.get('registration_status')
     p.group = request.form.get('group')
     p.payment_amount = float(request.form.get('payment_amount', 0))
     p.payment_method = request.form.get('payment_method')
@@ -393,6 +525,87 @@ def update_participant(event_id, p_id):
     db.session.commit()
     flash('Participant mis à jour.', 'success')
     return redirect(url_for('main.manage_participants', event_id=event_id))
+
+@main.route('/event/<int:event_id>/casting')
+@login_required
+def casting_interface(event_id):
+    event = Event.query.get_or_404(event_id)
+    # Check permissions (organizer)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not participant or participant.type != 'organisateur':
+        flash('Accès réservé aux organisateurs.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    # Participants (Validated, No Role)
+    # Spec: "Participants validés sans rôle"
+    # Assuming 'registration_status' == 'Validé' check? Or just all participants?
+    # Let's say Validated.
+    participants_no_role = Participant.query.filter_by(event_id=event.id, role_id=None).all()
+    # Filter by registration_status if needed, but for now let's show all valid-ish ones (including 'À valider' maybe? No, 'Validés')
+    # Use 'Validé' string status? I defaulted to 'À valider'.
+    # Let's assume organizer must validate first.
+    participants_no_role = [p for p in participants_no_role if p.registration_status == 'Validé'] 
+    
+    # Attach user info
+    for p in participants_no_role:
+        p.user = User.query.get(p.user_id)
+
+    # Roles
+    roles = Role.query.filter_by(event_id=event.id).order_by(Role.group).all()
+    
+    # Structure roles by group for display if needed, or just flat list and group in template?
+    # Template will group.
+    
+    return render_template('casting.html', event=event, participants=participants_no_role, roles=roles)
+
+@main.route('/api/casting/assign', methods=['POST'])
+@login_required
+def api_assign_role():
+    data = request.json
+    event_id = data.get('event_id')
+    participant_id = data.get('participant_id')
+    role_id = data.get('role_id')
+    
+    # Security check (organizer)
+    event = Event.query.get_or_404(event_id)
+    me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not me or me.type != 'organisateur':
+        return jsonify({'error': 'Unauthorized'}), 403
+        
+    participant = Participant.query.get_or_404(participant_id)
+    role = Role.query.get_or_404(role_id)
+    
+    # Update both sides
+    participant.role_id = role.id
+    role.assigned_participant_id = participant.id
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+@main.route('/api/casting/unassign', methods=['POST'])
+@login_required
+def api_unassign_role():
+    data = request.json
+    event_id = data.get('event_id')
+    participant_id = data.get('participant_id') # Optional if we unassign by role logic
+    role_id = data.get('role_id')
+    
+    event = Event.query.get_or_404(event_id)
+    me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not me or me.type != 'organisateur':
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    if role_id:
+        role = Role.query.get(role_id)
+        if role and role.assigned_participant_id:
+            p = Participant.query.get(role.assigned_participant_id)
+            if p:
+                p.role_id = None
+            role.assigned_participant_id = None
+            db.session.commit()
+            return jsonify({'success': True})
+            
+    return jsonify({'error': 'Invalid request'}), 400
 
 @main.route('/logout')
 @login_required
