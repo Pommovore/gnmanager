@@ -1,0 +1,22 @@
+event_id,user_id,type,group,role_id,payment_amount
+1,2,organisateur,Staff,,0.0
+1,4,PJ,Groupe A,,50.0
+1,5,PJ,Groupe A,,50.0
+1,6,PJ,Groupe A,,50.0
+1,7,PJ,Groupe A,,50.0
+1,8,PJ,Groupe A,,50.0
+2,2,organisateur,Staff,,0.0
+2,4,PJ,Groupe A,,50.0
+2,5,PJ,Groupe A,,50.0
+2,6,PJ,Groupe A,,50.0
+2,7,PJ,Groupe A,,50.0
+2,8,PJ,Groupe A,,50.0
+3,2,organisateur,Staff,,0.0
+3,4,PJ,Groupe A,,50.0
+3,5,PJ,Groupe A,,50.0
+3,6,PJ,Groupe A,,50.0
+3,7,PJ,Groupe A,,50.0
+3,8,PJ,Groupe A,,50.0
+4,14,organisateur,Staff,,0.0
+5,15,organisateur,Staff,,0.0
+5,16,organisateur,Staff,,0.0

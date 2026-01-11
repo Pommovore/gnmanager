@@ -1,13 +1,11 @@
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, Event, Participant, LoginToken
+from models import db, User, Event, Participant, PasswordResetToken
 from auth import generate_password, send_email
 from werkzeug.security import generate_password_hash, check_password_hash
-from datetime import datetime
+from datetime import datetime, timedelta
 import uuid
-import qrcode
-from io import BytesIO
-from flask import send_file, jsonify
+from flask import jsonify
 
 main = Blueprint('main', __name__)
 
@@ -81,29 +79,31 @@ def dashboard():
     if current_user.is_admin:
         users = User.query.all()
         
-    # Events I participate in
-    participations = Participant.query.filter_by(user_id=current_user.id).all()
-    # We need to join with Event to get details, or just access via relationship if set up.
-    # Since we didn't set up relationships explicitly in models.py (just ForeignKeys), we might need to do it manually or update models.
-    # Let's update models.py to have relationships for easier access, OR just query efficiently.
-    # For now, let's just do a quick loop or query.
+    # Filter Logic
+    filter_type = request.args.get('filter', 'all')
     
-    events_participating = []
-    for p in participations:
-        event = Event.query.get(p.event_id)
-        p.event = event # Attach manually for template
-        events_participating.append(p)
+    # Identify my event IDs for highlighting and filter 'mine'
+    my_participations = Participant.query.filter_by(user_id=current_user.id).all()
+    my_event_ids = [p.event_id for p in my_participations]
+    # Map event_id to role type for dashboard display
+    my_roles = {p.event_id: p.type for p in my_participations}
+    
+    events = []
+    now = datetime.now()
+    
+    if filter_type == 'mine':
+        # Events I participate in
+        if my_event_ids:
+            events = Event.query.filter(Event.id.in_(my_event_ids)).order_by(Event.date_start).all()
+    elif filter_type == 'future':
+        events = Event.query.filter(Event.date_start >= now).order_by(Event.date_start).all()
+    elif filter_type == 'past':
+        events = Event.query.filter(Event.date_end < now).order_by(Event.date_start.desc()).all()
+    else:
+        # 'all'
+        events = Event.query.order_by(Event.date_start).all()
         
-    # Upcoming events I'm not in
-    # This is a bit more complex SQL. 
-    # Select events where date > now AND id NOT IN (my event ids)
-    # For simplicity/MVP: fetch all upcoming, filter in python.
-    all_upcoming = Event.query.filter(Event.date >= datetime.now()).all()
-    my_event_ids = [p.event_id for p in participations]
-    
-    events_upcoming = [e for e in all_upcoming if e.id not in my_event_ids]
-    
-    return render_template('dashboard.html', user=current_user, users=users, events_participating=events_participating, events_upcoming=events_upcoming)
+    return render_template('dashboard.html', user=current_user, users=users, events=events, my_event_ids=my_event_ids, my_roles=my_roles, current_filter=filter_type)
 
 @main.route('/profile', methods=['POST'])
 @login_required
@@ -182,6 +182,46 @@ def admin_add_user():
     flash(f'Utilisateur {email} ajouté.', 'success')
     return redirect(url_for('main.dashboard'))
 
+@main.route('/admin/user/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def admin_edit_user(user_id):
+    if not current_user.is_admin:
+        flash('Accès refusé.', 'danger')
+        return redirect(url_for('main.dashboard'))
+        
+    user = User.query.get_or_404(user_id)
+    
+    if request.method == 'POST':
+        user.nom = request.form.get('nom')
+        user.prenom = request.form.get('prenom')
+        user.age = request.form.get('age')
+        user.is_admin = 'is_admin' in request.form
+        
+        db.session.commit()
+        flash('Utilisateur mis à jour.', 'success')
+        return redirect(url_for('main.dashboard'))
+        
+    return render_template('admin_user_edit.html', user=user)
+
+@main.route('/admin/user/<int:user_id>/hard_delete', methods=['POST'])
+@login_required
+def admin_hard_delete_user(user_id):
+    if not current_user.is_admin:
+        flash('Accès refusé.', 'danger')
+        return redirect(url_for('main.dashboard'))
+        
+    user = User.query.get_or_404(user_id)
+    
+    # Cascade delete participants manually if necessary, though SQLAlchemy cascade might handle it if configured.
+    # Given we modified models minimally, let's play safe and delete participations first.
+    Participant.query.filter_by(user_id=user.id).delete()
+    
+    db.session.delete(user)
+    db.session.commit()
+    
+    flash(f'Utilisateur {user.email} supprimé définitivement.', 'success')
+    return redirect(url_for('main.dashboard'))
+
 @main.route('/admin/user/delete/<int:user_id>')
 @login_required
 def admin_delete_user(user_id):
@@ -204,26 +244,89 @@ def admin_delete_user(user_id):
 def create_event():
     if request.method == 'POST':
         name = request.form.get('name')
-        date_str = request.form.get('date')
+        date_start_str = request.form.get('date_start')
+        date_end_str = request.form.get('date_end')
         location = request.form.get('location')
         visibility = request.form.get('visibility')
         
-        date_obj = datetime.strptime(date_str, '%Y-%m-%d')
+        date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
+        date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
         
-        new_event = Event(name=name, date=date_obj, location=location, visibility=visibility, status='non_ouvertes')
+        new_event = Event(
+            name=name, 
+            date_start=date_start, 
+            date_end=date_end, 
+            location=location, 
+            visibility=visibility, 
+            status='en préparation' # Default per spec/new model default
+        )
         db.session.add(new_event)
         db.session.commit()
         
-        # Add creator as organizer
-        # We need a Participant entry for this
         participant = Participant(event_id=new_event.id, user_id=current_user.id, type='organisateur', role_communicated=True)
         db.session.add(participant)
         db.session.commit()
         
         flash('Événement créé avec succès !', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.event_detail', event_id=new_event.id))
         
     return render_template('event_create.html')
+
+@main.route('/event/<int:event_id>/update_title', methods=['POST'])
+@login_required
+def update_event_title(event_id):
+    event = Event.query.get_or_404(event_id)
+    # Check permissions (organizer)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not participant or participant.type != 'organisateur':
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    title = request.form.get('name')
+    if title:
+        event.name = title
+        db.session.commit()
+        flash('Titre mis à jour.', 'success')
+        
+    return redirect(url_for('main.event_detail', event_id=event.id))
+
+@main.route('/event/<int:event_id>/update_dates', methods=['POST'])
+@login_required
+def update_event_dates(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not participant or participant.type != 'organisateur':
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    date_start_str = request.form.get('date_start')
+    date_end_str = request.form.get('date_end')
+    
+    if date_start_str:
+        event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
+    if date_end_str:
+        event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+        
+    db.session.commit()
+    flash('Dates mises à jour.', 'success')
+    return redirect(url_for('main.event_detail', event_id=event.id))
+
+@main.route('/event/<int:event_id>/update_status', methods=['POST'])
+@login_required
+def update_event_status(event_id):
+    event = Event.query.get_or_404(event_id)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if not participant or participant.type != 'organisateur':
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event.id))
+        
+    status = request.form.get('status')
+    if status:
+        event.status = status
+        db.session.commit()
+        flash('Statut mis à jour.', 'success')
+        
+    return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>')
 @login_required
@@ -297,71 +400,44 @@ def logout():
     logout_user()
     return redirect(url_for('main.login'))
 
-# QR Code Login Routes
+# Password Recovery Routes
 
-@main.route('/auth/qr/generate', methods=['POST'])
-def qr_generate():
-    email = request.json.get('email')
-    user = User.query.filter_by(email=email).first()
-    if not user:
-        return jsonify({'error': 'User not found'}), 404
-        
-    token_str = str(uuid.uuid4())
-    token = LoginToken(token=token_str, email=email)
-    db.session.add(token)
-    db.session.commit()
-    
-    # URL that the smartphone will visit
-    verify_url = url_for('main.qr_verify', token=token_str, _external=True)
-    
-    return jsonify({'token': token_str, 'verify_url': verify_url})
-
-@main.route('/auth/qr/image/<token>')
-def qr_image(token):
-    # Generate QR code pointing to the verify URL
-    verify_url = url_for('main.qr_verify', token=token, _external=True)
-    img = qrcode.make(verify_url)
-    buf = BytesIO()
-    img.save(buf)
-    buf.seek(0)
-    return send_file(buf, mimetype='image/png')
-
-@main.route('/auth/qr/verify/<token>', methods=['GET', 'POST'])
-def qr_verify(token):
-    token_entry = LoginToken.query.filter_by(token=token).first()
-    if not token_entry:
-        return "Token invalide ou expiré.", 404
-        
+@main.route('/forgot_password', methods=['GET', 'POST'])
+def forgot_password():
     if request.method == 'POST':
-        token_entry.is_validated = True
-        db.session.commit()
-        return render_template('qr_success.html')
+        email = request.form.get('email')
+        user = User.query.filter_by(email=email).first()
+        if user:
+            token_str = str(uuid.uuid4())
+            token = PasswordResetToken(token=token_str, email=email)
+            db.session.add(token)
+            db.session.commit()
+            
+            reset_url = url_for('main.reset_password', token=token_str, _external=True)
+            send_email(email, "Réinitialisation de mot de passe", f"Cliquez sur ce lien pour recevoir un nouveau mot de passe : {reset_url}")
+            
+        flash('Si cet email existe, un lien de réinitialisation a été envoyé.', 'info')
+        return redirect(url_for('main.login'))
         
-    return render_template('qr_confirm.html', token=token)
+    return render_template('forgot_password.html')
 
-@main.route('/auth/qr/check/<token>')
-def qr_check(token):
-    token_entry = LoginToken.query.filter_by(token=token).first()
-    if not token_entry:
-        return jsonify({'status': 'invalid'})
-        
-    if token_entry.is_validated:
-        return jsonify({'status': 'validated'})
-    return jsonify({'status': 'waiting'})
-
-@main.route('/auth/qr/login/<token>')
-def qr_login(token):
-    token_entry = LoginToken.query.filter_by(token=token).first()
-    if not token_entry or not token_entry.is_validated:
-        flash('Erreur de connexion QR.', 'danger')
+@main.route('/reset_password/<token>')
+def reset_password(token):
+    token_entry = PasswordResetToken.query.filter_by(token=token).first()
+    
+    if not token_entry or datetime.utcnow() - token_entry.created_at > timedelta(hours=1):
+        flash('Lien invalide ou expiré.', 'danger')
         return redirect(url_for('main.login'))
         
     user = User.query.filter_by(email=token_entry.email).first()
-    if user:
-        login_user(user)
-        # Cleanup token
-        db.session.delete(token_entry)
-        db.session.commit()
-        return redirect(url_for('main.dashboard'))
+    if not user:
+        flash('Utilisateur introuvable.', 'danger')
+        return redirect(url_for('main.login'))
         
-    return redirect(url_for('main.login'))
+    new_password = generate_password()
+    user.password_hash = generate_password_hash(new_password)
+    
+    db.session.delete(token_entry)
+    db.session.commit()
+    
+    return render_template('reset_password_success.html', password=new_password)

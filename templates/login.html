@@ -16,69 +16,13 @@
                     </div>
                     <button type="submit" class="btn btn-primary">Se connecter</button>
                     <a href="/register" class="btn btn-link">S'inscrire</a>
+                    <a href="/forgot_password" class="btn btn-link">Mot de passe oublié ?</a>
                 </form>
-                <hr>
-                <button class="btn btn-secondary w-100" id="qr-btn" type="button">Connexion par QR Code</button>
-
-                <div id="qr-container" class="text-center mt-3" style="display: none;">
-                    <p>Entrez votre email ci-dessus puis cliquez sur le bouton QR Code.</p>
-                    <div id="qr-image-div"></div>
-                    <p id="qr-status" class="text-muted mt-2"></p>
-                </div>
             </div>
         </div>
     </div>
 </div>
-
 <script>
-    document.getElementById('qr-btn').addEventListener('click', function () {
-        const email = document.getElementById('email').value;
-        if (!email) {
-            alert('Veuillez entrer votre email d\'abord.');
-            return;
-        }
-
-        document.getElementById('qr-container').style.display = 'block';
-        document.getElementById('qr-status').innerText = 'Génération du QR Code...';
-
-        fetch('/auth/qr/generate', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({ email: email })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.error) {
-                    document.getElementById('qr-status').innerText = data.error;
-                    return;
-                }
-
-                const token = data.token;
-                const img = document.createElement('img');
-                img.src = '/auth/qr/image/' + token;
-                img.style.width = '200px';
-
-                const div = document.getElementById('qr-image-div');
-                div.innerHTML = '';
-                div.appendChild(img);
-
-                document.getElementById('qr-status').innerText = 'Scannez ce code avec votre smartphone.';
-
-                // Poll for status
-                const interval = setInterval(() => {
-                    fetch('/auth/qr/check/' + token)
-                        .then(r => r.json())
-                        .then(statusData => {
-                            if (statusData.status === 'validated') {
-                                clearInterval(interval);
-                                document.getElementById('qr-status').innerText = 'Validé ! Connexion en cours...';
-                                window.location.href = '/auth/qr/login/' + token;
-                            }
-                        });
-                }, 2000);
-            });
-    });
+    // Valid for specific functionality not removed if any, but clean up the old QR script.
 </script>
 {% endblock %}

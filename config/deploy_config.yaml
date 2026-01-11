@@ -1,0 +1,7 @@
+# Configuration pour le déploiement
+location: remote # Valeurs possibles : remote, local, Replit
+
+deploy:
+  machine_name: "minimoi.mynetgear.com" # Utilisé si location: remote
+  port: 8880                            # Port d'écoute (local ou remote)
+  target_directory: "/opt/gnmanager/"   # Utilisé si location: remote

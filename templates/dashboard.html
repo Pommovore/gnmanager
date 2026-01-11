@@ -19,36 +19,60 @@
 <div class="tab-content" id="myTabContent">
     <div class="tab-pane fade show active p-3" id="events" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
-            <h3>Mes Événements</h3>
-            <a href="/event/create" class="btn btn-primary">Créer un événement</a>
+            <h3>Événements</h3>
+            <div class="d-flex gap-2">
+                <form action="/dashboard" method="GET" class="d-flex align-items-center">
+                    <select name="filter" class="form-select me-2" onchange="this.form.submit()">
+                        <option value="all" {% if current_filter=='all' %}selected{% endif %}>Tous les GN</option>
+                        <option value="mine" {% if current_filter=='mine' %}selected{% endif %}>Mes GN</option>
+                        <option value="future" {% if current_filter=='future' %}selected{% endif %}>GN à venir</option>
+                        <option value="past" {% if current_filter=='past' %}selected{% endif %}>GN passés</option>
+                    </select>
+                </form>
+                <a href="/event/create" class="btn btn-primary">Créer</a>
+            </div>
         </div>
 
-        {% if events_participating %}
-        <h4>Je participe</h4>
-        <div class="list-group mb-4">
-            {% for p in events_participating %}
-            <a href="/event/{{ p.event.id }}" class="list-group-item list-group-item-action">
-                <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ p.event.name }}</h5>
-                    <small>{{ p.event.date.strftime('%d/%m/%Y') }}</small>
-                </div>
-                <p class="mb-1">{{ p.event.location }}</p>
-                <small>Rôle: {{ p.type }}</small>
-            </a>
-            {% endfor %}
-        </div>
-        {% endif %}
-
-        <h4>Événements à venir</h4>
         <div class="list-group">
-            {% for e in events_upcoming %}
-            <a href="/event/{{ e.id }}" class="list-group-item list-group-item-action">
+            {% for e in events %}
+            {% set role = my_roles.get(e.id) %}
+            {% set row_class = "" %}
+            {% set badge_class = "" %}
+            {% set badge_text = "" %}
+
+            {% if role == 'organisateur' %}
+            {% set row_class = "list-group-item-danger" %}
+            {% set badge_class = "bg-danger" %}
+            {% set badge_text = "Organisateur" %}
+            {% elif role == 'PJ' %}
+            {% set row_class = "list-group-item-success" %}
+            {% set badge_class = "bg-success" %}
+            {% set badge_text = "PJ" %}
+            {% elif role == 'PNJ' %}
+            {% set row_class = "list-group-item-primary" %}
+            {% set badge_class = "bg-primary" %}
+            {% set badge_text = "PNJ" %}
+            {% elif role %}
+            {% set row_class = "list-group-item-success" %}
+            {% set badge_class = "bg-success" %}
+            {% set badge_text = "Inscrit" %}
+            {% endif %}
+
+            <a href="/event/{{ e.id }}" class="list-group-item list-group-item-action {{ row_class }}">
                 <div class="d-flex w-100 justify-content-between">
-                    <h5 class="mb-1">{{ e.name }}</h5>
-                    <small>{{ e.date.strftime('%d/%m/%Y') }}</small>
+                    <h5 class="mb-1">
+                        {{ e.name }}
+                        <span class="badge bg-secondary">{{ e.computed_status }}</span>
+                        {% if role %}
+                        <span class="badge {{ badge_class }} ms-2">{{ badge_text }}</span>
+                        {% endif %}
+                    </h5>
+                    <small>Du {{ e.date_start.strftime('%d/%m/%Y') }} au {{ e.date_end.strftime('%d/%m/%Y') }}</small>
                 </div>
                 <p class="mb-1">{{ e.location }}</p>
             </a>
+            {% else %}
+            <p class="text-muted text-center mt-4">Aucun événement trouvé pour ce filtre.</p>
             {% endfor %}
         </div>
     </div>
@@ -111,7 +135,7 @@
             <tbody>
                 {% for u in users %}
                 <tr>
-                    <td>{{ u.email }}</td>
+                    <td><a href="/admin/user/{{ u.id }}/edit">{{ u.email }}</a></td>
                     <td>{{ u.nom or '-' }}</td>
                     <td>{{ u.prenom or '-' }}</td>
                     <td>

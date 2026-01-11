@@ -2,9 +2,9 @@ import random
 import string
 
 def generate_password():
-    """Generates a password with 4 letters followed by 4 digits."""
+    """Generates a password with 4 letters followed by 5 digits."""
     letters = ''.join(random.choices(string.ascii_letters, k=4))
-    digits = ''.join(random.choices(string.digits, k=4))
+    digits = ''.join(random.choices(string.digits, k=5))
     return letters + digits
 
 from flask_mail import Message

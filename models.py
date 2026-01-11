@@ -18,12 +18,33 @@ class User(UserMixin, db.Model):
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(100), nullable=False)
-    date = db.Column(db.DateTime, nullable=False)
+    date_start = db.Column(db.DateTime, nullable=False)
+    date_end = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200))
     background_image = db.Column(db.String(200))
     visibility = db.Column(db.String(20), default='public') # public, private
     organizer_structure = db.Column(db.String(100))
-    status = db.Column(db.String(50), default='non_ouvertes') # non_ouvertes, pre_inscriptions, attribution_roles, clos
+    # Status options: "en préparation", "inscriptions ouvertes", "inscriptions fermées - casting en cours", 
+    # "casting terminé - finalisation des préparations", "annulé", "reporté à une date indéfinie"
+    status = db.Column(db.String(100), default='en préparation') 
+
+    @property
+    def computed_status(self):
+        from datetime import datetime
+        now = datetime.now()
+        
+        # Override statuses that ignore dates
+        if self.status in ['annulé', 'reporté à une date indéfinie']:
+            return self.status
+            
+        # Automatic statuses based on date
+        if self.date_start and self.date_end:
+            if self.date_start <= now <= self.date_end:
+                return "en cours"
+            if now > self.date_end:
+                return "terminé"
+                
+        return self.status
 
 class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -46,9 +67,8 @@ class Participant(db.Model):
     comment = db.Column(db.Text)
     custom_image = db.Column(db.String(200))
 
-class LoginToken(db.Model):
+class PasswordResetToken(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     token = db.Column(db.String(36), unique=True, nullable=False)
     email = db.Column(db.String(120), nullable=False)
-    is_validated = db.Column(db.Boolean, default=False)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
