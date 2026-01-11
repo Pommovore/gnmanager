@@ -39,6 +39,10 @@ def login():
              flash('Ce compte a été supprimé.', 'danger')
              return redirect(url_for('main.login'))
 
+        if user.is_banned:
+             flash('Ce compte a été banni.', 'danger')
+             return redirect(url_for('main.login'))
+
         if check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('main.dashboard'))
@@ -109,9 +113,10 @@ def validate_account(token):
 @main.route('/dashboard')
 @login_required
 def dashboard():
-    users = []
-    if current_user.is_admin:
-        users = User.query.all()
+    users_pagination = None
+    if current_user.is_admin: # Uses the property we added
+        page = request.args.get('page', 1, type=int)
+        users_pagination = User.query.paginate(page=page, per_page=20, error_out=False)
         
     # Filter Logic
     filter_type = request.args.get('filter', 'all')
@@ -136,7 +141,10 @@ def dashboard():
         # 'all'
         events = Event.query.order_by(Event.date_start).all()
         
-    return render_template('dashboard.html', user=current_user, users=users, events=events, my_event_ids=my_event_ids, my_roles=my_roles, current_filter=filter_type)
+    # Admin Sub-Navigation
+    admin_view = request.args.get('admin_view')
+    
+    return render_template('dashboard.html', user=current_user, users_pagination=users_pagination, events=events, my_event_ids=my_event_ids, my_roles=my_roles, current_filter=filter_type, admin_view=admin_view)
 
 @main.route('/profile', methods=['POST'])
 @login_required
@@ -202,7 +210,7 @@ def admin_add_user():
     email = request.form.get('email')
     if User.query.filter_by(email=email).first():
         flash('Cet email existe déjà.', 'warning')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.dashboard', admin_view='add', _anchor='admin'))
         
     password = generate_password()
     hashed_password = generate_password_hash(password)
@@ -215,7 +223,7 @@ def admin_add_user():
     
     send_email(email, "Bienvenue", f"Votre compte a été créé. Mot de passe : {password}")
     flash(f'Utilisateur {email} ajouté.', 'success')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.dashboard', admin_view='users', open_edit=new_user.id, _anchor='admin'))
 
 @main.route('/admin/user/<int:user_id>/edit', methods=['GET', 'POST'])
 @login_required
@@ -234,9 +242,61 @@ def admin_edit_user(user_id):
         
         db.session.commit()
         flash('Utilisateur mis à jour.', 'success')
-        return redirect(url_for('main.dashboard'))
+        return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
         
     return render_template('admin_user_edit.html', user=user)
+
+@main.route('/admin/user/<int:user_id>/update_full', methods=['POST'])
+@login_required
+def admin_update_full_user(user_id):
+    if not current_user.is_admin:
+         return jsonify({'error': 'Unauthorized'}), 403
+         
+    user = User.query.get_or_404(user_id)
+    
+    # Security Check: Non-Createurs cannot edit Createurs
+    if user.role == 'createur' and current_user.role != 'createur':
+        flash('Vous ne pouvez pas modifier un compte administrateur suprême (Créateur).', 'danger')
+        return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
+    
+    # Update standard fields
+    user.email = request.form.get('email') # Admin can change verify email
+    user.nom = request.form.get('nom')
+    user.prenom = request.form.get('prenom')
+    user.age = request.form.get('age')
+    user.genre = request.form.get('genre')
+    
+    # Update Password if provided
+    new_password = request.form.get('password')
+    if new_password:
+        user.password_hash = generate_password_hash(new_password)
+    
+    # Update Status/Role
+    status_code = request.form.get('status') # createur, sysadmin, actif, banni
+    
+    # Logic to map single select "status" to role + is_banned
+    if status_code == 'createur':
+        if current_user.role == 'createur':
+            user.role = 'createur'
+            user.is_banned = False
+        else:
+             flash("Vous ne pouvez pas nommer un Créateur.", "danger")
+             # Fallback: do nothing or keep old, but here let's just abort this field change effectively? 
+             # Or set to user? Let's just not set role if unauthorized. 
+             # Actually, simpler loop flow:
+    elif status_code == 'sysadmin':
+        user.role = 'sysadmin'
+        user.is_banned = False
+    elif status_code == 'banni':
+        user.role = 'user' # Or keep previous role? Simpler to just ban.
+        user.is_banned = True
+    else: # actif / default user
+        user.role = 'user'
+        user.is_banned = False
+        
+    db.session.commit()
+    flash(f'Utilisateur {user.email} mis à jour.', 'success')
+    return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
 
 @main.route('/admin/user/<int:user_id>/hard_delete', methods=['POST'])
 @login_required
@@ -255,7 +315,7 @@ def admin_hard_delete_user(user_id):
     db.session.commit()
     
     flash(f'Utilisateur {user.email} supprimé définitivement.', 'success')
-    return redirect(url_for('main.dashboard'))
+    return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
 
 @main.route('/admin/user/delete/<int:user_id>')
 @login_required

@@ -79,7 +79,7 @@ def upload_files(ssh, local_path, remote_path):
     sftp.close()
     print("Transfert terminé.")
 
-def deploy_remote(config):
+def deploy_remote(config, args):
     if not config or 'deploy' not in config:
         print("Erreur: Section 'deploy' manquante pour le déploiement distant.")
         return
@@ -109,6 +109,10 @@ def deploy_remote(config):
     except Exception as e:
         print(f"Erreur de connexion SSH: {e}")
         return
+    # Early cleanup
+    print(f"Arrêt du processus existant sur le port {port} sur la machine distante...")
+    run_command_remote(ssh, f"fuser -k {port}/tcp")
+    time.sleep(2)
 
     # 1. Create directory
     run_command_remote(ssh, f"mkdir -p {target_dir}")
@@ -132,10 +136,50 @@ def deploy_remote(config):
         run_command_remote(ssh, f"cd {target_dir} && pip3 install -r requirements.txt")
         py_cmd = f"cd {target_dir} && python3"
 
-    # 4. Data
-    answer = input("Voulez-vous importer les données de test sur le serveur distant ? (o/n) : ").strip().lower()
-    if answer == 'o' or answer == 'y':
-        run_command_remote(ssh, f"{py_cmd} generate_csvs.py")
+    # 4. Data & DB Reset
+    print("\n--- Configuration des données ---")
+    if args.reset_db:
+        reset_db = 'o'
+    else:
+        reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
+
+    if reset_db in ['o', 'y']:
+        print("Suppression de la base de données...")
+        run_command_remote(ssh, f"cd {target_dir} && rm -f gnmanager.db instance/gnmanager.db")
+    
+    if args.import_data:
+        answer = 'o'
+    else:
+        answer = input("Voulez-vous importer les données de test sur le serveur distant ? (o/n) : ").strip().lower()
+
+    if answer in ['o', 'y']:
+        print("\n--- Configuration du Compte Créateur ---")
+        if args.admin_email:
+             admin_email = args.admin_email
+             print(f"Email : {admin_email}")
+        else:
+             admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
+             
+        if args.admin_password:
+             admin_pass = args.admin_password
+             print("Mot de passe : *****")
+        else:
+             admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
+             
+        if args.admin_nom:
+             admin_nom = args.admin_nom
+        else:
+             admin_nom = input("Nom de famille : ").strip() or "Admin"
+             
+        if args.admin_prenom:
+             admin_prenom = args.admin_prenom
+        else:
+             admin_prenom = input("Prénom : ").strip() or "System"
+        
+        # Escape quotes if necessary, simpler to assume basic chars for now
+        gen_cmd = f"{py_cmd} generate_csvs.py --admin-email '{admin_email}' --admin-password '{admin_pass}' --admin-nom '{admin_nom}' --admin-prenom '{admin_prenom}'"
+        
+        run_command_remote(ssh, gen_cmd)
         run_command_remote(ssh, f"{py_cmd} import_csvs.py")
 
     # 5. Run App
@@ -151,7 +195,7 @@ def deploy_remote(config):
     print(f"Application lancée sur http://{host}:{port}")
     ssh.close()
 
-def deploy_local(config, mode='local'):
+def deploy_local(config, args, mode='local'):
     # Defaults
     host = '0.0.0.0'
     port = 5000
@@ -159,6 +203,11 @@ def deploy_local(config, mode='local'):
     
     
     print(f"Mode de déploiement: {mode}")
+
+    # Early cleanup
+    print(f"Arrêt du processus existant sur le port {port}...")
+    run_command_local(f"fuser -k {port}/tcp") 
+    time.sleep(1)
 
     # Install
     print("--- 1. Installation ---")
@@ -169,10 +218,54 @@ def deploy_local(config, mode='local'):
         
     # Data
     print("--- 2. Données ---")
-    answer = input("Voulez-vous importer les données de test ? (o/n) : ").strip().lower()
+    
+    if args.reset_db:
+        reset_db = 'o'
+    else:
+        reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
+        
+    if reset_db in ['o', 'y']:
+        print("Suppression de la base de données...")
+        if os.path.exists('gnmanager.db'):
+            os.remove('gnmanager.db')
+        if os.path.exists('instance/gnmanager.db'):
+            os.remove('instance/gnmanager.db')
+
+    if args.import_data:
+        answer = 'o'
+    else:
+        answer = input("Voulez-vous importer les données de test ? (o/n) : ").strip().lower()
+        
     if answer in ['o', 'y']:
+        print("\n--- Configuration du Compte Créateur ---")
+        if args.admin_email:
+             admin_email = args.admin_email
+             print(f"Email : {admin_email}")
+        else:
+             admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
+             
+        if args.admin_password:
+             admin_pass = args.admin_password
+             print("Mot de passe : *****")
+        else:
+             admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
+             
+        if args.admin_nom:
+             admin_nom = args.admin_nom
+        else:
+             admin_nom = input("Nom de famille : ").strip() or "Admin"
+             
+        if args.admin_prenom:
+             admin_prenom = args.admin_prenom
+        else:
+             admin_prenom = input("Prénom : ").strip() or "System"
+
         cmd_prefix = "uv run python" if shutil.which('uv') else "python"
-        run_command_local(f"{cmd_prefix} generate_csvs.py")
+        
+        # Escape args for safety (basic)
+        gen_cmd = f"{cmd_prefix} generate_csvs.py --admin-email \"{admin_email}\" --admin-password \"{admin_pass}\" --admin-nom \"{admin_nom}\" --admin-prenom \"{admin_prenom}\""
+        
+        run_command_local(gen_cmd)
         run_command_local(f"{cmd_prefix} import_csvs.py")
 
     # Run
@@ -194,6 +287,12 @@ def deploy_local(config, mode='local'):
 def main():
     parser = argparse.ArgumentParser(description='Script de déploiement GN Manager')
     parser.add_argument('--dpcfg', default='config/deploy_config.yaml', help='Chemin du fichier de configuration')
+    parser.add_argument('--reset-db', action='store_true', help='Réinitialiser automatiquement la base de données')
+    parser.add_argument('--import-data', action='store_true', help='Importer automatiquement les données de test')
+    parser.add_argument('--admin-email', help="Email de l'administrateur")
+    parser.add_argument('--admin-password', help="Mot de passe de l'administrateur")
+    parser.add_argument('--admin-nom', help="Nom de l'administrateur")
+    parser.add_argument('--admin-prenom', help="Prénom de l'administrateur")
     args = parser.parse_args()
 
     print(f"=== GN MANAGER DEPLOY (Config: {args.dpcfg}) ===")
@@ -206,12 +305,12 @@ def main():
         mode = 'Replit'
         
     if mode == 'remote':
-        deploy_remote(config)
+        deploy_remote(config, args)
     elif mode == 'Replit':
-        deploy_local(config, mode='Replit')
+        deploy_local(config, args, mode='Replit')
     else:
         # local
-        deploy_local(config, mode='local')
+        deploy_local(config, args, mode='local')
 
 if __name__ == "__main__":
     main()

@@ -27,7 +27,8 @@ def import_users():
                 prenom=row['prenom'],
                 age=int(row['age']) if row['age'] else None,
                 avatar_url=row['avatar_url'],
-                is_admin=row['is_admin'] == 'True'
+                role=row['role'],
+                is_banned=row['is_banned'] == 'True'
             )
             user.password_hash = generate_password_hash(row['password'])
             db.session.add(user)
@@ -56,7 +57,7 @@ def import_events():
                 background_image=row['background_image'],
                 visibility=row['visibility'],
                 organizer_structure=row['organizer_structure'],
-                status=row['status']
+                statut=row['statut']
             )
             db.session.add(event)
             count += 1

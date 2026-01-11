@@ -11,10 +11,26 @@ class User(UserMixin, db.Model):
     nom = db.Column(db.String(80))
     prenom = db.Column(db.String(80))
     age = db.Column(db.Integer)
-    genre = db.Column(db.String(20)) # Added
+    genre = db.Column(db.String(20))
     avatar_url = db.Column(db.String(200))
-    is_admin = db.Column(db.Boolean, default=False)
-    is_deleted = db.Column(db.Boolean, default=False) # Maps to Status (Actif/Supprimé)
+    # RBAC Fields
+    role = db.Column(db.String(20), default='user') # createur, sysadmin, user
+    is_banned = db.Column(db.Boolean, default=False)
+    # is_admin deprecated, logic mapped to role in properties for compat if needed, or removed.
+    # We'll keep is_admin as a property for backward compat in templates temporarily
+    is_deleted = db.Column(db.Boolean, default=False) # Soft delete
+
+    @property
+    def is_admin(self):
+        return self.role in ['createur', 'sysadmin']
+    
+    @is_admin.setter
+    def is_admin(self, value):
+        # Basic setter for backward compat or simple toggle
+        if value:
+            self.role = 'sysadmin'
+        else:
+            self.role = 'user'
 
 class Event(db.Model):
     id = db.Column(db.Integer, primary_key=True)

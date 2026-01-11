@@ -21,36 +21,41 @@ with app.app_context():
     db.create_all()
     
     print("Creating specific users...")
-    # 1. Jacques
-    jacques = User(email="jchodorowski@gmail.com", nom="Chodorowski", prenom="Jacques", age=45, is_admin=True)
-    jacques.password_hash = generate_password_hash("jach1612")
-    db.session.add(jacques)
+    # Create Admin/Createur
+    # Spec: "createur = celui qui a deployé... sysadmin... actif... banni"
+    # We'll make Jacques the Createur here.
+    admin_user = User(
+        email='jchodorowski@gmail.com', 
+        nom='Chodorowski', 
+        prenom='Jacques', 
+        age=40,
+        role='createur', # Super Admin
+        is_banned=False
+    )
+    admin_user.password_hash = generate_password_hash('jach1612')
+    db.session.add(admin_user)
     
-    # 2. Gwenaëlle
-    gwen = User(email="gwengm@gmail.com", nom="GARRIOUX-MORIEN", prenom="Gwenaëlle", age=35)
-    gwen.password_hash = generate_password_hash("gwgm1234")
-    db.session.add(gwen)
+    # Other users
+    user_gwen = User(email='gwengm@gmail.com', nom='GARRIOUX-MORIEN', prenom='Gwenaëlle', age=35, role='user') # Normal user (potentially org for some events)
+    user_gwen.password_hash = generate_password_hash('gwgm1234')
+    db.session.add(user_gwen)
     
-    # 3. Sylvain
-    sylvain = User(email="slytherogue@gmail.com", nom="Michaud", prenom="Sylvain", age=35)
-    sylvain.password_hash = generate_password_hash("slym0000")
-    db.session.add(sylvain)
-
-    db.session.commit() # Commit users to get IDs
+    user_sylvain = User(email='slytherogue@gmail.com', nom='Michaud', prenom='Sylvain', age=35, role='user')
+    user_sylvain.password_hash = generate_password_hash('slym0000')
+    db.session.add(user_sylvain)
     
-    print("Creating fictitious users...")
-    fictitious_users = []
-    for i in range(1, 41):
-        u = User(email=f"user{i}@example.com", nom=f"Nom{i}", prenom=f"Prenom{i}", age=random.randint(20, 50))
-        u.password_hash = generate_password_hash("password1234")
+    # Fictitious Users (for testing pagination/roles)
+    for i in range(1, 25): # Enough for pagination test (>20)
+        u = User(email=f'user{i}@example.com', nom=f'Nom{i}', prenom=f'Prenom{i}', role='user')
+        u.password_hash = generate_password_hash('test1234')
         db.session.add(u)
-        fictitious_users.append(u)
+        
     db.session.commit()
     
-    # Fetch fictitious users again to ensure we have persistent objects or valid IDs
-    # (Though objects in session should be fine, let's be safe)
-    # fictitious_users are already added.
-    
+    # We need to query them back for relationships
+    admin_user = User.query.filter_by(email='jchodorowski@gmail.com').first()
+    user_gwen = User.query.filter_by(email='gwengm@gmail.com').first()
+    user_sylvain = User.query.filter_by(email='slytherogue@gmail.com').first()
     print("Creating Events...")
     # Event 1: Star Wars
     sw_date = datetime(2026, 6, 30, 9, 0)

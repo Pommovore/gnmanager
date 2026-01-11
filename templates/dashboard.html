@@ -2,8 +2,8 @@
 {% block content %}
 <ul class="nav nav-tabs" id="myTab" role="tablist">
     <li class="nav-item" role="presentation">
-        <button class="nav-link active" id="events-tab" data-bs-toggle="tab" data-bs-target="#events" type="button"
-            role="tab">Événements</button>
+        <button class="nav-link {% if not admin_view %}active{% endif %}" id="events-tab" data-bs-toggle="tab"
+            data-bs-target="#events" type="button" role="tab">Événements</button>
     </li>
     <li class="nav-item" role="presentation">
         <button class="nav-link" id="me-tab" data-bs-toggle="tab" data-bs-target="#me" type="button"
@@ -11,13 +11,13 @@
     </li>
     {% if user.is_admin %}
     <li class="nav-item" role="presentation">
-        <button class="nav-link" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin" type="button"
-            role="tab">Admin Système</button>
+        <button class="nav-link {% if admin_view %}active{% endif %}" id="admin-tab" data-bs-toggle="tab"
+            data-bs-target="#admin" type="button" role="tab">Admin Système</button>
     </li>
     {% endif %}
 </ul>
 <div class="tab-content" id="myTabContent">
-    <div class="tab-pane fade show active p-3" id="events" role="tabpanel">
+    <div class="tab-pane fade p-3 {% if not admin_view %}show active{% endif %}" id="events" role="tabpanel">
         <div class="d-flex justify-content-between align-items-center mb-3">
             <h3>Événements</h3>
             <div class="d-flex gap-2">
@@ -94,7 +94,15 @@
         </div>
     </div>
     <div class="tab-pane fade p-3" id="me" role="tabpanel">
-        <h3>Mon Profil <span class="badge bg-secondary fs-6 align-middle ms-2">{{ user.email }}</span></h3>
+        <h3>Mon Profil
+            {% if user.role == 'createur' %}
+            <span class="badge bg-dark fs-6 align-middle ms-1">Créateur</span>
+            {% elif user.role == 'sysadmin' %}
+            <span class="badge bg-warning text-dark fs-6 align-middle ms-1">SysAdmin</span>
+            {% else %}
+            <span class="badge bg-success fs-6 align-middle ms-1">Actif</span>
+            {% endif %}
+        </h3>
         <form method="POST" action="/profile" enctype="multipart/form-data">
             <div class="mb-3">
                 <label class="form-label">Avatar (max 80x80)</label>
@@ -137,54 +145,241 @@
             <button type="submit" class="btn btn-primary">Mettre à jour</button>
         </form>
     </div>
-    <div class="tab-pane fade p-3" id="admin" role="tabpanel">
+    <div class="tab-pane fade p-3 {% if admin_view %}show active{% endif %}" id="admin" role="tabpanel">
+
         <h3>Gestion des Utilisateurs</h3>
-        <div class="card mb-3">
-            <div class="card-body">
-                <h5>Ajouter un utilisateur</h5>
-                <form method="POST" action="/admin/user/add" class="row g-3">
-                    <div class="col-auto">
-                        <input type="email" class="form-control" name="email" placeholder="email@example.com" required>
+        <div class="row">
+            <!-- Sidebar Menu (20%) -->
+            <div class="col-md-2 border-end">
+                <div class="list-group list-group-flush">
+                    <a href="{{ url_for('main.dashboard', filter=current_filter, admin_view='users') }}#admin"
+                        class="list-group-item list-group-item-action {% if admin_view == 'users' or not admin_view %}active{% endif %}">
+                        Utilisateurs
+                    </a>
+                    <a href="{{ url_for('main.dashboard', filter=current_filter, admin_view='add') }}#admin"
+                        class="list-group-item list-group-item-action {% if admin_view == 'add' %}active{% endif %}">
+                        Ajouter
+                    </a>
+                </div>
+            </div>
+
+            <!-- Content Area (80%) -->
+            <div class="col-md-10 ps-4">
+                {% if admin_view == 'add' %}
+                <div class="card mb-3">
+                    <div class="card-body">
+                        <h5>Ajouter un nouvel utilisateur</h5>
+                        <p class="text-muted">Veuillez saisir l'email du nouvel utilisateur. Si l'email n'existe
+                            pas, le compte sera créé et vous pourrez l'éditer.</p>
+                        <form method="POST" action="/admin/user/add" class="row g-3">
+                            <div class="col-md-8">
+                                <label class="form-label">Email</label>
+                                <input type="email" class="form-control" name="email" placeholder="email@example.com"
+                                    required>
+                            </div>
+                            <div class="col-12 mt-3">
+                                <button type="submit" class="btn btn-primary">Vérifier et Ajouter</button>
+                            </div>
+                        </form>
                     </div>
-                    <div class="col-auto">
-                        <button type="submit" class="btn btn-success mb-3">Ajouter</button>
-                    </div>
-                </form>
+                </div>
+                {% else %}
+                <!-- Users List -->
+                <table class="table">
+                    <thead>
+                        <tr>
+                            <th>Email</th>
+                            <th>Nom</th>
+                            <th>Prénom</th>
+                            <th>Statut</th>
+                            <th>Modification</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if users_pagination %}
+                        {% for u in users_pagination.items %}
+                        <tr>
+                            <td>{{ u.email }}</td>
+                            <td>{{ u.nom or '-' }}</td>
+                            <td>{{ u.prenom or '-' }}</td>
+                            <td>
+                                {% if u.role == 'createur' %}
+                                <span class="badge bg-dark">Créateur</span>
+                                {% elif u.role == 'sysadmin' %}
+                                <span class="badge bg-warning text-dark">SysAdmin</span>
+                                {% elif u.is_banned %}
+                                <span class="badge bg-danger">Banni</span>
+                                {% else %}
+                                <span class="badge bg-success">Actif</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                    data-bs-target="#editUserModal{{ u.id }}">
+                                    <i class="bi bi-gear-fill"></i>
+                                </button>
+                            </td>
+                        </tr>
+
+                        <!-- Edit User Modal -->
+                        <div class="modal fade" id="editUserModal{{ u.id }}" tabindex="-1"
+                            aria-labelledby="editUserModalLabel{{ u.id }}" aria-hidden="true">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Modifier {{ u.email }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                            aria-label="Close"></button>
+                                    </div>
+                                    <form action="/admin/user/{{ u.id }}/update_full" method="POST">
+                                        {% set is_readonly = (user.role != 'createur' and u.role == 'createur') %}
+                                        <div class="modal-body">
+                                            {% if is_readonly %}
+                                            <div class="alert alert-warning">
+                                                Vous ne pouvez pas modifier un compte Créateur.
+                                            </div>
+                                            {% endif %}
+                                            <div class="mb-3">
+                                                <label class="form-label">Email</label>
+                                                <input type="email" class="form-control" name="email"
+                                                    value="{{ u.email }}" required {% if is_readonly %}disabled{% endif
+                                                    %}>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Mot de passe (laisser vide pour ne pas
+                                                    changer)</label>
+                                                <input type="password" class="form-control" name="password"
+                                                    placeholder="Nouveau mot de passe" {% if is_readonly %}disabled{%
+                                                    endif %}>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Nom</label>
+                                                <input type="text" class="form-control" name="nom"
+                                                    value="{{ u.nom or '' }}" {% if is_readonly %}disabled{% endif %}>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Prénom</label>
+                                                <input type="text" class="form-control" name="prenom"
+                                                    value="{{ u.prenom or '' }}" {% if is_readonly %}disabled{% endif
+                                                    %}>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Statut Système</label>
+                                                <select class="form-select" name="status" {% if is_readonly %}disabled{%
+                                                    endif %}>
+                                                    <option value="user" {% if u.role=='user' and not u.is_banned
+                                                        %}selected{% endif %}>Actif (Utilisateur)</option>
+                                                    <option value="sysadmin" {% if u.role=='sysadmin' %}selected{% endif
+                                                        %}>
+                                                        SysAdmin</option>
+                                                    {% if user.role == 'createur' %}
+                                                    <option value="createur" {% if u.role=='createur' %}selected{% endif
+                                                        %}>
+                                                        Créateur</option>
+                                                    {% endif %}
+                                                    <option value="banni" {% if u.is_banned %}selected{% endif %}>Banni
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <hr>
+                                            <div class="mb-3">
+                                                <label class="form-label">Age</label>
+                                                <input type="number" class="form-control" name="age"
+                                                    value="{{ u.age or '' }}" {% if is_readonly %}disabled{% endif %}>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Genre</label>
+                                                <select class="form-select" name="genre" {% if is_readonly %}disabled{%
+                                                    endif %}>
+                                                    <option value="" {% if not u.genre %}selected{% endif %}>Choisir...
+                                                    </option>
+                                                    <option value="H" {% if u.genre=='H' %}selected{% endif %}>Homme
+                                                    </option>
+                                                    <option value="F" {% if u.genre=='F' %}selected{% endif %}>Femme
+                                                    </option>
+                                                    <option value="X" {% if u.genre=='X' %}selected{% endif %}>
+                                                        Indéterminé
+                                                    </option>
+                                                </select>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Fermer</button>
+                                            {% if not is_readonly %}
+                                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                            {% endif %}
+                                        </div>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                        {% endif %}
+                    </tbody>
+                </table>
+
+                <!-- Check if users_pagination exists to avoid errors -->
+                {% if users_pagination %}
+                <nav aria-label="Page navigation" class="mt-3">
+                    <ul class="pagination justify-content-center">
+                        {% if users_pagination.has_prev %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('main.dashboard', page=users_pagination.prev_num, admin_view='users') }}#admin">Précédent</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Précédent</span>
+                        </li>
+                        {% endif %}
+
+                        {% for p in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1,
+                        right_current=2) %}
+                        {% if p %}
+                        {% if p == users_pagination.page %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ p }}</span>
+                        </li>
+                        {% else %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('main.dashboard', page=p, admin_view='users') }}#admin">{{ p }}</a>
+                        </li>
+                        {% endif %}
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">...</span>
+                        </li>
+                        {% endif %}
+                        {% endfor %}
+
+                        {% if users_pagination.has_next %}
+                        <li class="page-item">
+                            <a class="page-link"
+                                href="{{ url_for('main.dashboard', page=users_pagination.next_num, admin_view='users') }}#admin">Suivant</a>
+                        </li>
+                        {% else %}
+                        <li class="page-item disabled">
+                            <span class="page-link">Suivant</span>
+                        </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+                {% endif %}
+                {% endif %}
             </div>
         </div>
-        <table class="table">
-            <thead>
-                <tr>
-                    <th>Email</th>
-                    <th>Nom</th>
-                    <th>Prénom</th>
-                    <th>Statut</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for u in users %}
-                <tr>
-                    <td><a href="/admin/user/{{ u.id }}/edit">{{ u.email }}</a></td>
-                    <td>{{ u.nom or '-' }}</td>
-                    <td>{{ u.prenom or '-' }}</td>
-                    <td>
-                        {% if u.is_deleted %}
-                        <span class="badge bg-danger">Supprimé</span>
-                        {% else %}
-                        <span class="badge bg-success">Actif</span>
-                        {% endif %}
-                    </td>
-                    <td>
-                        <a href="/admin/user/delete/{{ u.id }}"
-                            class="btn btn-sm btn-{{ 'warning' if u.is_deleted else 'danger' }}">
-                            {{ 'Restaurer' if u.is_deleted else 'Supprimer' }}
-                        </a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-{% endblock %}
+        {% if request.args.get('open_edit') %}
+        <script>
+            document.addEventListener('DOMContentLoaded', function () {
+                var modalId = 'editUserModal' + '{{ request.args.get("open_edit") }}';
+                var modalEl = document.getElementById(modalId);
+                if (modalEl) {
+                    var modal = new bootstrap.Modal(modalEl);
+                    modal.show();
+                }
+            });
+        </script>
+        {% endif %}
+        {% endblock %}

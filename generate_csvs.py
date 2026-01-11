@@ -1,3 +1,4 @@
+# GN Manager Data Generator
 import csv
 import os
 import random
@@ -9,10 +10,14 @@ def ensure_dir(directory):
     if not os.path.exists(directory):
         os.makedirs(directory)
 
-def generate_users(count=10):
+def generate_users(count=10, args=None):
     users = []
-    # Admin
-    users.append(['admin', 'admin@gnmanager.fr', 'admin1234', 'Admin', 'System', '30', '', 'True'])
+    # Admin (Createur) - Dynamic if args provided
+    if args:
+        users.append(['admin', args.admin_email, args.admin_password, args.admin_nom, args.admin_prenom, '30', '', 'createur', 'False'])
+    else:
+        users.append(['admin', 'admin@gnmanager.fr', 'admin1234', 'Admin', 'System', '30', '', 'createur', 'False'])
+        
     # Organizers
     for i in range(2):
         users.append([
@@ -23,6 +28,7 @@ def generate_users(count=10):
             'User', 
             '25', 
             '', 
+            'user',
             'False'
         ])
     # Players
@@ -35,22 +41,33 @@ def generate_users(count=10):
             'User', 
             str(20 + i), 
             '', 
+            'user',
             'False'
         ])
     # Custom Users
-    # ID assumption: Admin(1) + 2 Orgas + 10 Players = 13.
-    # Jacques: ID 14
-    users.append(['jchodorowski', 'jchodorowski@gmail.com', 'jach1612', 'Chodorowski', 'Jacques', '40', '', 'False'])
-    # Gwenaëlle: ID 15
-    users.append(['gwengm', 'gwengm@gmail.com', 'gwgm1234', 'GARRIOUX-MORIEN', 'Gwenaëlle', '35', '', 'False'])
-    # Sylvain: ID 16
-    users.append(['slytherogue', 'slytherogue@gmail.com', 'slym0000', 'Michaud', 'Sylvain', '35', '', 'False'])
+    # Jacques: Createur/SysAdmin? Spec says "administrateur système devient celui qui déploie". 
+    # Let's make Jacques SysAdmin as he's a named user, or Createur. Let's make him Createur for test.
+    users.append(['jchodorowski', 'jchodorowski@gmail.com', 'jach1612', 'Chodorowski', 'Jacques', '40', '', 'createur', 'False'])
+    # Gwenaëlle
+    users.append(['gwengm', 'gwengm@gmail.com', 'gwgm1234', 'GARRIOUX-MORIEN', 'Gwenaëlle', '35', '', 'user', 'False'])
+    # Sylvain
+    users.append(['slytherogue', 'slytherogue@gmail.com', 'slym0000', 'Michaud', 'Sylvain', '35', '', 'user', 'False'])
 
     with open(os.path.join(DATA_DIR, 'users.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['username', 'email', 'password', 'nom', 'prenom', 'age', 'avatar_url', 'is_admin'])
+        writer.writerow(['username', 'email', 'password', 'nom', 'prenom', 'age', 'avatar_url', 'role', 'is_banned'])
         writer.writerows(users)
     print(f"Generated {len(users)} users in users.csv")
+
+def parse_args():
+    import argparse
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--admin-email', default='admin@gnmanager.fr')
+    parser.add_argument('--admin-password', default='admin1234')
+    parser.add_argument('--admin-nom', default='Admin')
+    parser.add_argument('--admin-prenom', default='System')
+    return parser.parse_args()
+
 
 def generate_events(count=3):
     events = []
@@ -105,7 +122,7 @@ def generate_events(count=3):
         
     with open(os.path.join(DATA_DIR, 'events.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
-        writer.writerow(['name', 'date_start', 'date_end', 'location', 'background_image', 'visibility', 'organizer_structure', 'status'])
+        writer.writerow(['name', 'date_start', 'date_end', 'location', 'background_image', 'visibility', 'organizer_structure', 'statut'])
         writer.writerows(events)
     print(f"Generated {len(events)} events in events.csv")
 
@@ -180,9 +197,18 @@ def generate_participants(user_count=10, event_count=3):
         writer.writerows(participants)
     print(f"Generated {len(participants)} participants in participants.csv")
 
+
 if __name__ == "__main__":
+    args = parse_args()
     ensure_dir(DATA_DIR)
-    generate_users(10)
+    
+    # Pass args to generate_users
+    # We need to modify generate_users signature first, but since we call it here:
+    # Let's refactor generate_users slightly or just inline logic? 
+    # Better to pass valid args.
+    
+    # Monkey patch or change function signature? Change signature.
+    generate_users(10, args)
     generate_events(3)
     generate_roles(3, 10)
     generate_participants(10, 3)
