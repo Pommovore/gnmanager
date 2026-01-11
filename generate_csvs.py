@@ -12,52 +12,79 @@ def ensure_dir(directory):
 
 def generate_users(count=10, args=None):
     users = []
-    # Admin (Createur) - Dynamic if args provided
+    user_map = {} # email -> id
+    current_id = 1
+    
+    # 1. Admin (Createur)
     if args:
-        users.append(['admin', args.admin_email, args.admin_password, args.admin_nom, args.admin_prenom, '30', '', 'createur', 'False'])
+        admin_email = args.admin_email
+        users.append(['admin', admin_email, args.admin_password, args.admin_nom, args.admin_prenom, '30', '', 'createur', 'False'])
     else:
-        users.append(['admin', 'admin@gnmanager.fr', 'admin1234', 'Admin', 'System', '30', '', 'createur', 'False'])
+        admin_email = 'admin@gnmanager.fr'
+        users.append(['admin', admin_email, 'admin1234', 'Admin', 'System', '30', '', 'createur', 'False'])
+    
+    user_map[admin_email] = current_id
+    current_id += 1
         
-    # Organizers
+    # 2. Organizers
     for i in range(2):
-        users.append([
-            f'orga{i}', 
-            f'orga{i}@test.com', 
-            'test1234', 
-            f'Orga{i}', 
-            'User', 
-            '25', 
-            '', 
-            'user',
-            'False'
-        ])
-    # Players
+        email = f'orga{i}@test.com'
+        if email != admin_email: # Safety check
+            users.append([
+                f'orga{i}', 
+                email, 
+                'test1234', 
+                f'Orga{i}', 
+                'User', 
+                '25', 
+                '', 
+                'user',
+                'False'
+            ])
+            user_map[email] = current_id
+            current_id += 1
+            
+    # 3. Players
     for i in range(count):
-        users.append([
-            f'player{i}', 
-            f'player{i}@test.com', 
-            'test1234', 
-            f'Player{i}', 
-            'User', 
-            str(20 + i), 
-            '', 
-            'user',
-            'False'
-        ])
-    # Custom Users
-    # Jacques: Createur/SysAdmin? Spec says "administrateur système devient celui qui déploie". 
-    # Let's make Jacques SysAdmin as he's a named user, or Createur. Let's make him Createur for test.
-    users.append(['jchodorowski', 'jchodorowski@gmail.com', 'jach1612', 'Chodorowski', 'Jacques', '40', '', 'createur', 'False'])
-    # Gwenaëlle
-    users.append(['gwengm', 'gwengm@gmail.com', 'gwgm1234', 'GARRIOUX-MORIEN', 'Gwenaëlle', '35', '', 'user', 'False'])
-    # Sylvain
-    users.append(['slytherogue', 'slytherogue@gmail.com', 'slym0000', 'Michaud', 'Sylvain', '35', '', 'user', 'False'])
+        email = f'player{i}@test.com'
+        if email != admin_email: 
+            users.append([
+                f'player{i}', 
+                email, 
+                'test1234', 
+                f'Player{i}', 
+                'User', 
+                str(20 + i), 
+                '', 
+                'user',
+                'False'
+            ])
+            user_map[email] = current_id
+            current_id += 1
+            
+    # 4. Custom Users
+    special_users = [
+        ['jchodorowski', 'jchodorowski@gmail.com', 'jach1612', 'Chodorowski', 'Jacques', '40', '', 'createur', 'False'],
+        ['gwengm', 'gwengm@gmail.com', 'gwgm1234', 'GARRIOUX-MORIEN', 'Gwenaëlle', '35', '', 'user', 'False'],
+        ['slytherogue', 'slytherogue@gmail.com', 'slym0000', 'Michaud', 'Sylvain', '35', '', 'user', 'False']
+    ]
+    
+    for u in special_users:
+        email = u[1]
+        if email == admin_email:
+            # Already added as ID 1, map matches, skip adding to list to avoid duplicate in CSV
+            pass
+        else:
+            users.append(u)
+            user_map[email] = current_id
+            current_id += 1
 
     with open(os.path.join(DATA_DIR, 'users.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
         writer.writerow(['username', 'email', 'password', 'nom', 'prenom', 'age', 'avatar_url', 'role', 'is_banned'])
         writer.writerows(users)
     print(f"Generated {len(users)} users in users.csv")
+    return user_map
 
 def parse_args():
     import argparse
@@ -149,47 +176,46 @@ def generate_roles(event_count=3, roles_per_event=5):
         writer.writerows(roles)
     print(f"Generated {len(roles)} roles in roles.csv")
 
-def generate_participants(user_count=10, event_count=3):
+def generate_participants(user_map, user_count=10, event_count=3):
     participants = []
-    types = ['PJ', 'PNJ', 'organisateur']
+    # User map helps us find IDs for specific emails
     
-    # Simple assignment: some users participate in some events
-    # We have users 2 to 2+user_count (skipping admin and maybe orgas? admin is id 1)
-    # Let's assume users 1..N generated.
-    # In import, we'll need to resolve IDs. Here let's just create logical CSVs.
-    # We will assume User IDs match the order in users.csv (1-based index)
+    # Generic logic for generic users
+    # "Orga 0" (ID 2 usually, check map)
+    # "Orga 1" (ID 3 usually)
+    # Players 0..4 (IDs 4..8 usually)
     
-    # User 1 is Admin. User 2,3 are Orgas. User 4.. are Players.
+    # Define IDs based on map if possible, else fallback to assumptions or skip if missing
+    def get_id(email):
+        return user_map.get(email)
+        
+    orga1_id = get_id('orga0@test.com')
     
     for event_id in range(1, event_count + 1):
-        # Orga for event
-        participants.append([
-            event_id,
-            2, # Orga1
-            'organisateur',
-            'Staff',
-            '', # role_id
-            '0.0'
-        ])
+        if orga1_id:
+            participants.append([event_id, orga1_id, 'organisateur', 'Staff', '', '0.0'])
         
         # Players
-        for u_id in range(4, 9): # 5 players
-             participants.append([
-                event_id,
-                u_id, 
-                'PJ',
-                'Groupe A',
-                '', # role_id (to be assigned)
-                '50.0'
-            ])
+        for i in range(5):
+             pid = get_id(f'player{i}@test.com')
+             if pid:
+                 participants.append([event_id, pid, 'PJ', 'Groupe A', '', '50.0'])
             
     # Custom Participants
-    # Event 4 (Star Wars): Jacques (ID 14) as Orga
-    participants.append([4, 14, 'organisateur', 'Staff', '', '0.0'])
     
-    # Event 5 (Cthulhu): Gwenaëlle (ID 15) and Sylvain (ID 16) as Orga
-    participants.append([5, 15, 'organisateur', 'Staff', '', '0.0'])
-    participants.append([5, 16, 'organisateur', 'Staff', '', '0.0'])
+    # Event 4 (Star Wars): Jacques
+    jacques_id = get_id('jchodorowski@gmail.com')
+    if jacques_id:
+        participants.append([4, jacques_id, 'organisateur', 'Staff', '', '0.0'])
+    
+    # Event 5 (Cthulhu): Gwenaëlle and Sylvain
+    gwen_id = get_id('gwengm@gmail.com')
+    if gwen_id:
+        participants.append([5, gwen_id, 'organisateur', 'Staff', '', '0.0'])
+        
+    sylvain_id = get_id('slytherogue@gmail.com')
+    if sylvain_id:
+        participants.append([5, sylvain_id, 'organisateur', 'Staff', '', '0.0'])
 
     with open(os.path.join(DATA_DIR, 'participants.csv'), 'w', newline='') as f:
         writer = csv.writer(f)
@@ -202,13 +228,7 @@ if __name__ == "__main__":
     args = parse_args()
     ensure_dir(DATA_DIR)
     
-    # Pass args to generate_users
-    # We need to modify generate_users signature first, but since we call it here:
-    # Let's refactor generate_users slightly or just inline logic? 
-    # Better to pass valid args.
-    
-    # Monkey patch or change function signature? Change signature.
-    generate_users(10, args)
+    user_map = generate_users(10, args)
     generate_events(3)
     generate_roles(3, 10)
-    generate_participants(10, 3)
+    generate_participants(user_map, 10, 3)

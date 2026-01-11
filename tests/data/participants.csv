@@ -17,6 +17,6 @@ event_id,user_id,type,group,role_id,payment_amount
 3,6,PJ,Groupe A,,50.0
 3,7,PJ,Groupe A,,50.0
 3,8,PJ,Groupe A,,50.0
-4,14,organisateur,Staff,,0.0
+4,1,organisateur,Staff,,0.0
+5,14,organisateur,Staff,,0.0
 5,15,organisateur,Staff,,0.0
-5,16,organisateur,Staff,,0.0

@@ -156,23 +156,33 @@ def deploy_remote(config, args):
         print("\n--- Configuration du Compte Créateur ---")
         if args.admin_email:
              admin_email = args.admin_email
-             print(f"Email : {admin_email}")
+             print(f"Email (CLI) : {admin_email}")
+        elif config and 'admin' in config and 'email' in config['admin']:
+             admin_email = config['admin']['email']
+             print(f"Email (Config) : {admin_email}")
         else:
              admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
              
         if args.admin_password:
              admin_pass = args.admin_password
-             print("Mot de passe : *****")
+             print("Mot de passe (CLI) : *****")
+        elif config and 'admin' in config and 'password' in config['admin']:
+             admin_pass = config['admin']['password']
+             print("Mot de passe (Config) : *****")
         else:
              admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
              
         if args.admin_nom:
              admin_nom = args.admin_nom
+        elif config and 'admin' in config and 'nom' in config['admin']:
+             admin_nom = config['admin']['nom']
         else:
              admin_nom = input("Nom de famille : ").strip() or "Admin"
              
         if args.admin_prenom:
              admin_prenom = args.admin_prenom
+        elif config and 'admin' in config and 'prenom' in config['admin']:
+             admin_prenom = config['admin']['prenom']
         else:
              admin_prenom = input("Prénom : ").strip() or "System"
         
@@ -184,7 +194,23 @@ def deploy_remote(config, args):
 
     # 5. Run App
     print("Lancement de l'application...")
-    env_str = f"FLASK_HOST=0.0.0.0 FLASK_PORT={port}"
+    
+    # Resend Config
+    mail_env = ""
+    if config and 'email' in config:
+        email_cfg = config['email']
+        server = email_cfg.get('server')
+        port_mail = email_cfg.get('port')
+        tls = str(email_cfg.get('use_tls')).lower()
+        usr = email_cfg.get('username')
+        pwd = email_cfg.get('password')
+        pwd = email_cfg.get('password')
+        snd = email_cfg.get('default_sender')
+        
+        # Standard MAIL_ envs for Brevo (or any SMTP)
+        mail_env = f"MAIL_SERVER={server} MAIL_PORT={port_mail} MAIL_USE_TLS={tls} MAIL_USERNAME={usr} MAIL_PASSWORD={pwd} MAIL_DEFAULT_SENDER={snd}"
+    
+    env_str = f"FLASK_HOST=0.0.0.0 FLASK_PORT={port} {mail_env}"
     
     # Run in background via nohup
     # Use bash -c to ensure source works with nohup if needed, though usually just chaining works if shell supports it.
@@ -240,23 +266,33 @@ def deploy_local(config, args, mode='local'):
         print("\n--- Configuration du Compte Créateur ---")
         if args.admin_email:
              admin_email = args.admin_email
-             print(f"Email : {admin_email}")
+             print(f"Email (CLI) : {admin_email}")
+        elif config and 'admin' in config and 'email' in config['admin']:
+             admin_email = config['admin']['email']
+             print(f"Email (Config) : {admin_email}")
         else:
              admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
              
         if args.admin_password:
              admin_pass = args.admin_password
-             print("Mot de passe : *****")
+             print("Mot de passe (CLI) : *****")
+        elif config and 'admin' in config and 'password' in config['admin']:
+             admin_pass = config['admin']['password']
+             print("Mot de passe (Config) : *****")
         else:
              admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
              
         if args.admin_nom:
              admin_nom = args.admin_nom
+        elif config and 'admin' in config and 'nom' in config['admin']:
+             admin_nom = config['admin']['nom']
         else:
              admin_nom = input("Nom de famille : ").strip() or "Admin"
              
         if args.admin_prenom:
              admin_prenom = args.admin_prenom
+        elif config and 'admin' in config and 'prenom' in config['admin']:
+             admin_prenom = config['admin']['prenom']
         else:
              admin_prenom = input("Prénom : ").strip() or "System"
 
@@ -273,6 +309,17 @@ def deploy_local(config, args, mode='local'):
     env = os.environ.copy()
     env['FLASK_HOST'] = str(host)
     env['FLASK_PORT'] = str(port)
+    # Email Config (from config file)
+    if config and 'email' in config:
+        email_cfg = config['email']
+        env['MAIL_SERVER'] = str(email_cfg.get('server'))
+        env['MAIL_PORT'] = str(email_cfg.get('port'))
+        env['MAIL_USE_TLS'] = str(email_cfg.get('use_tls')).lower()
+        env['MAIL_USERNAME'] = str(email_cfg.get('username'))
+        env['MAIL_PASSWORD'] = str(email_cfg.get('password'))
+        env['MAIL_DEFAULT_SENDER'] = str(email_cfg.get('default_sender'))
+    else:
+        print("Attention: Configuration email manquante dans le fichier config.")
     
     if mode == 'Replit':
          print("Sur Replit, l'application est configurée pour 0.0.0.0:5000 par défaut.")

@@ -1,7 +1,21 @@
 # Configuration pour le déploiement
-location: remote # Valeurs possibles : remote, local, Replit
+location: local # Valeurs possibles : remote, local, Replit
 
 deploy:
   machine_name: "minimoi.mynetgear.com" # Utilisé si location: remote
   port: 8880                            # Port d'écoute (local ou remote)
   target_directory: "/opt/gnmanager/"   # Utilisé si location: remote
+
+email:
+  server: "smtp-relay.brevo.com"
+  port: 587
+  use_tls: true
+  username: "9fce39001@smtp-brevo.com"
+  password: "Av4sW2fkPaxzJmRI"
+  default_sender: "jchodorowski@gmail.com"
+
+admin:
+  email: "jchodorowski@gmail.com"
+  password: "jach1612" # Changé après premier login si voulu
+  nom: "Chodorowski"
+  prenom: "Jacques"

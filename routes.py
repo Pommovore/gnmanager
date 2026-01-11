@@ -43,6 +43,10 @@ def login():
              flash('Ce compte a été banni.', 'danger')
              return redirect(url_for('main.login'))
 
+        if user.password_hash is None:
+             flash('Votre compte n\'est pas encore validé. Veuillez vérifier vos emails.', 'warning')
+             return redirect(url_for('main.login'))
+
         if check_password_hash(user.password_hash, password):
             login_user(user)
             return redirect(url_for('main.dashboard'))
@@ -75,9 +79,23 @@ def register():
         db.session.commit()
         
         validation_url = url_for('main.validate_account', token=token_str, _external=True)
-        send_email(email, "Validation de votre compte", f"Veuillez cliquer sur ce lien pour définir votre mot de passe et valider votre compte : {validation_url}")
+        validation_url = url_for('main.validate_account', token=token_str, _external=True)
         
-        flash('Inscription enregistrée ! Vérifiez vos emails pour valider votre compte.', 'success')
+        email_body = f"""
+        <h3>Bienvenue sur GN Manager !</h3>
+        <p>Votre compte a été créé avec succès.</p>
+        <p>Veuillez cliquer sur le lien ci-dessous pour définir votre mot de passe et activer votre compte :</p>
+        <p><a href="{validation_url}" style="padding: 10px 20px; background-color: #007bff; color: white; text-decoration: none; border-radius: 5px;">Valider mon compte</a></p>
+        <p><small>Si le bouton ne fonctionne pas, copiez ce lien : {validation_url}</small></p>
+        """
+        
+        email_sent = send_email(email, "Validation de votre compte", email_body)
+        
+        if email_sent:
+            flash('Inscription enregistrée ! Vérifiez vos emails pour valider votre compte. (Pensez à regarder dans vos spams si vous ne recevez rien)', 'success')
+        else:
+            flash('Inscription enregistrée, mais l\'envoi de l\'email a échoué (Mode Test Resend ?). Consultez les logs du serveur pour le lien de validation.', 'warning')
+            
         return redirect(url_for('main.login'))
         
     return render_template('register.html')
@@ -225,26 +243,7 @@ def admin_add_user():
     flash(f'Utilisateur {email} ajouté.', 'success')
     return redirect(url_for('main.dashboard', admin_view='users', open_edit=new_user.id, _anchor='admin'))
 
-@main.route('/admin/user/<int:user_id>/edit', methods=['GET', 'POST'])
-@login_required
-def admin_edit_user(user_id):
-    if not current_user.is_admin:
-        flash('Accès refusé.', 'danger')
-        return redirect(url_for('main.dashboard'))
-        
-    user = User.query.get_or_404(user_id)
-    
-    if request.method == 'POST':
-        user.nom = request.form.get('nom')
-        user.prenom = request.form.get('prenom')
-        user.age = request.form.get('age')
-        user.is_admin = 'is_admin' in request.form
-        
-        db.session.commit()
-        flash('Utilisateur mis à jour.', 'success')
-        return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
-        
-    return render_template('admin_user_edit.html', user=user)
+
 
 @main.route('/admin/user/<int:user_id>/update_full', methods=['POST'])
 @login_required
