@@ -1,0 +1,21 @@
+# Configuration pour le déploiement
+location: local # Valeurs possibles : remote, local, Replit
+
+deploy:
+  machine_name: "<server name>" # Utilisé si location: remote
+  port: <port>                            # Port d'écoute (local ou remote) ex: 8880
+  target_directory: "<deployment directory>"   # Utilisé si location: remote ex: /opt/gnmanager/
+
+email:
+  server: "<SMTP server>" # SMTP server, ex: smtp-relay.brevo.com
+  port: <port> # SMTP port, ex: 587
+  use_tls: true  # SMTP TLS, ex : true
+  username: "<SMTP username>" # SMTP username
+  password: "<SMTP password>" # SMTP password
+  default_sender: "<SMTP default sender>" # SMTP default sender = deployer email
+
+admin:
+  email: "<admin email>" # Admin email
+  password: "<admin password>" # Admin password
+  nom: "<admin nom>"
+  prenom: "<admin prenom>"
