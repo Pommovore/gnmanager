@@ -1,6 +1,6 @@
 name,date_start,date_end,location,background_image,visibility,organizer_structure,statut
-GN Test 1,2026-01-13 23:11:40,2026-01-15 23:11:40,Lieu 1,,public,Asso Orga 1,en préparation
-GN Test 2,2026-02-12 23:11:40,2026-02-14 23:11:40,Lieu 2,,private,Asso Orga 2,annulé
-GN Test 3,2026-03-14 23:11:40,2026-03-16 23:11:40,Lieu 3,,private,Asso Orga 3,annulé
-Star Wars - Ombres sur Tatoine,2026-06-30 00:00:00,2026-07-02 00:00:00,Tatooine,,public,Galactic Empire,en préparation
-Cthulhu - ca me gratte dans la tentacule,2026-09-30 00:00:00,2026-10-02 00:00:00,Rlyeh,,public,Cult of Cthulhu,en préparation
+GN Test 1,2026-01-14 00:47:30,2026-01-16 00:47:30,Lieu 1,,private,Asso Orga 1,En préparation
+GN Test 2,2026-02-13 00:47:30,2026-02-15 00:47:30,Lieu 2,,public,Asso Orga 2,Reporté
+GN Test 3,2026-03-15 00:47:30,2026-03-17 00:47:30,Lieu 3,,private,Asso Orga 3,Inscriptions fermées
+Star Wars - Ombres sur Tatoine,2026-06-30 00:00:00,2026-07-02 00:00:00,Tatooine,,public,Galactic Empire,En préparation
+Cthulhu - ca me gratte dans la tentacule,2026-09-30 00:00:00,2026-10-02 00:00:00,Rlyeh,,public,Cult of Cthulhu,En préparation

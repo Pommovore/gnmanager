@@ -151,8 +151,8 @@
                                 {% for s in statuses %}
                                 <label class="list-group-item">
                                     <input class="form-check-input me-1" type="radio" name="statut" value="{{ s }}" {%
-                                        if event.statut==s %}checked{% endif %}>
-                                    {{ s|capitalize }}
+                                        if event.statut|lower==s|lower %}checked{% endif %}>
+                                    {{ s }}
                                 </label>
                                 {% endfor %}
                             </div>

@@ -99,12 +99,13 @@ def parse_args():
 def generate_events(count=3):
     events = []
     statuses = [
-        'en préparation', 
-        'inscriptions ouvertes', 
-        'inscriptions fermées - casting en cours', 
-        'casting terminé - finalisation des préparations',
-        'annulé',
-        'reporté à une date indéfinie'
+        'En préparation', 
+        'Inscriptions ouvertes', 
+        'Inscriptions fermées', 
+        'Casting en cours',
+        'Casting terminé',
+        'Annulé',
+        'Reporté'
     ]
     visibilities = ['public', 'private']
     
@@ -133,7 +134,7 @@ def generate_events(count=3):
         '',
         'public',
         'Galactic Empire',
-        'en préparation'
+        'En préparation'
     ])
     # Cthulhu - ID 5
     events.append([
@@ -144,7 +145,7 @@ def generate_events(count=3):
         '',
         'public',
         'Cult of Cthulhu',
-        'en préparation'
+        'En préparation'
     ])
         
     with open(os.path.join(DATA_DIR, 'events.csv'), 'w', newline='') as f:
