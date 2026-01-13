@@ -359,7 +359,7 @@ def create_event():
         db.session.add(new_event)
         db.session.commit()
         
-        participant = Participant(event_id=new_event.id, user_id=current_user.id, type='organisateur', role_communicated=True)
+        participant = Participant(event_id=new_event.id, user_id=current_user.id, type='organisateur', role_communicated=True, registration_status='Validé')
         db.session.add(participant)
         db.session.commit()
         
@@ -368,9 +368,9 @@ def create_event():
         
     return render_template('event_create.html')
 
-@main.route('/event/<int:event_id>/update_title', methods=['POST'])
+@main.route('/event/<int:event_id>/update_general', methods=['POST'])
 @login_required
-def update_event_title(event_id):
+def update_event_general(event_id):
     event = Event.query.get_or_404(event_id)
     # Check permissions (organizer)
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
@@ -378,33 +378,22 @@ def update_event_title(event_id):
         flash('Action non autorisée.', 'danger')
         return redirect(url_for('main.event_detail', event_id=event.id))
         
-    title = request.form.get('name')
-    if title:
-        event.name = title
-        db.session.commit()
-        flash('Titre mis à jour.', 'success')
-        
-    return redirect(url_for('main.event_detail', event_id=event.id))
-
-@main.route('/event/<int:event_id>/update_dates', methods=['POST'])
-@login_required
-def update_event_dates(event_id):
-    event = Event.query.get_or_404(event_id)
-    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
-    if not participant or participant.type != 'organisateur':
-        flash('Action non autorisée.', 'danger')
-        return redirect(url_for('main.event_detail', event_id=event.id))
-        
+    name = request.form.get('name')
+    location = request.form.get('location')
     date_start_str = request.form.get('date_start')
     date_end_str = request.form.get('date_end')
+    description = request.form.get('description')
+    external_link = request.form.get('external_link')
     
-    if date_start_str:
-        event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
-    if date_end_str:
-        event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+    if name: event.name = name
+    if location: event.location = location
+    if date_start_str: event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
+    if date_end_str: event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+    if description is not None: event.description = description
+    if external_link is not None: event.external_link = external_link
         
     db.session.commit()
-    flash('Dates mises à jour.', 'success')
+    flash('Informations générales mises à jour.', 'success')
     return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>/update_status', methods=['POST'])
