@@ -1,4 +1,15 @@
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+"""
+Routes principales de l'application GN Manager.
+
+Ce module définit toutes les routes Flask pour:
+- Authentification (login, register, logout, reset password)
+- Tableau de bord utilisateur
+- Gestion des événements (création, édition, suppression)
+- Administration (gestion des utilisateurs)
+- Gestion des rôles et des participants
+"""
+
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
 from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken
 from auth import generate_password, send_email
@@ -6,7 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
 import uuid
 import json
-from flask import jsonify
+import os
 
 main = Blueprint('main', __name__)
 
@@ -67,19 +78,25 @@ def register():
             flash('Cet email est déjà utilisé.', 'warning')
             return redirect(url_for('main.login'))
             
-        # Create user without password first
-        new_user = User(email=email, nom=nom, prenom=prenom, age=age)
-        db.session.add(new_user)
-        db.session.commit()
+        # Créer l'utilisateur et le token de validation (non commité en base)
+        new_user = User(
+            email=email, 
+            nom=nom, 
+            prenom=prenom, 
+            age=int(age) if age else None,
+            genre=request.form.get('genre'),
+            is_banned=False
+        )
         
-        # Generator validation token
         token_str = str(uuid.uuid4())
         token = AccountValidationToken(token=token_str, email=email)
-        db.session.add(token)
-        db.session.commit()
         
-        validation_url = url_for('main.validate_account', token=token_str, _external=True)
-        validation_url = url_for('main.validate_account', token=token_str, _external=True)
+        # Générer l'URL de validation
+        if os.environ.get('APP_PUBLIC_HOST'):
+            valid_endpoint = url_for('main.validate_account', token=token_str)
+            validation_url = f"http://{os.environ['APP_PUBLIC_HOST']}{valid_endpoint}"
+        else:
+            validation_url = url_for('main.validate_account', token=token_str, _external=True)
         
         email_body = f"""
         <h3>Bienvenue sur GN Manager !</h3>
@@ -89,14 +106,20 @@ def register():
         <p><small>Si le bouton ne fonctionne pas, copiez ce lien : {validation_url}</small></p>
         """
         
+        # Tentative d'envoi d'email AVANT commit en base
         email_sent = send_email(email, "Validation de votre compte", email_body)
         
         if email_sent:
+            # Sauvegarder en base uniquement si l'email a été envoyé
+            db.session.add(new_user)
+            db.session.add(token)
+            db.session.commit()
             flash('Inscription enregistrée ! Vérifiez vos emails pour valider votre compte. (Pensez à regarder dans vos spams si vous ne recevez rien)', 'success')
+            return redirect(url_for('main.login'))
         else:
-            flash('Inscription enregistrée, mais l\'envoi de l\'email a échoué (Mode Test Resend ?). Consultez les logs du serveur pour le lien de validation.', 'warning')
-            
-        return redirect(url_for('main.login'))
+            # Email échoué, ne pas créer l'utilisateur
+            flash('Erreur lors de l\'envoi de l\'email. L\'inscription n\'a pas été finalisée. Veuillez vérifier votre email ou contacter l\'administrateur.', 'danger')
+            return redirect(url_for('main.register'))
         
     return render_template('register.html')
 
@@ -274,64 +297,86 @@ def admin_update_full_user(user_id):
     status_code = request.form.get('status') # createur, sysadmin, actif, banni
     
     # Logic to map single select "status" to role + is_banned
+    # Logic to map single select "status" to role + is_banned
     if status_code == 'createur':
         if current_user.role == 'createur':
             user.role = 'createur'
             user.is_banned = False
         else:
              flash("Vous ne pouvez pas nommer un Créateur.", "danger")
-             # Fallback: do nothing or keep old, but here let's just abort this field change effectively? 
-             # Or set to user? Let's just not set role if unauthorized. 
-             # Actually, simpler loop flow:
     elif status_code == 'sysadmin':
         user.role = 'sysadmin'
-        user.is_banned = False
-    elif status_code == 'banni':
-        user.role = 'user' # Or keep previous role? Simpler to just ban.
-        user.is_banned = True
-    else: # actif / default user
-        user.role = 'user'
-        user.is_banned = False
         
     db.session.commit()
-    flash(f'Utilisateur {user.email} mis à jour.', 'success')
+    flash(f"Utilisateur {user.email} mis à jour.", "success")
     return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
 
-@main.route('/admin/user/<int:user_id>/hard_delete', methods=['POST'])
-@login_required
-def admin_hard_delete_user(user_id):
-    if not current_user.is_admin:
-        flash('Accès refusé.', 'danger')
-        return redirect(url_for('main.dashboard'))
-        
-    user = User.query.get_or_404(user_id)
-    
-    # Cascade delete participants manually if necessary, though SQLAlchemy cascade might handle it if configured.
-    # Given we modified models minimally, let's play safe and delete participations first.
-    Participant.query.filter_by(user_id=user.id).delete()
-    
-    db.session.delete(user)
-    db.session.commit()
-    
-    flash(f'Utilisateur {user.email} supprimé définitivement.', 'success')
-    return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
-
-@main.route('/admin/user/delete/<int:user_id>')
+@main.route('/admin/user/<int:user_id>/delete', methods=['POST'])
 @login_required
 def admin_delete_user(user_id):
     if not current_user.is_admin:
-        return redirect(url_for('main.dashboard'))
+        return jsonify({'error': 'Unauthorized'}), 403
         
-    user = User.query.get(user_id)
-    if user:
-        if user.is_deleted:
-             user.is_deleted = False
-             flash('Utilisateur restauré.', 'success')
-        else:
-             user.is_deleted = True
-             flash('Utilisateur supprimé (soft delete).', 'success')
+    user = User.query.get_or_404(user_id)
+    
+    # Security: Cannot delete self
+    if user.id == current_user.id:
+        flash("Vous ne pouvez pas supprimer votre propre compte ici.", "danger")
+        return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
+        
+    # Security: Non-Creator cannot delete Creator
+    if user.role == 'createur' and current_user.role != 'createur':
+        flash("Vous ne pouvez pas supprimer un compte Créateur.", "danger")
+        return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
+
+    try:
+        print(f"[DELETE USER] Tentative de suppression de {user.email} (ID: {user.id})", flush=True)
+        
+        # Suppression en cascade des entités liées
+        # Note: SQLAlchemy peut gérer ceci automatiquement avec cascade="all, delete-orphan"
+        # mais nous le faisons explicitement pour plus de clarté et de contrôle
+        
+        # 1. Désassigner tous les rôles qui pointent vers les participants de cet utilisateur
+        # (relation circulaire Role <-> Participant)
+        participants = Participant.query.filter_by(user_id=user.id).all()
+        participant_ids = [p.id for p in participants]
+        
+        if participant_ids:
+            print(f"[DELETE USER] Désassignation des rôles liés aux {len(participant_ids)} participants", flush=True)
+            from models import Role
+            roles_to_unassign = Role.query.filter(Role.assigned_participant_id.in_(participant_ids)).all()
+            for role in roles_to_unassign:
+                role.assigned_participant_id = None
+                print(f"[DELETE USER] Rôle '{role.name}' désassigné", flush=True)
+        
+        # 2. Supprimer les tokens de validation et de réinitialisation
+        print(f"[DELETE USER] Suppression des tokens", flush=True)
+        AccountValidationToken.query.filter_by(email=user.email).delete()
+        PasswordResetToken.query.filter_by(email=user.email).delete()  # Utiliser email, pas user_id
+        
+        # 3. Supprimer les participations aux événements
+        print(f"[DELETE USER] Suppression des participations", flush=True)
+        Participant.query.filter_by(user_id=user.id).delete()
+        
+        # 4. Supprimer l'utilisateur
+        print(f"[DELETE USER] Suppression de l'utilisateur", flush=True)
+        db.session.delete(user)
+        
+        # 5. Commit
         db.session.commit()
-    return redirect(url_for('main.dashboard'))
+        print(f"[DELETE USER] Suppression réussie de {user.email}", flush=True)
+        flash(f"Utilisateur {user.email} supprimé définitivement.", "success")
+    except Exception as e:
+        db.session.rollback()
+        print(f"[DELETE USER] ERREUR: {str(e)}", flush=True)
+        import traceback
+        traceback.print_exc()
+        flash(f"Erreur lors de la suppression : {str(e)}", "danger")
+        
+    return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
+
+
+
 
 @main.route('/event/create', methods=['GET', 'POST'])
 @login_required

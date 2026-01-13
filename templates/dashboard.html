@@ -231,7 +231,8 @@
                                         <button type="button" class="btn-close" data-bs-dismiss="modal"
                                             aria-label="Close"></button>
                                     </div>
-                                    <form action="/admin/user/{{ u.id }}/update_full" method="POST">
+                                    <form action="/admin/user/{{ u.id }}/update_full" method="POST"
+                                        id="updateUserForm{{ u.id }}">
                                         {% set is_readonly = (user.role != 'createur' and u.role == 'createur') %}
                                         <div class="modal-body">
                                             {% if is_readonly %}
@@ -303,14 +304,24 @@
                                                 </select>
                                             </div>
                                         </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Fermer</button>
-                                            {% if not is_readonly %}
-                                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                            {% endif %}
-                                        </div>
                                     </form>
+                                    <div class="modal-footer">
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Fermer</button>
+
+                                        {% if not is_readonly and u.id != current_user.id %}
+                                        <form action="{{ url_for('main.admin_delete_user', user_id=u.id) }}"
+                                            method="POST" class="d-inline"
+                                            onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible et effacera toutes ses données.');">
+                                            <button type="submit" class="btn btn-danger">Supprimer</button>
+                                        </form>
+                                        {% endif %}
+
+                                        {% if not is_readonly %}
+                                        <button type="submit" form="updateUserForm{{ u.id }}"
+                                            class="btn btn-primary">Enregistrer</button>
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>

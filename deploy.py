@@ -29,9 +29,14 @@ def run_command_local(command, cwd=None, env=None):
         print(f"Erreur commande locale: {command}")
         return False
 
-def run_command_remote(ssh, command):
+def run_command_remote(ssh, command, input_text=None):
     print(f"[EXT] {command}")
     stdin, stdout, stderr = ssh.exec_command(command)
+    
+    if input_text:
+        stdin.write(input_text + '\n')
+        stdin.flush()
+        
     while True:
         line = stdout.readline()
         if not line:
@@ -40,7 +45,10 @@ def run_command_remote(ssh, command):
     
     exit_status = stdout.channel.recv_exit_status()
     if exit_status != 0:
-        print(f"Erreur commande distante ({exit_status}): {stderr.read().decode()}")
+        # Sudo -S outputs the prompt to stderr usually, so we might see it there
+        err_msg = stderr.read().decode()
+        if "[sudo] password" not in err_msg: # Ignore standard password prompt in logs if possible, or just print it
+             print(f"Erreur commande distante ({exit_status}): {err_msg}")
         return False
     return True
 
@@ -110,8 +118,12 @@ def deploy_remote(config, args):
         print(f"Erreur de connexion SSH: {e}")
         return
     # Early cleanup
-    print(f"Arrêt du processus existant sur le port {port} sur la machine distante...")
-    run_command_remote(ssh, f"fuser -k {port}/tcp")
+    print(f"Arrêt du service et libération du port {port}...")
+    # Stop systemd service
+    run_command_remote(ssh, "sudo -S systemctl stop gnmanager.service", input_text=pwd)
+    # Force kill port (just in case service didn't catch it or manual run)
+    # Using || true to avoid error if nothing is listening
+    run_command_remote(ssh, f"sudo -S fuser -k {port}/tcp || true", input_text=pwd)
     time.sleep(2)
 
     # 1. Create directory
@@ -192,33 +204,51 @@ def deploy_remote(config, args):
         run_command_remote(ssh, gen_cmd)
         run_command_remote(ssh, f"{py_cmd} import_csvs.py")
 
-    # 5. Run App
-    print("Lancement de l'application...")
+    # 5. Run App (Systemd adaptation)
+    print("Mise à jour de la configuration et redémarrage du service...")
     
-    # Resend Config
-    mail_env = ""
+    # Générer le contenu du fichier .env pour le serveur distant
+    env_lines = [
+        f"FLASK_HOST=0.0.0.0",
+        f"FLASK_PORT={port}",
+        f"APP_PUBLIC_HOST={host}:{port}",
+        "PYTHONUNBUFFERED=1"  # Forcer stdout non bufferisé pour la visibilité des logs
+    ]
+    
+    # Ajouter la configuration email si disponible
     if config and 'email' in config:
         email_cfg = config['email']
-        server = email_cfg.get('server')
-        port_mail = email_cfg.get('port')
-        tls = str(email_cfg.get('use_tls')).lower()
-        usr = email_cfg.get('username')
-        pwd = email_cfg.get('password')
-        pwd = email_cfg.get('password')
-        snd = email_cfg.get('default_sender')
+        env_lines.append(f"MAIL_SERVER={email_cfg.get('server')}")
+        env_lines.append(f"MAIL_PORT={email_cfg.get('port')}")
+        env_lines.append(f"MAIL_USE_TLS={str(email_cfg.get('use_tls')).lower()}")
+        env_lines.append(f"MAIL_USERNAME={email_cfg.get('username')}")
+        mail_pwd = email_cfg.get('password')
+        env_lines.append(f"MAIL_PASSWORD={mail_pwd}")
+        env_lines.append(f"MAIL_DEFAULT_SENDER={email_cfg.get('default_sender')}")
         
-        # Standard MAIL_ envs for Brevo (or any SMTP)
-        mail_env = f"MAIL_SERVER={server} MAIL_PORT={port_mail} MAIL_USE_TLS={tls} MAIL_USERNAME={usr} MAIL_PASSWORD={pwd} MAIL_DEFAULT_SENDER={snd}"
+    env_content = "\n".join(env_lines)
     
-    env_str = f"FLASK_HOST=0.0.0.0 FLASK_PORT={port} {mail_env}"
+    # Write .env locally first (temp)
+    with open('.env.deploy', 'w') as f:
+        f.write(env_content)
+        
+    # Upload .env to remote
+    remote_env_path = os.path.join(target_dir, '.env')
+    print(f"Upload du fichier .env vers {remote_env_path}")
+    sftp = ssh.open_sftp()
+    sftp.put('.env.deploy', remote_env_path)
+    sftp.close()
     
-    # Run in background via nohup
-    # Use bash -c to ensure source works with nohup if needed, though usually just chaining works if shell supports it.
-    # ssh exec_command usually uses user's shell (often bash).
-    # nohup command &
-    run_command_remote(ssh, f"cd {target_dir} && {env_str} nohup bash -c '{uv_env}{py_cmd} main.py' > app.log 2>&1 &")
+    # Remove local temp file
+    if os.path.exists('.env.deploy'):
+        os.remove('.env.deploy')
+        
+    # Restart Systemd Service
+    # Use sudo -S to read password from stdin
+    print("Redémarrage du service gnmanager.service...")
+    run_command_remote(ssh, "sudo -S systemctl restart gnmanager.service", input_text=pwd)
     
-    print(f"Application lancée sur http://{host}:{port}")
+    print(f"Déploiement terminé. Vérifiez le statut avec 'systemctl status gnmanager.service' sur le serveur.")
     ssh.close()
 
 def deploy_local(config, args, mode='local'):
@@ -309,15 +339,32 @@ def deploy_local(config, args, mode='local'):
     env = os.environ.copy()
     env['FLASK_HOST'] = str(host)
     env['FLASK_PORT'] = str(port)
+    
+    # Attempt to use configured machine name if available, else localhost
+    public_host = "127.0.0.1:5000"
+    if config and 'deploy' in config and 'machine_name' in config['deploy']:
+         # Use configured machine name if explicitly testing "remote-like" locally or just consistency
+         # But for local dev, usually localhost is safer.
+         # Let's check: if user changes config to remote machine name but deploys local, 
+         # they might want the link to point to remote? No, deploy_local runs locally.
+         # Let's keep it simple: Local -> localhost:port. Remote -> machine_name:port
+         pass
+         
+    env['APP_PUBLIC_HOST'] = f"{host}:{port}" if host != '0.0.0.0' else f"127.0.0.1:{port}"
+
     # Email Config (from config file)
     if config and 'email' in config:
         email_cfg = config['email']
+        usr = email_cfg.get('username')
+        mail_pwd = email_cfg.get('password') # Renamed to avoid shadowing SSH pwd
+        snd = email_cfg.get('default_sender')
+        
         env['MAIL_SERVER'] = str(email_cfg.get('server'))
         env['MAIL_PORT'] = str(email_cfg.get('port'))
         env['MAIL_USE_TLS'] = str(email_cfg.get('use_tls')).lower()
-        env['MAIL_USERNAME'] = str(email_cfg.get('username'))
-        env['MAIL_PASSWORD'] = str(email_cfg.get('password'))
-        env['MAIL_DEFAULT_SENDER'] = str(email_cfg.get('default_sender'))
+        env['MAIL_USERNAME'] = str(usr)
+        env['MAIL_PASSWORD'] = str(mail_pwd)
+        env['MAIL_DEFAULT_SENDER'] = str(snd)
     else:
         print("Attention: Configuration email manquante dans le fichier config.")
     
