@@ -45,10 +45,12 @@ with app.app_context():
     db.session.add(user_sylvain)
     
     # Fictitious Users (for testing pagination/roles)
-    for i in range(1, 25): # Enough for pagination test (>20)
+    fictitious_users = []
+    for i in range(1, 40): # Enough for pagination test (>20) and Cthulhu event needs
         u = User(email=f'user{i}@example.com', nom=f'Nom{i}', prenom=f'Prenom{i}', role='user')
         u.password_hash = generate_password_hash('test1234')
         db.session.add(u)
+        fictitious_users.append(u)
         
     db.session.commit()
     
@@ -88,27 +90,27 @@ with app.app_context():
 
     print("Assigning Organizers...")
     # Jacques -> Star Wars
-    p_jacques = Participant(event_id=event_sw.id, user_id=jacques.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    p_jacques = Participant(event_id=event_sw.id, user_id=admin_user.id, type="organisateur", group="Organisateur", registration_status="Validé")
     db.session.add(p_jacques)
     
     # Gwen -> Cthulhu
-    p_gwen = Participant(event_id=event_cthulhu.id, user_id=gwen.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    p_gwen = Participant(event_id=event_cthulhu.id, user_id=user_gwen.id, type="organisateur", group="Organisateur", registration_status="Validé")
     db.session.add(p_gwen)
     
     # Sylvain -> Cthulhu
-    p_sylvain = Participant(event_id=event_cthulhu.id, user_id=sylvain.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    p_sylvain = Participant(event_id=event_cthulhu.id, user_id=user_sylvain.id, type="organisateur", group="Organisateur", registration_status="Validé")
     db.session.add(p_sylvain)
     
     print("Assigning Fictitious Participants...")
     
-    # Star Wars: 4 PJ, 5 PNJ from fictitious (indices 0-8)
-    sw_pj = fictitious_users[0:4]
-    sw_pnj = fictitious_users[4:9]
+    # Star Wars: No additional participants initially (as per bug report/fix)
+    # sw_pj = fictitious_users[0:4]
+    # sw_pnj = fictitious_users[4:9]
     
-    for u in sw_pj:
-        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PJ", group="Peu importe", registration_status="Validé"))
-    for u in sw_pnj:
-        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PNJ", group="Peu importe", registration_status="Validé"))
+    # for u in sw_pj:
+    #     db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PJ", group="Peu importe", registration_status="Validé"))
+    # for u in sw_pnj:
+    #     db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PNJ", group="Peu importe", registration_status="Validé"))
 
     # Cthulhu: 16 PJ, 13 PNJ from fictitious (indices 9-37)
     # 9 + 16 = 25

@@ -110,7 +110,8 @@ def import_participants():
                 user_id=int(row['user_id']),
                 type=row['type'],
                 group=row['group'],
-                payment_amount=float(row['payment_amount']) if row['payment_amount'] else 0.0
+                payment_amount=float(row['payment_amount']) if row['payment_amount'] else 0.0,
+                registration_status='Validé'
             )
             if row['role_id']:
                 p.role_id = int(row['role_id'])

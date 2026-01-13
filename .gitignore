@@ -8,3 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
+# Configuration pour le déploiement
+config/deploy_config.yaml

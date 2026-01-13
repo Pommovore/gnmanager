@@ -19,7 +19,8 @@
             </thead>
             <tbody>
                 {% for p in participants %}
-                <tr>
+                <tr
+                    class="{{ 'table-warning' if p.registration_status == 'À valider' else 'table-danger' if p.registration_status == 'Rejeté' else '' }}">
                     <input type="hidden" name="participant_ids" value="{{ p.id }}">
                     <!-- Use arrays or prefixed names. Easiest with parallel arrays if ordering preserved, but safety with ID is better.
                      Let's use p_id in name: name="status_{{p.id}}" 

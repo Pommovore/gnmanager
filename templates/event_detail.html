@@ -7,12 +7,10 @@
             <a class="list-group-item list-group-item-action active" id="list-info-list" data-bs-toggle="list"
                 href="#list-info" role="tab">Informations</a>
             {% if is_organizer %}
-            <a class="list-group-item list-group-item-action" id="list-title-list" data-bs-toggle="list"
-                href="#list-title" role="tab">Le Titre</a>
+            <a class="list-group-item list-group-item-action" id="list-general-list" data-bs-toggle="list"
+                href="#list-general" role="tab">Généralités</a>
             <a class="list-group-item list-group-item-action" id="list-status-list" data-bs-toggle="list"
                 href="#list-status" role="tab">Statut</a>
-            <a class="list-group-item list-group-item-action" id="list-dates-list" data-bs-toggle="list"
-                href="#list-dates" role="tab">Les dates</a>
             <a class="list-group-item list-group-item-action" id="list-groups-list" data-bs-toggle="list"
                 href="#list-groups" role="tab">Configuration Groupes</a>
             <a class="list-group-item list-group-item-action" href="/event/{{ event.id }}/participants">Participants</a>
@@ -83,26 +81,45 @@
             </div>
 
             <!-- Title Tab (Organizer only) -->
+            <!-- Generalites Tab (Organizer only) -->
             {% if is_organizer %}
-            <div class="tab-pane fade" id="list-title" role="tabpanel">
+            <div class="tab-pane fade" id="list-general" role="tabpanel">
                 <div class="card">
-                    <div class="card-header">Modifier le titre</div>
+                    <div class="card-header">Modifier les généralités</div>
                     <div class="card-body">
-                        <div id="title-display">
-                            <h3>{{ event.name }}</h3>
-                            <button class="btn btn-primary" onclick="toggleTitleEdit()">Modifier</button>
-                        </div>
-                        <div id="title-edit" style="display: none;">
-                            <form method="POST" action="/event/{{ event.id }}/update_title">
-                                <div class="mb-3">
-                                    <input type="text" class="form-control" name="name" value="{{ event.name }}"
-                                        required>
+                        <form method="POST" action="/event/{{ event.id }}/update_general">
+                            <div class="mb-3">
+                                <label class="form-label">Titre de l'événement</label>
+                                <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Lieu</label>
+                                <input type="text" class="form-control" name="location" value="{{ event.location }}">
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Date de début</label>
+                                    <input type="date" class="form-control" name="date_start"
+                                        value="{{ event.date_start.strftime('%Y-%m-%d') }}" required>
                                 </div>
-                                <button type="submit" class="btn btn-success">Valider</button>
-                                <button type="button" class="btn btn-secondary"
-                                    onclick="toggleTitleEdit()">Annuler</button>
-                            </form>
-                        </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Date de fin</label>
+                                    <input type="date" class="form-control" name="date_end"
+                                        value="{{ event.date_end.strftime('%Y-%m-%d') }}" required>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Description</label>
+                                <textarea class="form-control" name="description"
+                                    rows="3">{{ event.description }}</textarea>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Lien externe (Google Form...)</label>
+                                <input type="text" class="form-control" name="external_link"
+                                    value="{{ event.external_link or '' }}">
+                            </div>
+                            <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -148,40 +165,9 @@
             </div>
 
             <!-- Dates Tab (Organizer only) -->
-            <div class="tab-pane fade" id="list-dates" role="tabpanel">
-                <div class="card">
-                    <div class="card-header">Modifier les dates</div>
-                    <div class="card-body">
-                        <form method="POST" action="/event/{{ event.id }}/update_dates">
-                            <div class="mb-3">
-                                <label class="form-label">Date de début</label>
-                                <input type="date" class="form-control" name="date_start"
-                                    value="{{ event.date_start.strftime('%Y-%m-%d') }}" required>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Date de fin</label>
-                                <input type="date" class="form-control" name="date_end"
-                                    value="{{ event.date_end.strftime('%Y-%m-%d') }}" required>
-                            </div>
-                            <button type="submit" class="btn btn-primary">Mettre à jour</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
 
-            <script>
-                function toggleTitleEdit() {
-                    const display = document.getElementById('title-display');
-                    const edit = document.getElementById('title-edit');
-                    if (display.style.display === 'none') {
-                        display.style.display = 'block';
-                        edit.style.display = 'none';
-                    } else {
-                        display.style.display = 'none';
-                        edit.style.display = 'block';
-                    }
-                }
-            </script>
+
+
             <!-- Groups Tab (Organizer only) -->
             <div class="tab-pane fade" id="list-groups" role="tabpanel">
                 <div class="card">
