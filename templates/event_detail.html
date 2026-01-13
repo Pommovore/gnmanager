@@ -248,8 +248,11 @@
 {% endblock %}
 
 {% block scripts %}
+<script id="groups-config-data" type="application/json">
+    {{ groups_config| tojson }}
+</script>
 <script>
-    const groupsConfig = {{ groups_config| tojson }};
+    const groupsConfig = JSON.parse(document.getElementById('groups-config-data').textContent);
 
     function updateGroupOptions() {
         const typeSelect = document.getElementById('joinTypeSelect');
