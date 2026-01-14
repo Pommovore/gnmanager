@@ -79,7 +79,10 @@ class Event(db.Model):
         background_image: URL de l'image de fond
         visibility: Visibilité (public/private)
         organizer_structure: Structure organisatrice
-        external_link: Lien externe (ex: formulaire Google)
+        org_link_url: URL du site de l'association
+        org_link_title: Titre du lien de l'association
+        google_form_url: URL du Google Form d'inscription
+        external_link: Lien externe (legacy)
         statut: Statut manuel de l'événement
         groups_config: Configuration JSON des groupes (PJ/PNJ/Organisateur)
     """
@@ -92,6 +95,9 @@ class Event(db.Model):
     background_image = db.Column(db.String(200))
     visibility = db.Column(db.String(20), default='public')  # public, private
     organizer_structure = db.Column(db.String(100))
+    org_link_url = db.Column(db.String(255))
+    org_link_title = db.Column(db.String(100))
+    google_form_url = db.Column(db.String(255))
     external_link = db.Column(db.String(255))
     statut = db.Column(db.String(50), default='En préparation')
     # Statuts possibles: "En préparation", "Inscriptions ouvertes", "Inscriptions fermées",
@@ -150,6 +156,7 @@ class Participant(db.Model):
         role_communicated: Si le rôle a été communiqué
         role_received: Si le participant a confirmé la réception
         registration_status: Statut d'inscription (À valider/En attente/Validé/Rejeté)
+        paf_status: Statut PAF - Participation Aux Frais (non versée/partielle/versée/erreur)
         payment_method: Méthode de paiement
         payment_amount: Montant payé
         payment_comment: Commentaire sur le paiement
@@ -167,6 +174,9 @@ class Participant(db.Model):
     
     # Statut d'inscription: "À valider", "En attente", "Validé", "Rejeté"
     registration_status = db.Column(db.String(50), default='À valider')
+    
+    # Statut PAF (Participation Aux Frais)
+    paf_status = db.Column(db.String(20), default='non versée')  # non versée, partielle, versée, erreur
     
     payment_method = db.Column(db.String(50))
     payment_amount = db.Column(db.Float, default=0.0)
@@ -221,3 +231,37 @@ class AccountValidationToken(db.Model):
     
     def __repr__(self):
         return f'<AccountValidationToken {self.email}>'
+
+
+class ActivityLog(db.Model):
+    """
+    Journal d'activité pour l'administration.
+    
+    Enregistre toutes les actions importantes:
+    - Inscriptions d'utilisateurs
+    - Créations d'événements
+    - Demandes de participation aux événements
+    
+    Attributes:
+        id: Identifiant unique
+        action_type: Type d'action (user_registration/event_creation/event_participation)
+        user_id: ID de l'utilisateur concerné
+        event_id: ID de l'événement (si applicable)
+        details: Détails JSON de l'action
+        is_viewed: Si l'admin a déjà consulté ce log
+        created_at: Date et heure de l'action
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    action_type = db.Column(db.String(50), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=True)
+    details = db.Column(db.Text)  # JSON
+    is_viewed = db.Column(db.Boolean, default=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relations
+    user = db.relationship('User', backref='activity_logs')
+    event = db.relationship('Event', backref='activity_logs')
+    
+    def __repr__(self):
+        return f'<ActivityLog {self.action_type} by User:{self.user_id}>'

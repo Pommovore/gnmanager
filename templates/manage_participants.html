@@ -1,94 +1,229 @@
 {% extends "base.html" %}
 {% block content %}
-<form method="POST" action="/event/{{ event.id }}/participants/bulk_update">
-    <button type="submit" class="btn btn-primary mb-3">Enregistrement et retour à l'événement</button>
+<div class="container-fluid mt-3">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h3>Gestion des Participants - {{ event.name }}</h3>
+        <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="btn btn-secondary">
+            <i class="bi bi-arrow-left"></i> Retour à l'événement
+        </a>
+    </div>
 
     <div class="table-responsive">
-        <table class="table table-striped">
-            <thead>
+        <table class="table table-sm table-hover table-bordered small">
+            <thead class="table-dark">
                 <tr>
-                    <th>Nom</th>
-                    <th>Email</th>
-                    <th>Statut</th>
-                    <th>Type</th>
-                    <th>Groupe</th>
-                    <th>Paiement</th>
-                    <th>Commentaire</th>
-                    <th>Actions</th>
+                    <th class="text-center" style="width: 15%">Participant</th>
+                    <th class="text-center" style="width: 15%">Email</th>
+                    <th class="text-center" style="width: 10%">Statut</th>
+                    <th class="text-center" style="width: 10%">Type</th>
+                    <th class="text-center" style="width: 10%">Groupe</th>
+                    <th class="text-center" style="width: 10%">PAF</th>
+                    <th class="text-center" style="width: 25%">Actions</th>
+                    <th class="text-center" style="width: 5%"></th>
                 </tr>
             </thead>
             <tbody>
                 {% for p in participants %}
-                <tr
-                    class="{{ 'table-warning' if p.registration_status == 'À valider' else 'table-danger' if p.registration_status == 'Rejeté' else '' }}">
-                    <input type="hidden" name="participant_ids" value="{{ p.id }}">
-                    <!-- Use arrays or prefixed names. Easiest with parallel arrays if ordering preserved, but safety with ID is better.
-                     Let's use p_id in name: name="status_{{p.id}}" 
-                     BUT to process efficiently, we can iterate over IDs in backend.
-                     Let's use consistent naming: status_{{p.id}}, type_{{p.id}}, group_{{p.id}}, ..
-                -->
-                    <td>{{ p.user.nom }} {{ p.user.prenom }}</td>
-                    <td>{{ p.user.email }}</td>
-                    <td>
-                        <select name="status_{{ p.id }}"
-                            class="form-select form-select-sm {{ 'border-danger' if p.registration_status=='Rejeté' else 'border-success' if p.registration_status=='Validé' else 'border-warning' }}">
-                            <option value="À valider" {% if p.registration_status=='À valider' %}selected{% endif %}>À
-                                valider</option>
-                            <option value="En attente" {% if p.registration_status=='En attente' %}selected{% endif %}>
-                                En attente</option>
-                            <option value="Validé" {% if p.registration_status=='Validé' %}selected{% endif %}>Validé
-                            </option>
-                            <option value="Rejeté" {% if p.registration_status=='Rejeté' %}selected{% endif %}>Rejeté
-                            </option>
-                        </select>
-                    </td>
-                    <td>
-                        <select name="type_{{ p.id }}" class="form-select form-select-sm">
-                            <option value="organisateur" {% if p.type=='organisateur' %}selected{% endif %}>Organisateur
-                            </option>
-                            <option value="PJ" {% if p.type=='PJ' %}selected{% endif %}>PJ</option>
-                            <option value="PNJ" {% if p.type=='PNJ' %}selected{% endif %}>PNJ</option>
-                        </select>
-                    </td>
-                    <td>
-                        <select name="group_{{ p.id }}" class="form-select form-select-sm">
-                            <!-- Logic to show correct groups based on participant type is tricky in pure Jinja if we want dynamic switching on type change. 
-                                 However, for managing existing participants, the type is fixed unless changed.
-                                 If type is changed in the row, group options should ideally update (JS needed).
-                                 For MVP, let's show ALL groups or just distinct ones? Or simple input for now?
-                                 Spec says: "l'attribution des groupes doit passer par menu déroulant"
-                                 Let's use a Select that shows groups for the CURRENT type of the participant.
-                            -->
-                            {% set p_groups = groups_config.get(p.type, ['Peu importe']) %}
-                            <!-- Fallback if type casing differs e.g. 'organisateur' vs 'Organisateur' in config -->
-                            {% if p.type == 'organisateur' %}{% set p_groups = groups_config.get('Organisateur', ['Peu
-                            importe']) %}{% endif %}
+                {% set row_class = "" %}
+                {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
+                {% set row_class = "table-warning" %}
+                {% elif p.type == 'organisateur' %}
+                {% set row_class = "table-secondary" %}
+                {% elif p.type == 'PJ' %}
+                {% set row_class = "table-info" %}
+                {% elif p.type == 'PNJ' %}
+                {% set row_class = "table-warning" %}
+                {% endif %}
 
-                            {% for g in p_groups %}
-                            <option value="{{ g }}" {% if p.group==g %}selected{% endif %}>{{ g }}</option>
-                            {% endfor %}
-                            <option value="Autre" {% if p.group not in p_groups %}selected{% endif %}>Autre/Custom
-                            </option>
-                        </select>
-                        <!-- Keep custom value if not in list via JS? Or just let them save whatever -->
+                <tr class="{{ row_class }}">
+                    <!-- Participant -->
+                    <td class="align-middle">
+                        <strong>{{ p.user.nom }} {{ p.user.prenom }}</strong>
                     </td>
-                    <td>
-                        <div class="input-group input-group-sm">
-                            <input type="number" step="0.01" name="pay_amount_{{ p.id }}" value="{{ p.payment_amount }}"
-                                class="form-control">
-                            <input type="text" name="pay_method_{{ p.id }}" value="{{ p.payment_method or '' }}"
-                                class="form-control" placeholder="Moyen">
+
+                    <!-- Email -->
+                    <td class="align-middle">
+                        <span class="badge bg-secondary">{{ p.user.email }}</span>
+                    </td>
+
+                    <!-- Statut (READ-ONLY) -->
+                    <td class="align-middle text-center">
+                        {% if p.registration_status == 'Validé' %}
+                        <span class="badge bg-success">✓ Validé</span>
+                        {% elif p.registration_status == 'Rejeté' %}
+                        <span class="badge bg-danger">✗ Rejeté</span>
+                        {% elif p.registration_status == 'En attente' %}
+                        <span class="badge bg-info">⏳ Attente</span>
+                        {% else %}
+                        <span class="badge bg-warning text-dark">⚠ À valider</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Type (READ-ONLY) -->
+                    <td class="align-middle text-center">
+                        {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
+                        <span class="badge bg-light text-dark border">{{ p.type }} (En Attente)</span>
+                        {% else %}
+                        {{ p.type }}
+                        {% endif %}
+                    </td>
+
+                    <!-- Groupe (READ-ONLY) -->
+                    <td class="align-middle text-center">
+                        {{ p.group or 'Peu importe' }}
+                    </td>
+
+                    <!-- PAF (READ-ONLY) -->
+                    <td class="align-middle text-center">
+                        {% if p.paf_status == 'versée' %}
+                        <span class="badge bg-success">Versée</span>
+                        {% elif p.paf_status == 'partielle' %}
+                        <span class="badge bg-warning text-dark">Partielle</span>
+                        {% elif p.paf_status == 'erreur' %}
+                        <span class="badge bg-danger">Erreur</span>
+                        {% else %}
+                        <span class="badge bg-secondary">Non versée</span>
+                        {% endif %}
+                    </td>
+
+                    <!-- Actions intelligentes -->
+                    <td class="align-middle">
+                        <div class="d-flex w-100 gap-1">
+                            {% if p.registration_status != 'Validé' %}
+                            <form method="POST"
+                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                class="flex-fill">
+                                <input type="hidden" name="action" value="validate">
+                                <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
+                                    <i class="bi bi-check-circle"></i> Valider
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if p.registration_status != 'En attente' %}
+                            <form method="POST"
+                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                class="flex-fill">
+                                <input type="hidden" name="action" value="pending">
+                                <button type="submit" class="btn btn-sm btn-info w-100 py-1" title="Mettre en attente">
+                                    <i class="bi bi-clock"></i> Attente
+                                </button>
+                            </form>
+                            {% endif %}
+
+                            {% if p.registration_status != 'Rejeté' %}
+                            <form method="POST"
+                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                class="flex-fill">
+                                <input type="hidden" name="action" value="reject">
+                                <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
+                                    <i class="bi bi-x-circle"></i> Exclure
+                                </button>
+                            </form>
+                            {% endif %}
                         </div>
                     </td>
-                    <td><textarea name="comment_{{ p.id }}"
-                            class="form-control form-control-sm">{{ p.comment or '' }}</textarea>
-                    </td>
-                    <td>
-                        <!-- No individual save button -->
+
+                    <!-- Édition -->
+                    <td class="align-middle text-center">
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                            data-bs-target="#editModal{{ p.id }}" title="Éditer">
+                            <i class="bi bi-gear-fill"></i>
+                        </button>
                     </td>
                 </tr>
+
+                <!-- Modal d'édition -->
+                <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                            </div>
+                            <form method="POST"
+                                action="{{ url_for('main.update_participant', event_id=event.id, p_id=p.id) }}">
+                                <div class="modal-body">
+                                    <div class="mb-3">
+                                        <label class="form-label">Email (lecture seule)</label>
+                                        <input type="text" class="form-control" value="{{ p.user.email }}" disabled>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Type</label>
+                                        <select name="type" class="form-select" required>
+                                            <option value="organisateur" {% if p.type=='organisateur' %}selected{% endif
+                                                %}>Organisateur</option>
+                                            <option value="PJ" {% if p.type=='PJ' %}selected{% endif %}>PJ</option>
+                                            <option value="PNJ" {% if p.type=='PNJ' %}selected{% endif %}>PNJ
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Groupe</label>
+                                        <input type="text" name="group" class="form-control"
+                                            value="{{ p.group or '' }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">PAF (Participation Aux Frais)</label>
+                                        <select name="paf_status" class="form-select">
+                                            <option value="non versée" {% if p.paf_status=='non versée' or not
+                                                p.paf_status %}selected{% endif %}>Non versée</option>
+                                            <option value="partielle" {% if p.paf_status=='partielle' %}selected{% endif
+                                                %}>Partielle</option>
+                                            <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
+                                                Versée</option>
+                                            <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
+                                                Erreur</option>
+                                        </select>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Montant (€)</label>
+                                        <input type="number" step="0.01" name="payment_amount" class="form-control"
+                                            value="{{ p.payment_amount }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Moyen de paiement</label>
+                                        <input type="text" name="payment_method" class="form-control"
+                                            value="{{ p.payment_method or '' }}">
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Commentaire</label>
+                                        <textarea name="comment" class="form-control"
+                                            rows="3">{{ p.comment or '' }}</textarea>
+                                    </div>
+                                </div>
+                                <div class="modal-footer">
+                                    <button type="button" class="btn btn-secondary"
+                                        data-bs-dismiss="modal">Annuler</button>
+                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+                </div>
                 {% endfor %}
             </tbody>
         </table>
     </div>
-    {% endblock %}
+</div>
+
+<style>
+    .gap-1 {
+        gap: 0.25rem !important;
+    }
+
+    .small {
+        font-size: 0.875rem;
+    }
+
+    .badge {
+        font-size: 0.75rem;
+    }
+
+    /* S'assurer que les formulaires dans les boutons d'action ne créent pas de décalage */
+    .btn-group-sm>.btn,
+    .btn-sm {
+        white-space: nowrap;
+    }
+</style>
+{% endblock %}

@@ -71,23 +71,31 @@ def run_command_remote(ssh, command, input_text=None):
         bool: True si la commande a réussi, False sinon
     """
     print(f"[EXT] {command}")
-    stdin, stdout, stder## = ssh.exec_command(command)
+    # get_pty=True est parfois nécessaire pour sudo, mais sudo -S préfère souvent sans.
+    # On tente sans PTY mais en fermant bien stdin.
+    stdin, stdout, stderr = ssh.exec_command(command)
     
     if input_text:
         stdin.write(input_text + '\n')
         stdin.flush()
-        
-    while True:
-        line = stdout.readline()
-        if not line:
-            break
-        print(line.strip())
     
+    # IMPORTANT: Fermer stdin indique à la commande (et sudo) qu'il n'y a plus de données
+    stdin.close()
+        
+    # On attend la fin de la commande et on récupère le code de retour
     exit_status = stdout.channel.recv_exit_status()
+    
+    # On lit tout le contenu (car recv_exit_status a garanti la fin)
+    out_data = stdout.read().decode().strip()
+    err_data = stderr.read().decode().strip()
+    
+    if out_data:
+        print(out_data)
+        
     if exit_status != 0:
-        err_msg = stderr.read().decode()
-        if "[sudo] password" not in err_msg:
-             print(f"Erreur commande distante ({exit_status}): {err_msg}")
+        # On ignore le prompt sudo dans stderr si présent, ce n'est pas une "vraie" erreur
+        if "[sudo] password" not in err_data and err_data:
+             print(f"Erreur commande distante ({exit_status}): {err_data}")
         return False
     return True
 

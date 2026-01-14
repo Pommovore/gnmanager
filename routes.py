@@ -11,7 +11,7 @@ Ce module définit toutes les routes Flask pour:
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken, Role
+from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken, Role, ActivityLog
 from auth import generate_password, send_email
 from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
@@ -141,6 +141,21 @@ def register():
             db.session.add(new_user)
             db.session.add(token)
             db.session.commit()
+            
+            # Logger l'inscription
+            log = ActivityLog(
+                action_type='user_registration',
+                user_id=new_user.id,
+                details=json.dumps({
+                    'email': email,
+                    'nom': nom,
+                    'prenom': prenom,
+                    'genre': request.form.get('genre')
+                })
+            )
+            db.session.add(log)
+            db.session.commit()
+            
             flash('Inscription enregistrée ! Vérifiez vos emails pour valider votre compte. (Pensez à regarder dans vos spams si vous ne recevez rien)', 'success')
             return redirect(url_for('main.login'))
         else:
@@ -351,8 +366,6 @@ def admin_delete_user(user_id):
         return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
 
     try:
-        print(f"[DELETE USER] Tentative de suppression de {user.email} (ID: {user.id})", flush=True)
-        
         # Suppression en cascade des entités liées
         # Note: SQLAlchemy peut gérer ceci automatiquement avec cascade="all, delete-orphan"
         # mais nous le faisons explicitement pour plus de clarté et de contrôle
@@ -363,34 +376,34 @@ def admin_delete_user(user_id):
         participant_ids = [p.id for p in participants]
         
         if participant_ids:
-            print(f"[DELETE USER] Désassignation des rôles liés aux {len(participant_ids)} participants", flush=True)
+            # Désassigner automatiquement les rôles liés aux participants
             roles_to_unassign = Role.query.filter(Role.assigned_participant_id.in_(participant_ids)).all()
             for role in roles_to_unassign:
                 role.assigned_participant_id = None
-                print(f"[DELETE USER] Rôle '{role.name}' désassigné", flush=True)
         
         # 2. Supprimer les tokens de validation et de réinitialisation
-        print(f"[DELETE USER] Suppression des tokens", flush=True)
         AccountValidationToken.query.filter_by(email=user.email).delete()
         PasswordResetToken.query.filter_by(email=user.email).delete()  # Utiliser email, pas user_id
         
         # 3. Supprimer les participations aux événements
-        print(f"[DELETE USER] Suppression des participations", flush=True)
         Participant.query.filter_by(user_id=user.id).delete()
         
-        # 4. Supprimer l'utilisateur
-        print(f"[DELETE USER] Suppression de l'utilisateur", flush=True)
+        # 4. Supprimer l'utilisateur et enregistrer l'action dans les logs
+        # Log de l'activité
+        log = ActivityLog(
+            user_id=current_user.id,
+            action_type="Suppression utilisateur",
+            details=f"{user.email} {user.nom or ''} {user.prenom or ''}"
+        )
+        db.session.add(log)
+        
         db.session.delete(user)
         
         # 5. Commit
         db.session.commit()
-        print(f"[DELETE USER] Suppression réussie de {user.email}", flush=True)
         flash(f"Utilisateur {user.email} supprimé définitivement.", "success")
     except Exception as e:
         db.session.rollback()
-        print(f"[DELETE USER] ERREUR: {str(e)}", flush=True)
-        import traceback
-        traceback.print_exc()
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
         
     return redirect(url_for('main.dashboard', admin_view='users', _anchor='admin'))
@@ -431,7 +444,9 @@ def create_event():
             location=location, 
             visibility=visibility, 
             statut='En préparation',
-            external_link=request.form.get('external_link', '')
+            org_link_url=request.form.get('org_link_url', ''),
+            org_link_title=request.form.get('org_link_title', ''),
+            google_form_url=request.form.get('google_form_url', '')
         )
         db.session.add(new_event)
         db.session.commit()
@@ -445,6 +460,21 @@ def create_event():
             registration_status='Validé'
         )
         db.session.add(participant)
+        db.session.commit()
+        
+        # Logger la création de l'événement
+        log = ActivityLog(
+            action_type='event_creation',
+            user_id=current_user.id,
+            event_id=new_event.id,
+            details=json.dumps({
+                'event_name': name,
+                'location': location,
+                'date_start': date_start.strftime('%Y-%m-%d'),
+                'date_end': date_end.strftime('%Y-%m-%d')
+            })
+        )
+        db.session.add(log)
         db.session.commit()
         
         flash('Événement créé avec succès !', 'success')
@@ -475,7 +505,9 @@ def update_event_general(event_id):
     date_start_str = request.form.get('date_start')
     date_end_str = request.form.get('date_end')
     description = request.form.get('description')
-    external_link = request.form.get('external_link')
+    org_link_url = request.form.get('org_link_url')
+    org_link_title = request.form.get('org_link_title')
+    google_form_url = request.form.get('google_form_url')
     
     try:
         if name: event.name = name
@@ -485,7 +517,9 @@ def update_event_general(event_id):
         if date_end_str: 
             event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
         if description is not None: event.description = description
-        if external_link is not None: event.external_link = external_link
+        if org_link_url is not None: event.org_link_url = org_link_url
+        if org_link_title is not None: event.org_link_title = org_link_title
+        if google_form_url is not None: event.google_form_url = google_form_url
             
         db.session.commit()
         flash('Informations générales mises à jour.', 'success')
@@ -595,6 +629,20 @@ def join_event(event_id):
     db.session.add(participant)
     db.session.commit()
     
+    # Logger la demande de participation
+    log = ActivityLog(
+        action_type='event_participation',
+        user_id=current_user.id,
+        event_id=event.id,
+        details=json.dumps({
+            'type': p_type,
+            'group': p_group,
+            'event_name': event.name
+        })
+    )
+    db.session.add(log)
+    db.session.commit()
+    
     flash('Demande d\'inscription envoyée ! En attente de validation.', 'success')
     return redirect(url_for('main.event_detail', event_id=event.id))
 
@@ -635,6 +683,9 @@ def manage_participants(event_id):
 @main.route('/event/<int:event_id>/participants/bulk_update', methods=['POST'])
 @login_required
 def bulk_update_participants(event_id):
+    """
+    Mise à jour groupée des participants.
+    """
     event = Event.query.get_or_404(event_id)
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
@@ -647,36 +698,99 @@ def bulk_update_participants(event_id):
     for p_id in p_ids:
         p = Participant.query.get(p_id)
         if p and p.event_id == event.id:
-            # Update fields based on ID-suffixed names
-            p.registration_status = request.form.get(f'status_{p_id}', p.registration_status)
+            # Mise à jour des champs
             p.type = request.form.get(f'type_{p_id}', p.type)
             p.group = request.form.get(f'group_{p_id}', p.group)
+            p.paf_status = request.form.get(f'paf_{p_id}', p.paf_status)
             
-            # Use 0.0 if empty string provided
+            # Mise à jour paiement (conservé pour compatibilité)
             pay_amt = request.form.get(f'pay_amount_{p_id}', '')
             p.payment_amount = float(pay_amt) if pay_amt else 0.0
-            
             p.payment_method = request.form.get(f'pay_method_{p_id}', p.payment_method)
             p.comment = request.form.get(f'comment_{p_id}', p.comment)
             
     db.session.commit()
     flash('Participants mis à jour avec succès.', 'success')
-    return redirect(url_for('main.event_detail', event_id=event.id))
+    return redirect(url_for('main.manage_participants', event_id=event.id))
 
 @main.route('/event/<int:event_id>/participant/<int:p_id>/update', methods=['POST'])
 @login_required
 def update_participant(event_id, p_id):
-    # Check organizer rights... (omitted for brevity, should be a decorator or helper)
+    """
+    Met à jour un participant depuis la modal d'édition.
+    """
+    # Vérifier les droits d'organisateur
+    event = Event.query.get_or_404(event_id)
+    organizer = Participant.query.filter_by(event_id=event.id, user_id=current_user.id, type='organisateur').first()
+    if not organizer:
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event_id))
+    
     p = Participant.query.get_or_404(p_id)
+    if p.event_id != event_id:
+        flash('Participant invalide pour cet événement.', 'danger')
+        return redirect(url_for('main.manage_participants', event_id=event_id))
+    
+    # Mise à jour des champs
     p.type = request.form.get('type')
-    p.registration_status = request.form.get('registration_status')
     p.group = request.form.get('group')
+    p.paf_status = request.form.get('paf_status', 'non versée')
     p.payment_amount = float(request.form.get('payment_amount', 0))
     p.payment_method = request.form.get('payment_method')
     p.comment = request.form.get('comment')
     
     db.session.commit()
     flash('Participant mis à jour.', 'success')
+    return redirect(url_for('main.manage_participants', event_id=event_id))
+
+
+@main.route('/event/<int:event_id>/participant/<int:p_id>/change-status', methods=['POST'])
+@login_required
+def change_participant_status(event_id, p_id):
+    """
+    Change le statut d'inscription d'un participant.
+    
+    Actions possibles via le paramètre 'action':
+    - 'validate': Passe le statut à 'Validé'
+    - 'reject': Passe le statut à 'Rejeté'
+    - 'pending': Passe le statut à 'En attente'
+    """
+    # Vérifier les droits d'organisateur
+    event = Event.query.get_or_404(event_id)
+    organizer = Participant.query.filter_by(event_id=event.id, user_id=current_user.id, type='organisateur').first()
+    if not organizer:
+        flash('Action non autorisée.', 'danger')
+        return redirect(url_for('main.event_detail', event_id=event_id))
+    
+    participant = Participant.query.get_or_404(p_id)
+    if participant.event_id != event_id:
+        flash('Participant invalide pour cet événement.', 'danger')
+        return redirect(url_for('main.manage_participants', event_id=event_id))
+    
+    action = request.form.get('action')
+    
+    if action == 'validate':
+        participant.registration_status = 'Validé'
+        flash(f'Participant {participant.user.email} validé.', 'success')
+    elif action == 'reject':
+        participant.registration_status = 'Rejeté'
+        flash(f'Participant {participant.user.email} rejeté.', 'warning')
+    elif action == 'pending':
+        participant.registration_status = 'En attente'
+        flash(f'Participant {participant.user.email} mis en attente.', 'info')
+    else:
+        flash('Action invalide.', 'danger')
+        return redirect(url_for('main.manage_participants', event_id=event_id))
+    
+    # Log de l'activité
+    log = ActivityLog(
+        user_id=current_user.id,
+        action_type="Modification statut",
+        details=f"{participant.user.email} {participant.user.nom or ''} {participant.user.prenom or ''}"
+    )
+    db.session.add(log)
+    
+    db.session.commit()
     return redirect(url_for('main.manage_participants', event_id=event_id))
 
 @main.route('/event/<int:event_id>/casting')
@@ -765,6 +879,51 @@ def api_unassign_role():
 def logout():
     logout_user()
     return redirect(url_for('main.login'))
+
+# Routes d'administration des logs
+
+@main.route('/admin/logs')
+@login_required
+def admin_logs():
+    """
+    Affiche le journal d'activité pour les administrateurs.
+    
+    Montre toutes les inscriptions, créations d'événements et
+    demandes de participation. Les logs non consultés sont
+    surlignés en jaune.
+    """
+    if not current_user.is_admin:
+        flash('Accès refusé.', 'danger')
+        return redirect(url_for('main.dashboard'))
+    
+    # Récupérer tous les logs, les plus récents en premier
+    logs = ActivityLog.query.order_by(ActivityLog.created_at.desc()).all()
+    
+    # Enrichir avec les détails JSON
+    for log in logs:
+        try:
+            log.details_dict = json.loads(log.details or '{}')
+        except json.JSONDecodeError:
+            log.details_dict = {}
+    
+    return render_template('admin_logs.html', logs=logs)
+
+
+@main.route('/admin/logs/mark-viewed', methods=['POST'])
+@login_required
+def mark_logs_viewed():
+    """
+    Marque tous les logs comme consultés.
+    
+    Supprime le surlignage jaune des logs.
+    """
+    if not current_user.is_admin:
+        return jsonify({'error': 'Unauthorized'}), 403
+    
+    ActivityLog.query.filter_by(is_viewed=False).update({'is_viewed': True})
+    db.session.commit()
+    
+    return jsonify({'success': True})
 
 # Password Recovery Routes
 

@@ -41,7 +41,12 @@
             {% set badge_text = "" %}
 
             {% if participation %}
-            {% if participation.type == 'organisateur' or participation.type == 'Organisateur' %}
+            {% if participation.registration_status == 'En attente' or participation.registration_status == 'À valider'
+            %}
+            {% set row_class = "list-group-item-secondary" %}
+            {% set badge_class = "bg-light text-dark border" %}
+            {% set badge_text = participation.type ~ " (En Attente)" %}
+            {% elif participation.type == 'organisateur' or participation.type == 'Organisateur' %}
             {% set row_class = "list-group-item-danger" %}
             {% set badge_class = "bg-danger" %}
             {% set badge_text = "Organisateur" %}
@@ -78,7 +83,9 @@
                         <span class="badge {{ status_color }}">{{ e.statut }}</span>
                         {% if participation %}
                         <span class="badge {{ badge_class }} ms-2">{{ badge_text }}
-                            {% if participation.group and participation.group != 'Peu importe' %}
+                            {% if (participation.registration_status != 'En attente' and
+                            participation.registration_status != 'À valider') and participation.group and
+                            participation.group != 'Peu importe' %}
                             - {{ participation.group }}
                             {% endif %}
                         </span>
@@ -159,6 +166,9 @@
                     <a href="{{ url_for('main.dashboard', filter=current_filter, admin_view='add') }}#admin"
                         class="list-group-item list-group-item-action {% if admin_view == 'add' %}active{% endif %}">
                         Ajouter
+                    </a>
+                    <a href="{{ url_for('main.admin_logs') }}" class="list-group-item list-group-item-action">
+                        <i class="bi bi-journal-text"></i> Logs
                     </a>
                 </div>
             </div>
@@ -306,16 +316,16 @@
                                         </div>
                                     </form>
                                     <div class="modal-footer">
-                                        <button type="button" class="btn btn-secondary"
-                                            data-bs-dismiss="modal">Fermer</button>
-
                                         {% if not is_readonly and u.id != current_user.id %}
                                         <form action="{{ url_for('main.admin_delete_user', user_id=u.id) }}"
-                                            method="POST" class="d-inline"
+                                            method="POST" class="me-auto"
                                             onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible et effacera toutes ses données.');">
                                             <button type="submit" class="btn btn-danger">Supprimer</button>
                                         </form>
                                         {% endif %}
+
+                                        <button type="button" class="btn btn-secondary"
+                                            data-bs-dismiss="modal">Fermer</button>
 
                                         {% if not is_readonly %}
                                         <button type="submit" form="updateUserForm{{ u.id }}"

@@ -38,10 +38,19 @@
                         </p>
                         <p>Status actuel : <span class="badge bg-info">{{ event.statut }}</span></p>
                         <p class="mt-3">{{ event.description }}</p>
-                        {% if event.external_link %}
-                        <a href="{{ event.external_link }}" target="_blank"
-                            class="btn btn-outline-primary mb-3">Formulaire Externe</a>
-                        {% endif %}
+                        <div class="d-flex flex-wrap gap-2 mb-3">
+                            {% if event.org_link_url %}
+                            <a href="{{ event.org_link_url }}" target="_blank" class="btn btn-outline-secondary">
+                                <i class="bi bi-link-45deg"></i> {{ event.org_link_title or 'Lien externe' }}
+                            </a>
+                            {% endif %}
+
+                            {% if event.google_form_url %}
+                            <a href="{{ event.google_form_url }}" target="_blank" class="btn btn-outline-primary">
+                                <i class="bi bi-journal-check"></i> Google Form
+                            </a>
+                            {% endif %}
+                        </div>
 
                         {% if is_organizer %}
                         <div class="alert alert-warning">Vous êtes organisateur de cet événement.</div>
@@ -59,12 +68,19 @@
                         {% endif %}
 
                         <p>Votre rôle :
+                            {% if participant.registration_status == 'En attente' or participant.registration_status ==
+                            'À valider' %}
+                            <span class="badge bg-light text-dark border">
+                                {{ participant.type }} (En Attente)
+                            </span>
+                            {% else %}
                             <span class="badge {{ badge_class }}">
                                 {{ participant.type }}
                                 {% if participant.group and participant.group != 'Peu importe' %}
                                 - {{ participant.group }}
                                 {% endif %}
                             </span>
+                            {% endif %}
                         </p>
                         {% endif %}
                         <p>Statut inscription : {{ participant.registration_status }}</p>
@@ -113,10 +129,24 @@
                                 <textarea class="form-control" name="description"
                                     rows="3">{{ event.description }}</textarea>
                             </div>
+                            <hr>
+                            <h6>Liens Externes</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Lien externe (URL)</label>
+                                    <input type="text" class="form-control" name="org_link_url"
+                                        value="{{ event.org_link_url or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Titre du lien externe</label>
+                                    <input type="text" class="form-control" name="org_link_title"
+                                        value="{{ event.org_link_title or '' }}">
+                                </div>
+                            </div>
                             <div class="mb-3">
-                                <label class="form-label">Lien externe (Google Form...)</label>
-                                <input type="text" class="form-control" name="external_link"
-                                    value="{{ event.external_link or '' }}">
+                                <label class="form-label">Lien Google Form (Inscription)</label>
+                                <input type="text" class="form-control" name="google_form_url"
+                                    value="{{ event.google_form_url or '' }}">
                             </div>
                             <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
                         </form>
