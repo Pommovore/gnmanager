@@ -1,3 +1,21 @@
+"""
+Script de déploiement automatique pour GN Manager.
+
+Ce script permet de déployer l'application soit localement, soit sur un serveur distant.
+
+Usage:
+    python deploy.py --dpcfg config/deploy_config.yaml [--reset-db] [--import-data]
+    
+Options:
+    --dpcfg: Chemin vers le fichier de configuration YAML
+    --reset-db: Réinitialiser la base de données
+    --import-data: Importer les données de test
+    --admin-email: Email de l'administrateur
+    --admin-password: Mot de passe de l'administrateur
+    --admin-nom: Nom de l'administrateur
+    --admin-prenom: Prénom de l'administrateur
+"""
+
 import os
 import sys
 import subprocess
@@ -11,7 +29,17 @@ try:
 except ImportError:
     paramiko = None
 
+
 def load_config(path):
+    """
+    Charge la configuration depuis un fichier YAML.
+    
+    Args:
+        path: Chemin vers le fichier de configuration
+        
+    Returns:
+        dict: Configuration chargée ou None si le fichier n'existe pas
+    """
     if os.path.exists(path):
         with open(path, 'r') as f:
             return yaml.safe_load(f)
@@ -29,9 +57,21 @@ def run_command_local(command, cwd=None, env=None):
         print(f"Erreur commande locale: {command}")
         return False
 
+
 def run_command_remote(ssh, command, input_text=None):
+    """
+    Exécute une commande sur le serveur distant via SSH.
+    
+    Args:
+        ssh: Connexion SSH Paramiko active
+        command: Commande à exécuter
+        input_text: Texte à envoyer sur stdin (optionnel, pour sudo -S)
+        
+    Returns:
+        bool: True si la commande a réussi, False sinon
+    """
     print(f"[EXT] {command}")
-    stdin, stdout, stderr = ssh.exec_command(command)
+    stdin, stdout, stder## = ssh.exec_command(command)
     
     if input_text:
         stdin.write(input_text + '\n')
@@ -45,9 +85,8 @@ def run_command_remote(ssh, command, input_text=None):
     
     exit_status = stdout.channel.recv_exit_status()
     if exit_status != 0:
-        # Sudo -S outputs the prompt to stderr usually, so we might see it there
         err_msg = stderr.read().decode()
-        if "[sudo] password" not in err_msg: # Ignore standard password prompt in logs if possible, or just print it
+        if "[sudo] password" not in err_msg:
              print(f"Erreur commande distante ({exit_status}): {err_msg}")
         return False
     return True
@@ -87,7 +126,27 @@ def upload_files(ssh, local_path, remote_path):
     sftp.close()
     print("Transfert terminé.")
 
+
 def deploy_remote(config, args):
+    """
+    Déploie l'application sur un serveur distant via SSH.
+    
+    Cette fonction:
+    1. Établit une connexion SSH
+    2. Arrête le service existant
+    3. Transfert les fichiers
+    4. Installe les dépendances
+    5. Configure la base de données
+    6. Redémarre le service systemd
+    
+    Args:
+        config: Dictionnaire de configuration chargé depuis YAML
+        args: Arguments de la ligne de commande
+        
+    Environnement requis:
+        GNMANAGER_USER: Nom d'utilisateur SSH
+        GNMANAGER_PWD: Mot de passe SSH/sudo
+    """
     if not config or 'deploy' not in config:
         print("Erreur: Section 'deploy' manquante pour le déploiement distant.")
         return
@@ -251,8 +310,23 @@ def deploy_remote(config, args):
     print(f"Déploiement terminé. Vérifiez le statut avec 'systemctl status gnmanager.service' sur le serveur.")
     ssh.close()
 
+
 def deploy_local(config, args, mode='local'):
-    # Defaults
+    """
+    Déploie l'application localement.
+    
+    Cette fonction:
+    1. Arrête les processus existants
+    2. Installe les dépendances (uv ou pip)
+    3. Configure la base de données
+    4. Lance l'application
+    
+    Args:
+        config: Dictionnaire de configuration
+        args: Arguments de la ligne de commande
+        mode: Mode de déploiement ('local' ou 'Replit')
+    """
+    # Valeurs par défaut
     host = '0.0.0.0'
     port = 5000
     target_dir = './'

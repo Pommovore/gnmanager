@@ -11,9 +11,11 @@ Ce module définit toutes les routes Flask pour:
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from flask_login import login_user, logout_user, login_required, current_user
-from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken
+from models import db, User, Event, Participant, PasswordResetToken, AccountValidationToken, Role
 from auth import generate_password, send_email
 from werkzeug.security import generate_password_hash, check_password_hash
+from werkzeug.utils import secure_filename
+from PIL import Image
 from datetime import datetime, timedelta
 import uuid
 import json
@@ -23,12 +25,25 @@ main = Blueprint('main', __name__)
 
 @main.route('/')
 def index():
+    """
+    Page d'accueil - redirige vers le dashboard si connecté, sinon vers login.
+    """
     if current_user.is_authenticated:
         return redirect(url_for('main.dashboard'))
     return redirect(url_for('main.login'))
 
 @main.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+    Page de connexion utilisateur.
+    
+    Méthodes:
+        GET: Affiche le formulaire de connexion
+        POST: Traite la tentative de connexion
+        
+    Returns:
+        Template login.html ou redirection vers dashboard si succès
+    """
     if request.method == 'POST':
         email = request.form.get('email')
         password = request.form.get('password')
@@ -68,6 +83,18 @@ def login():
 
 @main.route('/register', methods=['GET', 'POST'])
 def register():
+    """
+    Page d'inscription d'un nouvel utilisateur.
+    
+    Processus:
+    1. L'utilisateur saisit ses informations (email, nom, prénom, âge, genre)
+    2. Un token de validation est créé
+    3. Un email de confirmation est envoyé
+    4. L'utilisateur valide son compte via le lien dans l'email
+    
+    Returns:
+        Template register.html ou redirection selon le résultat
+    """
     if request.method == 'POST':
         email = request.form.get('email')
         nom = request.form.get('nom')
@@ -78,7 +105,7 @@ def register():
             flash('Cet email est déjà utilisé.', 'warning')
             return redirect(url_for('main.login'))
             
-        # Créer l'utilisateur et le token de validation (non commité en base)
+        # Créer l'utilisateur et le token de validation
         new_user = User(
             email=email, 
             nom=nom, 
@@ -190,42 +217,37 @@ def dashboard():
 @main.route('/profile', methods=['POST'])
 @login_required
 def update_profile():
+    """
+    Mise à jour du profil utilisateur.
+    
+    Permet de modifier:
+    - Informations personnelles (nom, prénom, âge, genre)
+    - Avatar (image redimensionnée à 80x80)
+    - Mot de passe
+    """
     current_user.nom = request.form.get('nom')
     current_user.prenom = request.form.get('prenom')
     current_user.age = request.form.get('age')
-    current_user.genre = request.form.get('genre') # Added
+    current_user.genre = request.form.get('genre')
     
-    # Avatar upload
+    # Traitement de l'avatar
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and file.filename != '':
-            from PIL import Image
-            import os
-            from werkzeug.utils import secure_filename
-            
-            filename = secure_filename(file.filename)
-            # Save to static/avatars
-            upload_folder = os.path.join(current_user.id.__str__(), 'avatars') # or just static/avatars
-            # Spec says: "stockée dans la base d’images avec l’identifiant : email utilisateur..."
-            # Let's use a simple path for now: static/uploads/avatars/<email>_avatar.png
-            
-            # Ensure directory exists
+            # Créer le répertoire de stockage
             static_folder = os.path.join(os.getcwd(), 'static', 'uploads')
             os.makedirs(static_folder, exist_ok=True)
             
-            # Resize
+            # Redimensionner l'image
             img = Image.open(file)
             img.thumbnail((80, 80))
             
-            # Construct filename as per spec (simplified for now, spec was for event image)
-            # Spec for avatar: "un utilisateur peut ajouter une image de son avatar"
-            # Spec for event participant image: "l’utilisateur peut fournir lui une image qui sera stockée... avec l’identifiant : email..."
-            
+            # Sauvegarder avec l'ID utilisateur comme nom
             save_path = os.path.join(static_folder, f"avatar_{current_user.id}.png")
             img.save(save_path)
             current_user.avatar_url = f"/static/uploads/avatar_{current_user.id}.png"
 
-    # Password reset logic
+    # Mise à jour du mot de passe
     new_password = request.form.get('new_password')
     confirm_password = request.form.get('confirm_password')
     
@@ -293,11 +315,10 @@ def admin_update_full_user(user_id):
     if new_password:
         user.password_hash = generate_password_hash(new_password)
     
-    # Update Status/Role
-    status_code = request.form.get('status') # createur, sysadmin, actif, banni
+    # Mise à jour du statut/rôle
+    status_code = request.form.get('status')  # createur, sysadmin, actif, banni
     
-    # Logic to map single select "status" to role + is_banned
-    # Logic to map single select "status" to role + is_banned
+    # Logique de mapping du statut vers role + is_banned
     if status_code == 'createur':
         if current_user.role == 'createur':
             user.role = 'createur'
@@ -343,7 +364,6 @@ def admin_delete_user(user_id):
         
         if participant_ids:
             print(f"[DELETE USER] Désassignation des rôles liés aux {len(participant_ids)} participants", flush=True)
-            from models import Role
             roles_to_unassign = Role.query.filter(Role.assigned_participant_id.in_(participant_ids)).all()
             for role in roles_to_unassign:
                 role.assigned_participant_id = None
@@ -381,6 +401,14 @@ def admin_delete_user(user_id):
 @main.route('/event/create', methods=['GET', 'POST'])
 @login_required
 def create_event():
+    """
+    Création d'un nouvel événement.
+    
+    L'utilisateur qui crée l'événement devient automatiquement organisateur.
+    
+    Returns:
+        Template event_create.html ou redirection vers l'événement créé
+    """
     if request.method == 'POST':
         name = request.form.get('name')
         date_start_str = request.form.get('date_start')
@@ -388,8 +416,12 @@ def create_event():
         location = request.form.get('location')
         visibility = request.form.get('visibility')
         
-        date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
-        date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+        try:
+            date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
+            date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+        except (ValueError, TypeError) as e:
+            flash('Format de date invalide. Veuillez utiliser le format AAAA-MM-JJ.', 'danger')
+            return redirect(url_for('main.create_event'))
         
         new_event = Event(
             name=name, 
@@ -404,7 +436,14 @@ def create_event():
         db.session.add(new_event)
         db.session.commit()
         
-        participant = Participant(event_id=new_event.id, user_id=current_user.id, type='organisateur', role_communicated=True, registration_status='Validé')
+        # Ajouter le créateur comme organisateur
+        participant = Participant(
+            event_id=new_event.id, 
+            user_id=current_user.id, 
+            type='organisateur', 
+            role_communicated=True, 
+            registration_status='Validé'
+        )
         db.session.add(participant)
         db.session.commit()
         
@@ -416,8 +455,16 @@ def create_event():
 @main.route('/event/<int:event_id>/update_general', methods=['POST'])
 @login_required
 def update_event_general(event_id):
+    """
+    Mise à jour des informations générales d'un événement.
+    
+    Accès réservé aux organisateurs.
+    
+    Args:
+        event_id: ID de l'événement à modifier
+    """
     event = Event.query.get_or_404(event_id)
-    # Check permissions (organizer)
+    # Vérifier les permissions (organisateur)
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     if not participant or participant.type != 'organisateur':
         flash('Action non autorisée.', 'danger')
@@ -430,15 +477,21 @@ def update_event_general(event_id):
     description = request.form.get('description')
     external_link = request.form.get('external_link')
     
-    if name: event.name = name
-    if location: event.location = location
-    if date_start_str: event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
-    if date_end_str: event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
-    if description is not None: event.description = description
-    if external_link is not None: event.external_link = external_link
+    try:
+        if name: event.name = name
+        if location: event.location = location
+        if date_start_str: 
+            event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
+        if date_end_str: 
+            event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+        if description is not None: event.description = description
+        if external_link is not None: event.external_link = external_link
+            
+        db.session.commit()
+        flash('Informations générales mises à jour.', 'success')
+    except (ValueError, TypeError) as e:
+        flash('Erreur de format de date. Veuillez utiliser le format AAAA-MM-JJ.', 'danger')
         
-    db.session.commit()
-    flash('Informations générales mises à jour.', 'success')
     return redirect(url_for('main.event_detail', event_id=event.id))
 
 @main.route('/event/<int:event_id>/update_status', methods=['POST'])
@@ -461,21 +514,25 @@ def update_event_status(event_id):
 @main.route('/event/<int:event_id>')
 @login_required
 def event_detail(event_id):
+    """
+    Affiche les détails d'un événement.
+    
+    Args:
+        event_id: ID de l'événement à afficher
+        
+    Returns:
+        Template avec les informations de l'événement
+    """
     event = Event.query.get_or_404(event_id)
-    # Check if user is participant
+    # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
     is_organizer = participant and participant.type == 'organisateur'
-    
-    is_organizer = participant and participant.type == 'organisateur'
-    
-    groups_config = json.loads(event.groups_config or '{}')
-
     groups_config = json.loads(event.groups_config or '{}')
     
     breadcrumbs = [
         ('GN Manager', '/dashboard'),
-        (event.name, '#') # Current page
+        (event.name, '#')  # Page actuelle
     ]
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs)
@@ -544,23 +601,26 @@ def join_event(event_id):
 @main.route('/event/<int:event_id>/participants')
 @login_required
 def manage_participants(event_id):
+    """
+    Interface de gestion des participants pour les organisateurs.
+    
+    Args:
+        event_id: ID de l'événement
+        
+    Returns:
+        Template de gestion des participants
+    """
     event = Event.query.get_or_404(event_id)
-    # Check if organizer
+    # Vérifier si l'utilisateur est organisateur
     me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     if not me or me.type != 'organisateur':
         flash('Accès réservé aux organisateurs.', 'danger')
         return redirect(url_for('main.event_detail', event_id=event.id))
         
     participants = Participant.query.filter_by(event_id=event.id).all()
-    # Attach user info
+    # Attacher les informations utilisateur à chaque participant
     for p in participants:
         p.user = User.query.get(p.user_id)
-        
-    # Attach user info
-    for p in participants:
-        p.user = User.query.get(p.user_id)
-        
-    groups_config = json.loads(event.groups_config or '{}')
         
     groups_config = json.loads(event.groups_config or '{}')
     
