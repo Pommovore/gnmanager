@@ -93,6 +93,7 @@
                             <form method="POST"
                                 action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <input type="hidden" name="action" value="validate">
                                 <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
                                     <i class="bi bi-check-circle"></i> Valider
@@ -104,6 +105,7 @@
                             <form method="POST"
                                 action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <input type="hidden" name="action" value="pending">
                                 <button type="submit" class="btn btn-sm btn-info w-100 py-1" title="Mettre en attente">
                                     <i class="bi bi-clock"></i> Attente
@@ -115,6 +117,7 @@
                             <form method="POST"
                                 action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <input type="hidden" name="action" value="reject">
                                 <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
                                     <i class="bi bi-x-circle"></i> Exclure
@@ -143,6 +146,7 @@
                             </div>
                             <form method="POST"
                                 action="{{ url_for('main.update_participant', event_id=event.id, p_id=p.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                 <div class="modal-body">
                                     <div class="mb-3">
                                         <label class="form-label">Email (lecture seule)</label>

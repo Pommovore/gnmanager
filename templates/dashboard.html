@@ -111,6 +111,7 @@
             {% endif %}
         </h3>
         <form method="POST" action="/profile" enctype="multipart/form-data">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
             <div class="mb-3">
                 <label class="form-label">Avatar (max 80x80)</label>
                 <input type="file" class="form-control" name="avatar">
@@ -182,6 +183,7 @@
                         <p class="text-muted">Veuillez saisir l'email du nouvel utilisateur. Si l'email n'existe
                             pas, le compte sera créé et vous pourrez l'éditer.</p>
                         <form method="POST" action="/admin/user/add" class="row g-3">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <div class="col-md-8">
                                 <label class="form-label">Email</label>
                                 <input type="email" class="form-control" name="email" placeholder="email@example.com"
@@ -243,6 +245,7 @@
                                     </div>
                                     <form action="/admin/user/{{ u.id }}/update_full" method="POST"
                                         id="updateUserForm{{ u.id }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                         {% set is_readonly = (user.role != 'createur' and u.role == 'createur') %}
                                         <div class="modal-body">
                                             {% if is_readonly %}
@@ -320,6 +323,7 @@
                                         <form action="{{ url_for('main.admin_delete_user', user_id=u.id) }}"
                                             method="POST" class="me-auto"
                                             onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible et effacera toutes ses données.');">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                                             <button type="submit" class="btn btn-danger">Supprimer</button>
                                         </form>
                                         {% endif %}

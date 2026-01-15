@@ -7,9 +7,12 @@ requires-python = ">=3.12"
 dependencies = [
     "email-validator>=2.3.0",
     "flask>=3.1.2",
+    "flask-limiter>=3.5.0",
     "flask-login>=0.6.3",
     "flask-mail>=0.10.0",
+    "flask-migrate>=4.0.0",
     "flask-sqlalchemy>=3.1.1",
+    "flask-wtf>=1.2.0",
     "paramiko>=4.0.0",
     "pyyaml>=6.0.3",
     "qrcode[pil]>=8.2",

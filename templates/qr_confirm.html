@@ -8,6 +8,7 @@
                 <p>Vous essayez de vous connecter sur un autre appareil.</p>
                 <p>Confirmez-vous cette demande ?</p>
                 <form method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                     <button type="submit" class="btn btn-success btn-lg w-100">Confirmer la connexion</button>
                 </form>
             </div>

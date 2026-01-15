@@ -17,6 +17,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from werkzeug.utils import secure_filename
 from PIL import Image
 from datetime import datetime, timedelta
+from extensions import limiter
 import uuid
 import json
 import os
@@ -33,6 +34,7 @@ def index():
     return redirect(url_for('main.login'))
 
 @main.route('/login', methods=['GET', 'POST'])
+@limiter.limit("5 per minute", error_message="Trop de tentatives de connexion. Veuillez réessayer dans 1 minute.")
 def login():
     """
     Page de connexion utilisateur.
@@ -82,6 +84,7 @@ def login():
     return render_template('login.html')
 
 @main.route('/register', methods=['GET', 'POST'])
+@limiter.limit("3 per hour", error_message="Trop de créations de compte. Veuillez réessayer plus tard.")
 def register():
     """
     Page d'inscription d'un nouvel utilisateur.
@@ -928,6 +931,7 @@ def mark_logs_viewed():
 # Password Recovery Routes
 
 @main.route('/forgot_password', methods=['GET', 'POST'])
+@limiter.limit("3 per hour", error_message="Trop de demandes de réinitialisation. Veuillez réessayer plus tard.")
 def forgot_password():
     if request.method == 'POST':
         email = request.form.get('email')

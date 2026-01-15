@@ -18,7 +18,7 @@ from flask import Flask
 from models import db, User
 from flask_login import LoginManager
 from routes import main
-from extensions import mail
+from extensions import mail, migrate, csrf, limiter
 import os
 
 
@@ -32,21 +32,36 @@ def create_app():
     - Base de données
     - Système d'authentification
     - Service d'email
+    - Protection CSRF
+    - Rate limiting
     - Routes
     
     Returns:
         Flask: Application Flask configurée et prête à l'emploi
         
+    Raises:
+        ValueError: Si SECRET_KEY n'est pas définie en production
+        
     Note:
-        La clé secrète doit être définie via la variable d'environnement
+        La clé secrète DOIT être définie via la variable d'environnement
         SECRET_KEY en production pour des raisons de sécurité.
     """
     app = Flask(__name__)
     
-    # Configuration de sécurité - IMPORTANT: Définir SECRET_KEY en production!
-    app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'dev-secret-key-change-in-production')
-    if app.config['SECRET_KEY'] == 'dev-secret-key-change-in-production' and not app.debug:
-        app.logger.warning('ATTENTION: Utilisation de la clé secrète par défaut en production!')
+    # Configuration de sécurité - CRITIQUE: SECRET_KEY obligatoire en production!
+    secret_key = os.environ.get('SECRET_KEY')
+    if not secret_key:
+        # En mode développement, utiliser une clé par défaut
+        # En production, lever une exception
+        if not app.debug and os.environ.get('FLASK_ENV') != 'development':
+            raise ValueError(
+                "SECURITY ERROR: SECRET_KEY environment variable must be set in production! "
+                "Generate a secure key with: python -c 'import secrets; print(secrets.token_hex(32))'"
+            )
+        secret_key = 'dev-secret-key-change-in-production'
+        app.logger.warning('⚠️  Using default SECRET_KEY in development mode. DO NOT use in production!')
+    
+    app.config['SECRET_KEY'] = secret_key
     
     # Configuration de la base de données
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gnmanager.db'
@@ -60,9 +75,16 @@ def create_app():
     app.config['MAIL_PASSWORD'] = os.environ.get('MAIL_PASSWORD')
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'] or 'noreply@gnmanager.fr')
     
+    # Configuration WTF/CSRF
+    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_TIME_LIMIT'] = None  # Les tokens ne expirent pas (session-based)
+    
     # Initialisation des extensions
     db.init_app(app)
     mail.init_app(app)
+    migrate.init_app(app, db)
+    csrf.init_app(app)
+    limiter.init_app(app)
     
     # Configuration du gestionnaire de connexion
     login_manager = LoginManager()

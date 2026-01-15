@@ -104,6 +104,7 @@
                     <div class="card-header">Modifier les généralités</div>
                     <div class="card-body">
                         <form method="POST" action="/event/{{ event.id }}/update_general">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <div class="mb-3">
                                 <label class="form-label">Titre de l'événement</label>
                                 <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
@@ -163,6 +164,7 @@
                             Statut actuel : <strong>{{ event.statut }}</strong>
                         </div>
                         <form method="POST" action="/event/{{ event.id }}/update_status">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <div class="list-group mb-3">
                                 {% set statuses = [
                                 'En préparation',
@@ -204,6 +206,7 @@
                     <div class="card-header">Configuration des Groupes</div>
                     <div class="card-body">
                         <form method="POST" action="/event/{{ event.id }}/update_groups">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                             <div class="alert alert-info">
                                 <small>Définissez ici les listes de choix de groupes pour chaque type de participant.
                                     Séparez les valeurs par des virgules.</small><br>
@@ -251,6 +254,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="/event/{{ event.id }}/join" method="POST">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Type d'inscription</label>
