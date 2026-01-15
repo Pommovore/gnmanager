@@ -10,8 +10,18 @@ import os
 import random
 import string
 import smtplib
+import logging
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+
+# Configuration du logger
+logger = logging.getLogger(__name__)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    handler.setFormatter(formatter)
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
 
 
 def generate_password():
@@ -57,8 +67,8 @@ def send_email(to, subject, body):
     
     # Vérification de la configuration SMTP
     if not smtp_user or not smtp_password:
-        print(f"[EMAIL ERROR] Configuration SMTP incomplète. Impossible d'envoyer à {to}", flush=True)
-        print(f"[EMAIL FALLBACK]\nTo: {to}\nSubject: {subject}\nBody:\n{body}\n", flush=True)
+        logger.error(f"[EMAIL ERROR] Configuration SMTP incomplète. Impossible d'envoyer à {to}")
+        logger.info(f"[EMAIL FALLBACK]\nTo: {to}\nSubject: {subject}\nBody:\n{body}\n")
         return False
 
     # Construction du message MIME
@@ -75,10 +85,10 @@ def send_email(to, subject, body):
             server.login(smtp_user, smtp_password)
             server.sendmail(smtp_sender, to, message.as_string().encode('utf-8'))
             
-        print(f"[EMAIL] Email envoyé avec succès à {to}", flush=True)
+        logger.info(f"[EMAIL] Email envoyé avec succès à {to}")
         return True
         
     except Exception as e:
-        print(f"[EMAIL ERROR] Échec d'envoi à {to}: {e}", flush=True)
-        print(f"[EMAIL FALLBACK]\nTo: {to}\nSubject: {subject}\nBody:\n{body}\n", flush=True)
+        logger.error(f"[EMAIL ERROR] Échec d'envoi à {to}: {e}")
+        logger.info(f"[EMAIL FALLBACK]\nTo: {to}\nSubject: {subject}\nBody:\n{body}\n")
         return False

@@ -23,6 +23,14 @@ import shutil
 import yaml
 import time
 import argparse
+import logging
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 try:
     import paramiko
@@ -43,7 +51,7 @@ def load_config(path):
     if os.path.exists(path):
         with open(path, 'r') as f:
             return yaml.safe_load(f)
-    print(f"Attention: Fichier de configuration non trouvé: {path}")
+    logger.warning(f"Attention: Fichier de configuration non trouvé: {path}")
     return None
 
 def is_replit():
@@ -54,7 +62,7 @@ def run_command_local(command, cwd=None, env=None):
         subprocess.check_call(command, shell=True, cwd=cwd, env=env)
         return True
     except subprocess.CalledProcessError:
-        print(f"Erreur commande locale: {command}")
+        logger.error(f"Erreur commande locale: {command}")
         return False
 
 
@@ -70,7 +78,7 @@ def run_command_remote(ssh, command, input_text=None):
     Returns:
         bool: True si la commande a réussi, False sinon
     """
-    print(f"[EXT] {command}")
+    logger.info(f"[EXT] {command}")
     # get_pty=True est parfois nécessaire pour sudo, mais sudo -S préfère souvent sans.
     # On tente sans PTY mais en fermant bien stdin.
     stdin, stdout, stderr = ssh.exec_command(command)
@@ -95,7 +103,7 @@ def run_command_remote(ssh, command, input_text=None):
     if exit_status != 0:
         # On ignore le prompt sudo dans stderr si présent, ce n'est pas une "vraie" erreur
         if "[sudo] password" not in err_data and err_data:
-             print(f"Erreur commande distante ({exit_status}): {err_data}")
+             logger.error(f"Erreur commande distante ({exit_status}): {err_data}")
         return False
     return True
 
@@ -107,7 +115,7 @@ def upload_files(ssh, local_path, remote_path):
     except IOError:
         pass 
         
-    print(f"Transfert de {local_path} vers {remote_path}...")
+    logger.info(f"Transfert de {local_path} vers {remote_path}...")
     
     for root, dirs, files in os.walk(local_path):
         if '.git' in root or '__pycache__' in root or '.venv' in root:
@@ -132,7 +140,7 @@ def upload_files(ssh, local_path, remote_path):
             sftp.put(local_file, remote_file)
             
     sftp.close()
-    print("Transfert terminé.")
+    logger.info("Transfert terminé.")
 
 
 def deploy_remote(config, args):
@@ -156,7 +164,7 @@ def deploy_remote(config, args):
         GNMANAGER_PWD: Mot de passe SSH/sudo
     """
     if not config or 'deploy' not in config:
-        print("Erreur: Section 'deploy' manquante pour le déploiement distant.")
+        logger.error("Erreur: Section 'deploy' manquante pour le déploiement distant.")
         return
 
     deploy_cfg = config['deploy']
@@ -168,12 +176,12 @@ def deploy_remote(config, args):
     pwd = os.environ.get('GNMANAGER_PWD')
     
     if not user or not pwd:
-        print("Erreur: Les variables d'environnement GNMANAGER_USER et GNMANAGER_PWD doivent être définies.")
+        logger.error("Erreur: Les variables d'environnement GNMANAGER_USER et GNMANAGER_PWD doivent être définies.")
         return
 
-    print(f"Connexion SSH vers {host}...")
+    logger.info(f"Connexion SSH vers {host}...")
     if paramiko is None:
-        print("Paramiko manquant. Installez avec 'uv add paramiko'")
+        logger.info("Paramiko manquant. Installez avec 'uv add paramiko'")
         return
 
     ssh = paramiko.SSHClient()
@@ -182,10 +190,10 @@ def deploy_remote(config, args):
     try:
         ssh.connect(host, username=user, password=pwd)
     except Exception as e:
-        print(f"Erreur de connexion SSH: {e}")
+        logger.error(f"Erreur de connexion SSH: {e}")
         return
     # Early cleanup
-    print(f"Arrêt du service et libération du port {port}...")
+    logger.info(f"Arrêt du service et libération du port {port}...")
     # Stop systemd service
     run_command_remote(ssh, "sudo -S systemctl stop gnmanager.service", input_text=pwd)
     # Force kill port (just in case service didn't catch it or manual run)
@@ -207,23 +215,23 @@ def deploy_remote(config, args):
     has_uv = stdout.channel.recv_exit_status() == 0
     
     if has_uv:
-        print("Installation dépendances (uv)...")
+        logger.info("Installation dépendances (uv)...")
         run_command_remote(ssh, f"{uv_env}cd {target_dir} && uv sync")
         py_cmd = f"{uv_env}cd {target_dir} && uv run python"
     else:
-        print("Installation dépendances (pip)...")
+        logger.info("Installation dépendances (pip)...")
         run_command_remote(ssh, f"cd {target_dir} && pip3 install -r requirements.txt")
         py_cmd = f"cd {target_dir} && python3"
 
     # 4. Data & DB Reset
-    print("\n--- Configuration des données ---")
+    logger.info("\n--- Configuration des données ---")
     if args.reset_db:
         reset_db = 'o'
     else:
         reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
 
     if reset_db in ['o', 'y']:
-        print("Suppression de la base de données...")
+        logger.info("Suppression de la base de données...")
         run_command_remote(ssh, f"cd {target_dir} && rm -f gnmanager.db instance/gnmanager.db")
     
     if args.import_data:
@@ -232,22 +240,22 @@ def deploy_remote(config, args):
         answer = input("Voulez-vous importer les données de test sur le serveur distant ? (o/n) : ").strip().lower()
 
     if answer in ['o', 'y']:
-        print("\n--- Configuration du Compte Créateur ---")
+        logger.info("\n--- Configuration du Compte Créateur ---")
         if args.admin_email:
              admin_email = args.admin_email
-             print(f"Email (CLI) : {admin_email}")
+             logger.info(f"Email (CLI) : {admin_email}")
         elif config and 'admin' in config and 'email' in config['admin']:
              admin_email = config['admin']['email']
-             print(f"Email (Config) : {admin_email}")
+             logger.info(f"Email (Config) : {admin_email}")
         else:
              admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
              
         if args.admin_password:
              admin_pass = args.admin_password
-             print("Mot de passe (CLI) : *****")
+             logger.info("Mot de passe (CLI) : *****")
         elif config and 'admin' in config and 'password' in config['admin']:
              admin_pass = config['admin']['password']
-             print("Mot de passe (Config) : *****")
+             logger.info("Mot de passe (Config) : *****")
         else:
              admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
              
@@ -272,7 +280,7 @@ def deploy_remote(config, args):
         run_command_remote(ssh, f"{py_cmd} import_csvs.py")
 
     # 5. Run App (Systemd adaptation)
-    print("Mise à jour de la configuration et redémarrage du service...")
+    logger.info("Mise à jour de la configuration et redémarrage du service...")
     
     # Générer le contenu du fichier .env pour le serveur distant
     env_lines = [
@@ -301,7 +309,7 @@ def deploy_remote(config, args):
         
     # Upload .env to remote
     remote_env_path = os.path.join(target_dir, '.env')
-    print(f"Upload du fichier .env vers {remote_env_path}")
+    logger.info(f"Upload du fichier .env vers {remote_env_path}")
     sftp = ssh.open_sftp()
     sftp.put('.env.deploy', remote_env_path)
     sftp.close()
@@ -312,10 +320,10 @@ def deploy_remote(config, args):
         
     # Restart Systemd Service
     # Use sudo -S to read password from stdin
-    print("Redémarrage du service gnmanager.service...")
+    logger.info("Redémarrage du service gnmanager.service...")
     run_command_remote(ssh, "sudo -S systemctl restart gnmanager.service", input_text=pwd)
     
-    print(f"Déploiement terminé. Vérifiez le statut avec 'systemctl status gnmanager.service' sur le serveur.")
+    logger.info(f"Déploiement terminé. Vérifiez le statut avec 'systemctl status gnmanager.service' sur le serveur.")
     ssh.close()
 
 
@@ -340,22 +348,22 @@ def deploy_local(config, args, mode='local'):
     target_dir = './'
     
     
-    print(f"Mode de déploiement: {mode}")
+    logger.info(f"Mode de déploiement: {mode}")
 
     # Early cleanup
-    print(f"Arrêt du processus existant sur le port {port}...")
+    logger.info(f"Arrêt du processus existant sur le port {port}...")
     run_command_local(f"fuser -k {port}/tcp") 
     time.sleep(1)
 
     # Install
-    print("--- 1. Installation ---")
+    logger.info("--- 1. Installation ---")
     if shutil.which('uv'):
         run_command_local("uv sync")
     else:
         run_command_local("pip install -r requirements.txt")
         
     # Data
-    print("--- 2. Données ---")
+    logger.info("--- 2. Données ---")
     
     if args.reset_db:
         reset_db = 'o'
@@ -363,7 +371,7 @@ def deploy_local(config, args, mode='local'):
         reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
         
     if reset_db in ['o', 'y']:
-        print("Suppression de la base de données...")
+        logger.info("Suppression de la base de données...")
         if os.path.exists('gnmanager.db'):
             os.remove('gnmanager.db')
         if os.path.exists('instance/gnmanager.db'):
@@ -375,22 +383,22 @@ def deploy_local(config, args, mode='local'):
         answer = input("Voulez-vous importer les données de test ? (o/n) : ").strip().lower()
         
     if answer in ['o', 'y']:
-        print("\n--- Configuration du Compte Créateur ---")
+        logger.info("\n--- Configuration du Compte Créateur ---")
         if args.admin_email:
              admin_email = args.admin_email
-             print(f"Email (CLI) : {admin_email}")
+             logger.info(f"Email (CLI) : {admin_email}")
         elif config and 'admin' in config and 'email' in config['admin']:
              admin_email = config['admin']['email']
-             print(f"Email (Config) : {admin_email}")
+             logger.info(f"Email (Config) : {admin_email}")
         else:
              admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
              
         if args.admin_password:
              admin_pass = args.admin_password
-             print("Mot de passe (CLI) : *****")
+             logger.info("Mot de passe (CLI) : *****")
         elif config and 'admin' in config and 'password' in config['admin']:
              admin_pass = config['admin']['password']
-             print("Mot de passe (Config) : *****")
+             logger.info("Mot de passe (Config) : *****")
         else:
              admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
              
@@ -417,7 +425,7 @@ def deploy_local(config, args, mode='local'):
         run_command_local(f"{cmd_prefix} import_csvs.py")
 
     # Run
-    print("--- 3. Lancement ---")
+    logger.info("--- 3. Lancement ---")
     env = os.environ.copy()
     env['FLASK_HOST'] = str(host)
     env['FLASK_PORT'] = str(port)
@@ -448,10 +456,10 @@ def deploy_local(config, args, mode='local'):
         env['MAIL_PASSWORD'] = str(mail_pwd)
         env['MAIL_DEFAULT_SENDER'] = str(snd)
     else:
-        print("Attention: Configuration email manquante dans le fichier config.")
+        logger.warning("Attention: Configuration email manquante dans le fichier config.")
     
     if mode == 'Replit':
-         print("Sur Replit, l'application est configurée pour 0.0.0.0:5000 par défaut.")
+         logger.info("Sur Replit, l'application est configurée pour 0.0.0.0:5000 par défaut.")
     
     cmd = "uv run python main.py" if shutil.which('uv') else "python main.py"
     try:
@@ -471,7 +479,7 @@ def main():
     parser.add_argument('--admin-prenom', help="Prénom de l'administrateur")
     args = parser.parse_args()
 
-    print(f"=== GN MANAGER DEPLOY (Config: {args.dpcfg}) ===")
+    logger.info(f"=== GN MANAGER DEPLOY (Config: {args.dpcfg}) ===")
     config = load_config(args.dpcfg)
     
     mode = 'local'

@@ -8,8 +8,16 @@ Ce module:
 """
 
 import os
+import logging
 from dotenv import load_dotenv
 from app import create_app
+
+# Configuration du logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 
 def main():
@@ -34,7 +42,7 @@ def main():
     port = int(os.environ.get('FLASK_PORT', 5000))
     
     # Démarrer le serveur
-    print(f"Lancement de l'application sur {host}:{port}")
+    logger.info(f"Lancement de l'application sur {host}:{port}")
     app.run(host=host, port=port, debug=False)
 
 

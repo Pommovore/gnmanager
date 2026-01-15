@@ -17,7 +17,6 @@ Usage:
 from flask import Flask
 from models import db, User
 from flask_login import LoginManager
-from routes import main
 from extensions import mail, migrate, csrf, limiter
 import os
 
@@ -88,7 +87,7 @@ def create_app():
     
     # Configuration du gestionnaire de connexion
     login_manager = LoginManager()
-    login_manager.login_view = 'main.login'
+    login_manager.login_view = 'auth.login'  # Mis à jour pour utiliser le nouveau blueprint
     login_manager.init_app(app)
     
     @login_manager.user_loader
@@ -106,9 +105,24 @@ def create_app():
             return User.query.get(int(user_id))
         except (ValueError, TypeError):
             return None
-        
-    app.register_blueprint(main)
     
+    # Enregistrement des blueprints modulaires
+    # Note: Nous utilisons maintenant des blueprints séparés pour une meilleure maintenabilité
+    try:
+        from routes import auth_bp, admin_bp
+        
+        app.register_blueprint(auth_bp)
+        app.register_blueprint(admin_bp)
+        
+        app.logger.info("✅ Blueprints modulaires enregistrés (auth, admin)")
+    except ImportError as e:
+        # Fallback sur l'ancien système si les nouveaux blueprints ne sont pas disponibles
+        app.logger.warning(f"⚠️  Impossible de charger les nouveaux blueprints: {e}")
+        app.logger.info("📦 Fallback sur l'ancien système de routes...")
+        
+        from routes_legacy import main
+        app.register_blueprint(main)
+        
     with app.app_context():
         db.create_all()
         
