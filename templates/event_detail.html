@@ -56,11 +56,7 @@
                             </a>
                             {% endif %}
 
-                            {% if event.google_form_url %}
-                            <a href="{{ event.google_form_url }}" target="_blank" class="btn btn-outline-primary">
-                                <i class="bi bi-journal-check"></i> Google Form
-                            </a>
-                            {% endif %}
+
                         </div>
 
                         <!-- 5. Statut Utilisateur / Boutons -->
@@ -111,6 +107,14 @@
                                 <strong>Votre PAF :</strong>
                                 <span class="badge {{ paf_class }} ms-2">{{ participant.paf_status }}</span>
                             </p>
+                            {% if event.google_form_active and event.google_form_url %}
+                            <div class="mt-2 pt-2 border-top">
+                                <i class="bi bi-file-text text-primary"></i>
+                                <strong class="ms-1">Formulaire à remplir :</strong>
+                                <a href="{{ event.google_form_url }}" target="_blank" class="ms-1">Accéder au formulaire
+                                    Google Forms</a>
+                            </div>
+                            {% endif %}
                         </div>
 
                         {% endif %}
@@ -119,7 +123,7 @@
 
                         {% if event.statut == 'Inscriptions ouvertes' %}
                         <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
-                            data-bs-target="#joinModal">
+                            data-bs-target="#joinModal" data-mode="join">
                             Rejoindre l'événement
                         </button>
 
@@ -128,7 +132,7 @@
                         envoyés, préparatifs de l\'événement'] %}
                         <!-- Avant "Événement en cours" mais pas "Inscriptions ouvertes" -->
                         <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal"
-                            data-bs-target="#joinModal">
+                            data-bs-target="#joinModal" data-mode="interest">
                             J'aimerais participer
                         </button>
 
@@ -199,6 +203,12 @@
                                 <label class="form-label">Lien Google Form (Inscription)</label>
                                 <input type="text" class="form-control" name="google_form_url"
                                     value="{{ event.google_form_url or '' }}">
+                            </div>
+                            <div class="mb-3 form-check">
+                                <input type="checkbox" class="form-check-input" name="google_form_active"
+                                    id="googleFormActive" {% if event.google_form_active %}checked{% endif %}>
+                                <label class="form-check-label" for="googleFormActive">Actif ? (Afficher après
+                                    inscription)</label>
                             </div>
                             <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
                         </form>
@@ -303,7 +313,8 @@
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header">
-                <h5 class="modal-title" id="joinModalLabel">Inscription à {{ event.name }}</h5>
+                <h5 class="modal-title" id="joinModalLabel"><span id="modalActionType">Inscription</span> à {{
+                    event.name }}</h5>
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="/event/{{ event.id }}/join" method="POST">
@@ -311,17 +322,21 @@
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Type d'inscription</label>
-                        <select name="type" class="form-select" id="joinTypeSelect" onchange="updateGroupOptions()">
+                        <select name="type" class="form-select" id="joinTypeSelect">
                             <option value="PJ">PJ</option>
                             <option value="PNJ">PNJ</option>
                             <option value="Organisateur">Organisateur</option>
                         </select>
                     </div>
+
+                    <!-- Zone dynamique pour le message d'aide et commentaire -->
+                    <div id="joinHelpWithMessage" class="alert alert-secondary d-none">
+                        les inscriptions ne sont pas actuellement en cours, laissez nous un message avec une précision
+                        concernant votre demande
+                    </div>
                     <div class="mb-3">
-                        <label class="form-label">Groupe souhaité</label>
-                        <select name="group" class="form-select" id="joinGroupSelect">
-                            <!-- Populated by JS -->
-                        </select>
+                        <label class="form-label" id="commentLabel">Une précision ?</label>
+                        <textarea name="comment" class="form-control" rows="3"></textarea>
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -334,39 +349,34 @@
     {% endblock %}
 
     {% block scripts %}
-    <script id="groups-config-data" type="application/json">
-    {{ groups_config| tojson }}
-</script>
     <script>
-        const groupsConfig = JSON.parse(document.getElementById('groups-config-data').textContent);
-
-        function updateGroupOptions() {
-            const typeSelect = document.getElementById('joinTypeSelect');
-            const groupSelect = document.getElementById('joinGroupSelect');
-            const selectedType = typeSelect.value;
-
-            // Clear options
-            groupSelect.innerHTML = '';
-
-            // Get groups for this type
-            let groups = [];
-            if (selectedType === 'PJ') groups = groupsConfig.PJ || [];
-            else if (selectedType === 'PNJ') groups = groupsConfig.PNJ || [];
-            else if (selectedType === 'Organisateur') groups = groupsConfig.Organisateur || []; // Case sensitive match with key
-
-            // Default if empty
-            if (groups.length === 0) groups = ['Peu importe'];
-
-            // Populate
-            groups.forEach(g => {
-                const opt = document.createElement('option');
-                opt.value = g;
-                opt.textContent = g;
-                groupSelect.appendChild(opt);
-            });
-        }
 
         // Initialize on load
-        document.addEventListener('DOMContentLoaded', updateGroupOptions);
+        document.addEventListener('DOMContentLoaded', function () {
+
+            // Gestion dynamique du modal d'inscription
+            var joinModal = document.getElementById('joinModal');
+            if (joinModal) {
+                joinModal.addEventListener('show.bs.modal', function (event) {
+                    var button = event.relatedTarget;
+                    var mode = button.getAttribute('data-mode');
+                    var helpMsg = document.getElementById('joinHelpWithMessage');
+                    var commentLabel = document.getElementById('commentLabel');
+                    var submitBtn = joinModal.querySelector('button[type="submit"]');
+
+                    var modalActionType = document.getElementById('modalActionType');
+
+                    if (mode === 'interest') {
+                        helpMsg.classList.remove('d-none');
+                        commentLabel.textContent = "Votre message :";
+                        if (modalActionType) modalActionType.textContent = "Préinscription";
+                    } else {
+                        helpMsg.classList.add('d-none');
+                        commentLabel.textContent = "Une précision ?";
+                        if (modalActionType) modalActionType.textContent = "Inscription";
+                    }
+                });
+            }
+        });
     </script>
     {% endblock %}

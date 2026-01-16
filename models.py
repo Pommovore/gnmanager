@@ -98,6 +98,7 @@ class Event(db.Model):
     org_link_url = db.Column(db.String(255))
     org_link_title = db.Column(db.String(100))
     google_form_url = db.Column(db.String(255))
+    google_form_active = db.Column(db.Boolean, default=False)
     external_link = db.Column(db.String(255))
     statut = db.Column(db.String(50), default='En préparation')
     # Statuts possibles: "En préparation", "Inscriptions ouvertes", "Inscriptions fermées",

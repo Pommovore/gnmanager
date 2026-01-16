@@ -13,6 +13,7 @@ Ce module gère :
 """
 
 from flask import Blueprint, render_template, request, redirect, url_for, flash
+from markupsafe import Markup
 from flask_login import login_required, current_user
 from models import db, Event, Participant, ActivityLog
 from datetime import datetime
@@ -156,6 +157,9 @@ def update_general(event_id):
         if org_link_url is not None: event.org_link_url = org_link_url
         if org_link_title is not None: event.org_link_title = org_link_title
         if google_form_url is not None: event.google_form_url = google_form_url
+        
+        # Checkbox handling: presence means True
+        event.google_form_active = 'google_form_active' in request.form
             
         db.session.commit()
         flash('Informations générales mises à jour.', 'success')
@@ -234,6 +238,7 @@ def join(event_id):
     
     p_type = request.form.get('type', ParticipantType.PJ.value)
     p_group = request.form.get('group', 'Aucun')
+    p_comment = request.form.get('comment')
     
     # Registration status default 'À valider'
     participant = Participant(
@@ -241,7 +246,8 @@ def join(event_id):
         user_id=current_user.id, 
         type=p_type, 
         group=p_group,
-        registration_status=RegistrationStatus.TO_VALIDATE.value
+        registration_status=RegistrationStatus.TO_VALIDATE.value,
+        comment=p_comment
     )
     db.session.add(participant)
     db.session.commit()
@@ -261,4 +267,9 @@ def join(event_id):
     db.session.commit()
     
     flash("Demande d'inscription envoyée ! En attente de validation.", 'success')
+    
+    if event.google_form_active and event.google_form_url:
+        message = Markup(f"Veuillez remplir ce formulaire si ce n'est pas déjà fait : <a href='{event.google_form_url}' target='_blank' class='alert-link'>Formulaire</a>")
+        flash(message, 'info')
+        
     return redirect(url_for('event.detail', event_id=event.id))
