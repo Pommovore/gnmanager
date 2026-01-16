@@ -2,10 +2,19 @@
 import argparse
 import json
 import sys
+import logging
 from datetime import datetime
 import os
 
 os.environ.setdefault('FLASK_ENV', 'development')
+
+# Configuration du logger pour ce module
+logger = logging.getLogger('manage_db')
+logger.setLevel(logging.INFO)
+if not logger.handlers:
+    handler = logging.StreamHandler()
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(handler)
 
 
 # Imports déplacés à l'intérieur des fonctions pour éviter les imports circulaires
@@ -29,7 +38,7 @@ def serialize_model(instance):
 def export_data(args):
     """Exporte les données vers un fichier JSON."""
     file_path = args.file
-    print(f"Exportation des données vers {file_path}...")
+    logger.info(f"Exportation des données vers {file_path}...")
     
     data = {
         'timestamp': datetime.now().isoformat(),
@@ -46,38 +55,38 @@ def export_data(args):
         # Users
         users = User.query.all()
         data['users'] = [serialize_model(u) for u in users]
-        print(f"  - {len(users)} utilisateurs exportés")
+        logger.info(f"  - {len(users)} utilisateurs exportés")
         
         # Events
         events = Event.query.all()
         data['events'] = [serialize_model(e) for e in events]
-        print(f"  - {len(events)} événements exportés")
+        logger.info(f"  - {len(events)} événements exportés")
 
         # Participants
         participants = Participant.query.all()
         data['participants'] = [serialize_model(p) for p in participants]
-        print(f"  - {len(participants)} participations exportées")
+        logger.info(f"  - {len(participants)} participations exportées")
         
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, cls=DateTimeEncoder, indent=2, ensure_ascii=False)
         
-    print("Export terminé avec succès.")
+    logger.info("Export terminé avec succès.")
 
 def import_data(args):
     """Importe les données depuis un fichier JSON."""
     file_path = args.file
     clean = args.clean
     
-    print(f"Importation des données depuis {file_path}...")
+    logger.info(f"Importation des données depuis {file_path}...")
     
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             data = json.load(f)
     except FileNotFoundError:
-        print(f"Erreur: Le fichier {file_path} n'existe pas.")
+        logger.error(f"Erreur: Le fichier {file_path} n'existe pas.")
         sys.exit(1)
     except json.JSONDecodeError:
-        print(f"Erreur: Le fichier {file_path} n'est pas un JSON valide.")
+        logger.error(f"Erreur: Le fichier {file_path} n'est pas un JSON valide.")
         sys.exit(1)
         
     from app import create_app
@@ -87,7 +96,7 @@ def import_data(args):
     app = create_app()
     with app.app_context():
         if clean:
-            print("Nettoyage de la base de données...")
+            logger.info("Nettoyage de la base de données...")
             try:
                 # SQLite specific cascade truncate simulation
                 # Ou simplement drop_all / create_all si on veut être radical
@@ -96,14 +105,14 @@ def import_data(args):
                 db.session.query(Event).delete()
                 db.session.query(User).delete()
                 db.session.commit()
-                print("Données existantes supprimées.")
+                logger.info("Données existantes supprimées.")
             except Exception as e:
                 db.session.rollback()
-                print(f"Erreur lors du nettoyage: {e}")
+                logger.error(f"Erreur lors du nettoyage: {e}")
                 sys.exit(1)
 
         # Import Users
-        print("Importation des utilisateurs...")
+        logger.info("Importation des utilisateurs...")
         for user_data in data.get('users', []):
             if not User.query.get(user_data['id']): # Avoid dupes if not clean
                 # Convertir id si nécessaire ou laisser faire?
@@ -113,10 +122,10 @@ def import_data(args):
                     setattr(user, key, value)
                 db.session.add(user)
         db.session.commit()
-        print(f"  - Utilisateurs importés.")
+        logger.info("  - Utilisateurs importés.")
 
         # Import Events
-        print("Importation des événements...")
+        logger.info("Importation des événements...")
         for event_data in data.get('events', []):
             if not Event.query.get(event_data['id']):
                 event = Event()
@@ -127,10 +136,10 @@ def import_data(args):
                     setattr(event, key, value)
                 db.session.add(event)
         db.session.commit()
-        print("  - Événements importés.")
+        logger.info("  - Événements importés.")
 
         # Import Participants
-        print("Importation des participants...")
+        logger.info("Importation des participants...")
         for part_data in data.get('participants', []):
             # Composite key check might be needed if strictly adding
             # But let's rely on cleaning or non-collision for now
@@ -146,9 +155,9 @@ def import_data(args):
                     setattr(part, key, value)
                 db.session.add(part)
         db.session.commit()
-        print("  - Participations importées.")
+        logger.info("  - Participations importées.")
         
-    print("Import terminé avec succès.")
+    logger.info("Import terminé avec succès.")
 
 def main():
     parser = argparse.ArgumentParser(description="Outil de gestion de base de données import/export JSON.")

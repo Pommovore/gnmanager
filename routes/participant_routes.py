@@ -121,8 +121,9 @@ def change_status(event_id, p_id):
     """
     event = Event.query.get_or_404(event_id)
     
-    participant = Participant.query.get_or_404(p_id)
-    if participant.event_id != event_id:
+    # Optimisation N+1: charger user avec joinedload car on accède à participant.user.email
+    participant = Participant.query.options(joinedload(Participant.user)).get(p_id)
+    if not participant or participant.event_id != event_id:
         flash('Participant invalide pour cet événement.', 'danger')
         return redirect(url_for('participant.manage', event_id=event_id))
     
