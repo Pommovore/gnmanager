@@ -290,6 +290,11 @@ def deploy_remote(config, args):
         "PYTHONUNBUFFERED=1"  # Forcer stdout non bufferisé pour la visibilité des logs
     ]
     
+    # Générer une clé secrète sécurisée
+    import secrets
+    secret_key = secrets.token_hex(32)
+    env_lines.append(f"SECRET_KEY={secret_key}")
+    
     # Ajouter la configuration email si disponible
     if config and 'email' in config:
         email_cfg = config['email']

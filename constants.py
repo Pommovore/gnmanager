@@ -43,11 +43,13 @@ class PAFStatus(Enum):
     - NOT_PAID: Aucun paiement reçu
     - PARTIAL: Paiement partiel
     - PAID: Paiement complet reçu
+    - DISPENSED: Dispensé de paiement
     - ERROR: Erreur de paiement
     """
     NOT_PAID = 'non versée'
     PARTIAL = 'partielle'
     PAID = 'versée'
+    DISPENSED = 'dispensé(e)'
     ERROR = 'erreur'
 
 
@@ -154,7 +156,7 @@ class DefaultValues:
     DEFAULT_GROUPS_CONFIG = {
         "PJ": ["Peu importe"],
         "PNJ": ["Peu importe"],
-        "Organisateur": ["Peu importe"]
+        "Organisateur": ["général", "coordinateur", "scénariste", "logisticien", "crafteur", "en charge des PNJ"]
     }
 
 

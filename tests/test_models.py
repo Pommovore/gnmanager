@@ -9,7 +9,7 @@ from datetime import datetime, timedelta
 class TestUserModel:
     """Tests du modèle User."""
     
-    def test_create_user(self, app):
+    def test_create_user(self, app, db):
         """Test de création d'un utilisateur."""
         with app.app_context():
             from models import db
@@ -50,11 +50,16 @@ class TestUserModel:
         assert check_password_hash(hashed, password) is True
         assert check_password_hash(hashed, 'wrongpassword') is False
 
+    def test_user_session_cleanup(self, app, db):
+        """Vérifie que la DB est nettoyée entre les tests."""
+        with app.app_context():
+            assert User.query.count() == 0
+
 
 class TestEventModel:
     """Tests du modèle Event."""
     
-    def test_create_event(self, app):
+    def test_create_event(self, app, db):
         """Test de création d'un événement."""
         with app.app_context():
             from models import db
@@ -74,7 +79,7 @@ class TestEventModel:
             assert event.visibility == 'public'
             assert event.statut == 'En préparation'
     
-    def test_event_external_links(self, app):
+    def test_event_external_links(self, app, db):
         """Test des liens externes de l'événement."""
         with app.app_context():
             from models import db
@@ -198,7 +203,7 @@ class TestActivityLogModel:
             assert log.id is not None
             assert log.user_id == sample_user.id
             assert log.action_type == 'Test Action'
-            assert log.viewed is False
+            assert log.is_viewed is False
     
     def test_log_timestamp(self, app, sample_user):
         """Test que le timestamp est automatiquement créé."""
@@ -213,5 +218,5 @@ class TestActivityLogModel:
             db.session.add(log)
             db.session.commit()
             
-            assert log.timestamp is not None
-            assert isinstance(log.timestamp, datetime)
+            assert log.created_at is not None
+            assert isinstance(log.created_at, datetime)

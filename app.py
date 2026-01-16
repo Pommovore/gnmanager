@@ -21,7 +21,7 @@ from extensions import mail, migrate, csrf, limiter
 import os
 
 
-def create_app():
+def create_app(test_config=None):
     """
     Crée et configure l'application Flask.
     
@@ -47,16 +47,34 @@ def create_app():
     """
     app = Flask(__name__)
     
+    # Appliquer la configuration de test si fournie
+    if test_config:
+        app.config.from_mapping(test_config)
+    
+    # Détection du mode test via variable d'environnement (pour limiter/csrf)
+    if os.environ.get('TESTING') == '1':
+        app.config['TESTING'] = True
+    
     # Configuration de sécurité - CRITIQUE: SECRET_KEY obligatoire en production!
-    secret_key = os.environ.get('SECRET_KEY')
-    if not secret_key:
-        # En mode développement, utiliser une clé par défaut
-        # En production, lever une exception
-        if not app.debug and os.environ.get('FLASK_ENV') != 'development':
+    secret_key = app.config.get('SECRET_KEY') or os.environ.get('SECRET_KEY')
+    
+    if not secret_key and not app.config.get('TESTING'):
+        # Détecter si on est en mode développement
+        is_development = (
+            app.debug or 
+            os.environ.get('FLASK_ENV') == 'development' or
+            os.environ.get('FLASK_DEBUG') == '1' or
+            os.path.exists('gnmanager.db')
+        )
+        
+        if not is_development:
+            # En production réelle, refuser de démarrer sans SECRET_KEY
             raise ValueError(
                 "SECURITY ERROR: SECRET_KEY environment variable must be set in production! "
                 "Generate a secure key with: python -c 'import secrets; print(secrets.token_hex(32))'"
             )
+        
+        # En développement, utiliser une clé par défaut avec avertissement
         secret_key = 'dev-secret-key-change-in-production'
         app.logger.warning('⚠️  Using default SECRET_KEY in development mode. DO NOT use in production!')
     
@@ -75,8 +93,11 @@ def create_app():
     app.config['MAIL_DEFAULT_SENDER'] = os.environ.get('MAIL_DEFAULT_SENDER', app.config['MAIL_USERNAME'] or 'noreply@gnmanager.fr')
     
     # Configuration WTF/CSRF
-    app.config['WTF_CSRF_ENABLED'] = True
+    app.config['WTF_CSRF_ENABLED'] = not app.config.get('TESTING', False)
     app.config['WTF_CSRF_TIME_LIMIT'] = None  # Les tokens ne expirent pas (session-based)
+    
+    # Configuration Rate Limiting
+    app.config['RATELIMIT_ENABLED'] = not app.config.get('TESTING', False)
     
     # Initialisation des extensions
     db.init_app(app)
@@ -107,21 +128,15 @@ def create_app():
             return None
     
     # Enregistrement des blueprints modulaires
-    # Note: Nous utilisons maintenant des blueprints séparés pour une meilleure maintenabilité
-    try:
-        from routes import auth_bp, admin_bp
-        
-        app.register_blueprint(auth_bp)
-        app.register_blueprint(admin_bp)
-        
-        app.logger.info("✅ Blueprints modulaires enregistrés (auth, admin)")
-    except ImportError as e:
-        # Fallback sur l'ancien système si les nouveaux blueprints ne sont pas disponibles
-        app.logger.warning(f"⚠️  Impossible de charger les nouveaux blueprints: {e}")
-        app.logger.info("📦 Fallback sur l'ancien système de routes...")
-        
-        from routes_legacy import main
-        app.register_blueprint(main)
+    # Note: Architecture modulaire complète - tous les blueprints sont maintenant séparés
+    from routes import auth_bp, admin_bp, event_bp, participant_bp
+    
+    app.register_blueprint(auth_bp)
+    app.register_blueprint(admin_bp)
+    app.register_blueprint(event_bp)
+    app.register_blueprint(participant_bp)
+    
+    app.logger.info("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
         
     with app.app_context():
         db.create_all()

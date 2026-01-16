@@ -1,8 +1,13 @@
 from app import create_app
-from models import db, User, Event, Role, Participant
+from models import db, User, Event, Role, Participant, ActivityLog
 from werkzeug.security import generate_password_hash
 from datetime import datetime, time, timedelta
+from dotenv import load_dotenv
 import random
+import json
+
+# Charger les variables d'environnement
+load_dotenv()
 
 app = create_app()
 
@@ -35,19 +40,61 @@ with app.app_context():
     admin_user.password_hash = generate_password_hash('jach1612')
     db.session.add(admin_user)
     
-    # Other users
-    user_gwen = User(email='gwengm@gmail.com', nom='GARRIOUX-MORIEN', prenom='Gwenaëlle', age=35, role='user') # Normal user (potentially org for some events)
+    # Other users - Admin Système
+    user_gwen = User(email='gwengm@gmail.com', nom='GARRIOUX-MORIEN', prenom='Gwenaëlle', age=35, role='sysadmin')  # Admin Système
     user_gwen.password_hash = generate_password_hash('gwgm1234')
     db.session.add(user_gwen)
     
-    user_sylvain = User(email='slytherogue@gmail.com', nom='Michaud', prenom='Sylvain', age=35, role='user')
+    user_sylvain = User(email='slytherogue@gmail.com', nom='Michaud', prenom='Sylvain', age=35, role='sysadmin')  # Admin Système
     user_sylvain.password_hash = generate_password_hash('slym0000')
     db.session.add(user_sylvain)
     
-    # Fictitious Users (for testing pagination/roles)
+    # Fictitious Users avec des noms plus parlants
+    fictitious_users_data = [
+        ('Sophie', 'Dubois', 'sophie.dubois@email.fr'),
+        ('Thomas', 'Martin', 'thomas.martin@email.fr'),
+        ('Emma', 'Bernard', 'emma.bernard@email.fr'),
+        ('Lucas', 'Petit', 'lucas.petit@email.fr'),
+        ('Léa', 'Robert', 'lea.robert@email.fr'),
+        ('Hugo', 'Richard', 'hugo.richard@email.fr'),
+        ('Chloé', 'Durand', 'chloe.durand@email.fr'),
+        ('Louis', 'Moreau', 'louis.moreau@email.fr'),
+        ('Manon', 'Simon', 'manon.simon@email.fr'),
+        ('Arthur', 'Laurent', 'arthur.laurent@email.fr'),
+        ('Camille', 'Lefebvre', 'camille.lefebvre@email.fr'),
+        ('Nathan', 'Michel', 'nathan.michel@email.fr'),
+        ('Sarah', 'Garcia', 'sarah.garcia@email.fr'),
+        ('Maxime', 'David', 'maxime.david@email.fr'),
+        ('Julie', 'Bertrand', 'julie.bertrand@email.fr'),
+        ('Antoine', 'Roux', 'antoine.roux@email.fr'),
+        ('Clara', 'Vincent', 'clara.vincent@email.fr'),
+        ('Alexandre', 'Fournier', 'alexandre.fournier@email.fr'),
+        ('Marine', 'Girard', 'marine.girard@email.fr'),
+        ('Julien', 'Bonnet', 'julien.bonnet@email.fr'),
+        ('Pauline', 'Dupont', 'pauline.dupont@email.fr'),
+        ('Mathieu', 'Lambert', 'mathieu.lambert@email.fr'),
+        ('Elise', 'Fontaine', 'elise.fontaine@email.fr'),
+        ('Nicolas', 'Rousseau', 'nicolas.rousseau@email.fr'),
+        ('Anaïs', 'Morel', 'anais.morel@email.fr'),
+        ('Pierre', 'Leroy', 'pierre.leroy@email.fr'),
+        ('Laura', 'Gauthier', 'laura.gauthier@email.fr'),
+        ('Benjamin', 'Muller', 'benjamin.muller@email.fr'),
+        ('Océane', 'Blanc', 'oceane.blanc@email.fr'),
+        ('Kevin', 'Guerin', 'kevin.guerin@email.fr'),
+        ('Audrey', 'Boyer', 'audrey.boyer@email.fr'),
+        ('Romain', 'Martinez', 'romain.martinez@email.fr'),
+        ('Morgane', 'Garnier', 'morgane.garnier@email.fr'),
+        ('Vincent', 'Chevalier', 'vincent.chevalier@email.fr'),
+        ('Jade', 'François', 'jade.francois@email.fr'),
+        ('Florian', 'Legrand', 'florian.legrand@email.fr'),
+        ('Mélanie', 'Mercier', 'melanie.mercier@email.fr'),
+        ('Sylvain', 'Renard', 'sylvain.renard@email.fr'),
+        ('Céline', 'Barbier', 'celine.barbier@email.fr'),
+    ]
+    
     fictitious_users = []
-    for i in range(1, 40): # Enough for pagination test (>20) and Cthulhu event needs
-        u = User(email=f'user{i}@example.com', nom=f'Nom{i}', prenom=f'Prenom{i}', role='user')
+    for prenom, nom, email in fictitious_users_data:
+        u = User(email=email, nom=nom, prenom=prenom, age=random.randint(20, 45), role='user')
         u.password_hash = generate_password_hash('test1234')
         db.session.add(u)
         fictitious_users.append(u)
@@ -67,8 +114,12 @@ with app.app_context():
         date_end=datetime(2026, 6, 30, 23, 0),
         location="Tatooine (Mos Eisley)",
         description="Une aventure galactique.",
-        # status="En préparation", # Use default or set later if kwarg fails
-        organizer_structure="Rebel Alliance"
+        organizer_structure="Rebel Alliance",
+        groups_config=json.dumps({
+            "PJ": ["Peu importe", "Rebelles", "Empire", "Contrebandiers"],
+            "PNJ": ["Peu importe", "Aliens", "Stormtroopers"],
+            "Organisateur": ["général", "coordinateur", "scénariste", "logisticien", "crafteur", "en charge des PNJ"]
+        })
     )
     event_sw.statut = "En préparation"
     db.session.add(event_sw)
@@ -76,50 +127,52 @@ with app.app_context():
     # Event 2: Cthulhu
     cthulhu_date = datetime(2026, 9, 30, 9, 0)
     event_cthulhu = Event(
-        name="Cthulhu - ca me gratte dans la tentacule",
+        name="Cthulhu - ça me gratte dans la tentacule",
         date_start=cthulhu_date,
         date_end=datetime(2026, 9, 30, 23, 0),
         location="Arkham",
         description="Une enquête horrifique.",
-        # status="En préparation",
-        organizer_structure="Miskatonic U"
+        organizer_structure="Miskatonic U",
+        groups_config=json.dumps({
+            "PJ": ["Peu importe", "Investigateurs", "Cultistes"],
+            "PNJ": ["Peu importe", "Créatures", "Complices"],
+            "Organisateur": ["général", "coordinateur", "scénariste", "logisticien", "crafteur", "en charge des PNJ"]
+        })
     )
     event_cthulhu.statut = "En préparation"
     db.session.add(event_cthulhu)
     db.session.commit()
 
     print("Assigning Organizers...")
-    # Jacques -> Star Wars
-    p_jacques = Participant(event_id=event_sw.id, user_id=admin_user.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    # Jacques -> Star Wars (coordinateur)
+    p_jacques = Participant(event_id=event_sw.id, user_id=admin_user.id, type="organisateur", group="coordinateur", registration_status="Validé")
     db.session.add(p_jacques)
     
-    # Gwen -> Cthulhu
-    p_gwen = Participant(event_id=event_cthulhu.id, user_id=user_gwen.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    # Gwen -> Cthulhu (scénariste)
+    p_gwen = Participant(event_id=event_cthulhu.id, user_id=user_gwen.id, type="organisateur", group="scénariste", registration_status="Validé")
     db.session.add(p_gwen)
     
-    # Sylvain -> Cthulhu
-    p_sylvain = Participant(event_id=event_cthulhu.id, user_id=user_sylvain.id, type="organisateur", group="Organisateur", registration_status="Validé")
+    # Sylvain -> Cthulhu (logisticien)
+    p_sylvain = Participant(event_id=event_cthulhu.id, user_id=user_sylvain.id, type="organisateur", group="logisticien", registration_status="Validé")
     db.session.add(p_sylvain)
     
     print("Assigning Fictitious Participants...")
     
-    # Star Wars: No additional participants initially (as per bug report/fix)
-    # sw_pj = fictitious_users[0:4]
-    # sw_pnj = fictitious_users[4:9]
+    # Star Wars: 4 inscrits (2 PJ, 2 PNJ)
+    sw_pj = fictitious_users[0:2]  # Sophie, Thomas
+    sw_pnj = fictitious_users[2:4]  # Emma, Lucas
     
-    # for u in sw_pj:
-    #     db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PJ", group="Peu importe", registration_status="Validé"))
-    # for u in sw_pnj:
-    #     db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PNJ", group="Peu importe", registration_status="Validé"))
+    for u in sw_pj:
+        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PJ", group="Rebelles", registration_status="Validé"))
+    for u in sw_pnj:
+        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PNJ", group="Aliens", registration_status="Validé"))
 
-    # Cthulhu: 16 PJ, 13 PNJ from fictitious (indices 9-37)
-    # 9 + 16 = 25
-    ct_pj = fictitious_users[9:25]
-    # 25 + 13 = 38
-    ct_pnj = fictitious_users[25:38]
+    # Cthulhu: 5 inscrits (3 PJ, 2 PNJ) - en plus des 2 organisateurs déjà inscrits
+    ct_pj = fictitious_users[4:7]  # Léa, Hugo, Chloé
+    ct_pnj = fictitious_users[7:9]  # Louis, Manon
     
     for u in ct_pj:
-        db.session.add(Participant(event_id=event_cthulhu.id, user_id=u.id, type="PJ", group="Peu importe", registration_status="Validé"))
+        db.session.add(Participant(event_id=event_cthulhu.id, user_id=u.id, type="PJ", group="Investigateurs", registration_status="Validé"))
     for u in ct_pnj:
         db.session.add(Participant(event_id=event_cthulhu.id, user_id=u.id, type="PNJ", group="Peu importe", registration_status="Validé"))
 

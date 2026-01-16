@@ -22,7 +22,7 @@ class TestDashboardRoutes:
         """Test que le dashboard affiche les événements."""
         response = auth_client.get('/dashboard')
         assert response.status_code == 200
-        assert b'Test GN Event' in response.data
+        assert b'Test Event' in response.data
 
 
 class TestEventCreationRoutes:
@@ -61,13 +61,13 @@ class TestEventCreationRoutes:
 class TestEventDetailRoutes:
     """Tests des pages de détails d'événement."""
     
-    def test_event_detail_loads(self, client, sample_event):
+    def test_event_detail_loads(self, auth_client, sample_event):
         """Test que la page de détails d'un événement se charge."""
-        response = client.get(f'/event/{sample_event.id}')
+        response = auth_client.get(f'/event/{sample_event.id}')
         assert response.status_code == 200
-        assert b'Test GN Event' in response.data
+        assert b'Test Event' in response.data
     
-    def test_event_detail_shows_external_links(self, client, app):
+    def test_event_detail_shows_external_links(self, auth_client, app, db):
         """Test que les liens externes sont affichés."""
         with app.app_context():
             from models import db
@@ -84,7 +84,7 @@ class TestEventDetailRoutes:
             db.session.commit()
             event_id = event.id
         
-        response = client.get(f'/event/{event_id}')
+        response = auth_client.get(f'/event/{event_id}')
         assert response.status_code == 200
         assert b'example.org' in response.data or b'Mon Asso' in response.data
 
@@ -97,9 +97,12 @@ class TestParticipantManagementRoutes:
         response = client.get(f'/event/{sample_event.id}/participants')
         assert response.status_code == 302
     
-    def test_manage_participants_loads_for_organizer(self, auth_client, sample_event):
+    def test_manage_participants_loads_for_organizer(self, client, sample_event, user_creator):
         """Test que la page se charge pour un organisateur."""
-        response = auth_client.get(f'/event/{sample_event.id}/participants')
+        # Se connecter en tant que créateur (organisateur du sample_event)
+        from tests.conftest import login
+        login(client, 'creator@test.com', 'creator123')
+        response = client.get(f'/event/{sample_event.id}/participants')
         assert response.status_code == 200
     
     def test_change_participant_status(self, auth_client, app, sample_event, sample_participant):

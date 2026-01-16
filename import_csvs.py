@@ -1,9 +1,17 @@
+"""
+Script pour importer les données CSV générées dans la base de données.
+"""
+
 import csv
 import os
 from app import create_app
 from models import db, User, Event, Role, Participant
 from werkzeug.security import generate_password_hash
 from datetime import datetime
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env
+load_dotenv()
 
 DATA_DIR = 'tests/data'
 app = create_app()

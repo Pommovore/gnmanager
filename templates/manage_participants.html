@@ -3,7 +3,7 @@
 <div class="container-fluid mt-3">
     <div class="d-flex justify-content-between align-items-center mb-3">
         <h3>Gestion des Participants - {{ event.name }}</h3>
-        <a href="{{ url_for('main.event_detail', event_id=event.id) }}" class="btn btn-secondary">
+        <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary">
             <i class="bi bi-arrow-left"></i> Retour à l'événement
         </a>
     </div>
@@ -79,6 +79,8 @@
                         <span class="badge bg-success">Versée</span>
                         {% elif p.paf_status == 'partielle' %}
                         <span class="badge bg-warning text-dark">Partielle</span>
+                        {% elif p.paf_status == 'dispensé(e)' %}
+                        <span class="badge bg-info">Dispensé(e)</span>
                         {% elif p.paf_status == 'erreur' %}
                         <span class="badge bg-danger">Erreur</span>
                         {% else %}
@@ -91,9 +93,9 @@
                         <div class="d-flex w-100 gap-1">
                             {% if p.registration_status != 'Validé' %}
                             <form method="POST"
-                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 <input type="hidden" name="action" value="validate">
                                 <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
                                     <i class="bi bi-check-circle"></i> Valider
@@ -103,9 +105,9 @@
 
                             {% if p.registration_status != 'En attente' %}
                             <form method="POST"
-                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 <input type="hidden" name="action" value="pending">
                                 <button type="submit" class="btn btn-sm btn-info w-100 py-1" title="Mettre en attente">
                                     <i class="bi bi-clock"></i> Attente
@@ -115,9 +117,9 @@
 
                             {% if p.registration_status != 'Rejeté' %}
                             <form method="POST"
-                                action="{{ url_for('main.change_participant_status', event_id=event.id, p_id=p.id) }}"
+                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
                                 class="flex-fill">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 <input type="hidden" name="action" value="reject">
                                 <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
                                     <i class="bi bi-x-circle"></i> Exclure
@@ -145,8 +147,8 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                             </div>
                             <form method="POST"
-                                action="{{ url_for('main.update_participant', event_id=event.id, p_id=p.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                                action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 <div class="modal-body">
                                     <div class="mb-3">
                                         <label class="form-label">Email (lecture seule)</label>
@@ -164,8 +166,11 @@
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">Groupe</label>
-                                        <input type="text" name="group" class="form-control"
-                                            value="{{ p.group or '' }}">
+                                        <select name="group" class="form-select" id="groupSelect{{p.id}}"
+                                            data-participant-type="{{p.type}}">
+                                            <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group or 'Peu
+                                                importe' }}</option>
+                                        </select>
                                     </div>
                                     <div class="mb-3">
                                         <label class="form-label">PAF (Participation Aux Frais)</label>
@@ -176,6 +181,9 @@
                                                 %}>Partielle</option>
                                             <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
                                                 Versée</option>
+                                            <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)' %}selected{%
+                                                endif %}>
+                                                Dispensé(e)</option>
                                             <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
                                                 Erreur</option>
                                         </select>
@@ -210,6 +218,73 @@
         </table>
     </div>
 </div>
+
+<!-- Groups Config Data (for JavaScript) -->
+<script id="groups-config-data" type="application/json">
+    {{ groups_config | tojson }}
+</script>
+
+<script>
+    // Load groups configuration
+    const groupsConfig = JSON.parse(document.getElementById('groups-config-data').textContent);
+
+    // When modal opens, populate group options based on participant type
+    document.addEventListener('DOMContentLoaded', function () {
+        // Get all modals
+        const modals = document.querySelectorAll('.modal');
+
+        modals.forEach(modal => {
+            modal.addEventListener('show.bs.modal', function () {
+                const groupSelect = this.querySelector('select[name="group"]');
+                const typeSelect = this.querySelector('select[name="type"]');
+
+                if (groupSelect && typeSelect) {
+                    // Function to update group options
+                    const updateGroupOptions = () => {
+                        const selectedType = typeSelect.value;
+                        const currentValue = groupSelect.value;
+
+                        // Clear current options
+                        groupSelect.innerHTML = '';
+
+                        // Get groups for this type
+                        let groups = [];
+                        if (selectedType === 'PJ') groups = groupsConfig.PJ || [];
+                        else if (selectedType === 'PNJ') groups = groupsConfig.PNJ || [];
+                        else if (selectedType === 'organisateur') groups = groupsConfig.Organisateur || [];
+
+                        // Default if empty
+                        if (groups.length === 0) groups = ['Peu importe'];
+
+                        // Populate options
+                        groups.forEach(g => {
+                            const opt = document.createElement('option');
+                            opt.value = g;
+                            opt.textContent = g;
+                            if (g === currentValue) opt.selected = true;
+                            groupSelect.appendChild(opt);
+                        });
+
+                        // If current value not in list, add it as first option and select it
+                        if (currentValue && !groups.includes(currentValue)) {
+                            const opt = document.createElement('option');
+                            opt.value = currentValue;
+                            opt.textContent = currentValue + ' (actuel)';
+                            opt.selected = true;
+                            groupSelect.insertBefore(opt, groupSelect.firstChild);
+                        }
+                    };
+
+                    // Update on type change
+                    typeSelect.addEventListener('change', updateGroupOptions);
+
+                    // Initial population
+                    updateGroupOptions();
+                }
+            });
+        });
+    });
+</script>
 
 <style>
     .gap-1 {

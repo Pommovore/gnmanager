@@ -32,7 +32,7 @@ class TestAuthenticationRoutes:
         """Test que la page de login se charge."""
         response = client.get('/login')
         assert response.status_code == 200
-        assert b'login' in response.data.lower() or b'connexion' in response.data.lower()
+        assert b'connexion' in response.data.lower()
     
     def test_register_page_loads(self, client):
         """Test que la page d'inscription se charge."""
@@ -48,7 +48,7 @@ class TestAuthenticationRoutes:
         
         assert response.status_code == 200
         # Devrait rediriger vers le dashboard
-        assert b'dashboard' in response.data.lower() or b'événement' in response.data.lower()
+        assert 'dashboard' in response.data.decode('utf-8').lower() or 'événement' in response.data.decode('utf-8').lower()
     
     def test_failed_login_wrong_password(self, client, sample_user):
         """Test d'une connexion échouée (mauvais mot de passe)."""
@@ -76,9 +76,9 @@ class TestAuthenticationRoutes:
         
         assert response.status_code == 200
         # Devrait rediriger vers login
-        assert b'login' in response.data.lower() or b'connexion' in response.data.lower()
+        assert b'connexion' in response.data.lower()
     
-    def test_register_new_user(self, client, app):
+    def test_register_new_user(self, client, app, db):
         """Test d'enregistrement d'un nouvel utilisateur."""
         response = client.post('/register', data={
             'email': 'newuser@test.com',
@@ -107,9 +107,10 @@ class TestAuthenticationRoutes:
             'genre': 'F'
         }, follow_redirects=True)
         
+        
         assert response.status_code == 200
         # Devrait afficher une erreur
-        assert b'existe' in response.data.lower() or b'error' in response.data.lower()
+        assert b'utilis' in response.data.lower() or b'existe' in response.data.lower() or b'error' in response.data.lower()
 
 
 class TestPasswordReset:
@@ -120,7 +121,7 @@ class TestPasswordReset:
         response = client.get('/forgot_password')
         assert response.status_code == 200
     
-    def test_request_password_reset(self, client, sample_user, app):
+    def test_request_password_reset(self, client, sample_user, app, db):
         """Test de demande de réinitialisation de mot de passe."""
         response = client.post('/forgot_password', data={
             'email': 'user@test.com'

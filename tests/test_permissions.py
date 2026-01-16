@@ -1,7 +1,7 @@
 """Tests des permissions et du contrôle d'accès RBAC."""
 
 import pytest
-from models import User
+from models import User, Event
 
 
 class TestRBACPermissions:
@@ -33,9 +33,12 @@ class TestRBACPermissions:
 class TestOrganizerPermissions:
     """Tests des permissions d'organisateur d'événement."""
     
-    def test_organizer_can_access_participants(self, auth_client, sample_event):
+    def test_organizer_can_access_participants(self, client, sample_event, user_creator):
         """Test qu'un organisateur peut accéder à la gestion des participants."""
-        response = auth_client.get(f'/event/{sample_event.id}/participants')
+        # Se connecter en tant que créateur (qui est l'organisateur du sample_event)
+        from tests.conftest import login
+        login(client, 'creator@test.com', 'creator123')
+        response = client.get(f'/event/{sample_event.id}/participants')
         assert response.status_code == 200
     
     def test_non_organizer_cannot_access_participants(self, client, app, sample_event):
@@ -93,7 +96,7 @@ class TestAdminOnlyRoutes:
 class TestEventVisibilityPermissions:
     """Tests des permissions de visibilité des événements."""
     
-    def test_public_event_visible_to_all(self, client, app):
+    def test_public_event_visible_to_all(self, auth_client, app, db):
         """Test qu'un événement public est visible par tous."""
         with app.app_context():
             from models import db
@@ -110,7 +113,7 @@ class TestEventVisibilityPermissions:
             db.session.commit()
             event_id = event.id
         
-        response = client.get(f'/event/{event_id}')
+        response = auth_client.get(f'/event/{event_id}')
         assert response.status_code == 200
     
     def test_private_event_visibility(self, client, app):

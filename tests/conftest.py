@@ -1,203 +1,255 @@
 """
-Configuration et fixtures pytest pour GN Manager.
+Configuration pytest pour GN Manager.
 
-Ce module fournit des fixtures réutilisables pour tous les tests:
-- app: Application Flask de test
-- client: Client HTTP de test
-- db: Base de données de test
-- auth_client: Client authentifié
-- Sample data: Utilisateurs, événements, participants de test
+Ce fichier configure l'environnement de test avec :
+- Fixtures communes (client, app, db)
+- Configuration de la base de données de test
+- Helpers pour les tests
 """
 
 import pytest
 import os
-import sys
-import tempfile
-
-# Add parent directory to path to allow imports
-sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-
 from app import create_app
-from models import db, User, Event, Participant, Role
+from models import db as _db, User, Event, Participant, Role
 from werkzeug.security import generate_password_hash
-from datetime import datetime, timedelta
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture(scope='session')
 def app():
     """
-    Crée une instance Flask configurée pour les tests.
+    Fixture Flask app pour les tests.
     
-    Utilise une base de données SQLite en mémoire et désactive CSRF.
+    Crée une application Flask configurée pour les tests avec :
+    - Base de données SQLite en mémoire
+    - TESTING=True
+    - WTF_CSRF_ENABLED=False pour simplifier les tests
     """
-    # Créer un fichier temporaire pour la base de données de test
-    db_fd, db_path = tempfile.mkstemp()
+    # Set testing environment
+    os.environ['TESTING'] = '1'
     
-    # Configuration de test
-    os.environ['SECRET_KEY'] = 'test-secret-key'
-    os.environ['TESTING'] = 'true'
+    test_config = {
+        'TESTING': True,
+        'SQLALCHEMY_DATABASE_URI': 'sqlite:///:memory:',
+        'WTF_CSRF_ENABLED': False,
+        'SERVER_NAME': 'localhost.localdomain',
+        'SECRET_KEY': 'test-secret-key-for-testing-only'
+    }
     
-    app = create_app()
-    app.config['TESTING'] = True
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}'
-    app.config['WTF_CSRF_ENABLED'] = False
+    app = create_app(test_config)
     
-    # Créer toutes les tables
-    with app.app_context():
-        db.create_all()
-        
-    yield app
-    
-    # Nettoyage
-    with app.app_context():
-        db.session.remove()
-        db.drop_all()
-    
-    os.close(db_fd)
-    os.unlink(db_path)
+    return app
 
 
 @pytest.fixture(scope='function')
-def client(app):
-    """Client HTTP de test Flask."""
+def db(app):
+    """
+    Fixture base de données.
+    
+    Crée toutes les tables avant chaque test et les supprime après.
+    """
+    with app.app_context():
+        _db.create_all()
+        yield _db
+        _db.session.remove()
+        _db.drop_all()
+
+
+@pytest.fixture(scope='function')
+def client(app, db):
+    """
+    Fixture client de test Flask.
+    
+    Permet de faire des requêtes HTTP vers l'application.
+    """
     return app.test_client()
 
 
-@pytest.fixture(scope='function')
+@pytest.fixture
 def runner(app):
-    """Test CLI runner."""
+    """Fixture pour tester les commandes CLI."""
     return app.test_cli_runner()
 
 
-@pytest.fixture(scope='function')
-def sample_user(app):
-    """Crée un utilisateur de test standard."""
-    with app.app_context():
-        user = User(
-            email='user@test.com',
-            password_hash=generate_password_hash('password123'),
-            nom='Test',
-            prenom='User',
-            age=25,
-            genre='H',
-            role='user'
-        )
-        db.session.add(user)
-        db.session.commit()
-        return user
+# Fixtures utilisateurs
+
+@pytest.fixture
+def user_regular(db):
+    """Crée un utilisateur régulier pour les tests."""
+    user = User(
+        email='user@test.com',
+        nom='Test',
+        prenom='User',
+        age=25,
+        role='user',
+        password_hash=generate_password_hash('password123')
+    )
+    db.session.add(user)
+    db.session.commit()
+    return user
 
 
-@pytest.fixture(scope='function')
-def sample_admin(app):
-    """Crée un administrateur de test."""
-    with app.app_context():
-        admin = User(
-            email='admin@test.com',
-            password_hash=generate_password_hash('admin123'),
-            nom='Admin',
-            prenom='Test',
-            role='sysadmin'
-        )
-        db.session.add(admin)
-        db.session.commit()
-        return admin
+@pytest.fixture
+def sample_user(user_regular):
+    """Alias pour les anciens tests."""
+    return user_regular
 
 
-@pytest.fixture(scope='function')
-def sample_creator(app):
-    """Crée un compte créateur de test."""
-    with app.app_context():
-        creator = User(
-            email='creator@test.com',
-            password_hash=generate_password_hash('creator123'),
-            nom='Creator',
-            prenom='System',
-            role='createur'
-        )
-        db.session.add(creator)
-        db.session.commit()
-        return creator
+@pytest.fixture
+def user_admin(db):
+    """Crée un administrateur système pour les tests."""
+    admin = User(
+        email='admin@test.com',
+        nom='Admin',
+        prenom='System',
+        age=30,
+        role='sysadmin',
+        password_hash=generate_password_hash('admin123')
+    )
+    db.session.add(admin)
+    db.session.commit()
+    return admin
 
 
-@pytest.fixture(scope='function')
-def sample_event(app, sample_user):
+@pytest.fixture
+def sample_admin(user_admin):
+    """Alias pour les anciens tests."""
+    return user_admin
+
+
+@pytest.fixture
+def user_creator(db):
+    """Crée un créateur (super admin) pour les tests."""
+    creator = User(
+        email='creator@test.com',
+        nom='Creator',
+        prenom='Supreme',
+        age=35,
+        role='createur',
+        password_hash=generate_password_hash('creator123')
+    )
+    db.session.add(creator)
+    db.session.commit()
+    return creator
+
+
+@pytest.fixture
+def sample_creator(user_creator):
+    """Alias pour les anciens tests."""
+    return user_creator
+
+
+# Fixtures événements
+
+@pytest.fixture
+def event_sample(db, user_creator):
     """Crée un événement de test."""
-    with app.app_context():
-        event = Event(
-            name='Test GN Event',
-            description='A test GN event',
-            date_start=datetime.now() + timedelta(days=30),
-            date_end=datetime.now() + timedelta(days=32),
-            location='Test Location',
-            visibility='public',
-            statut='Inscriptions ouvertes'
-        )
-        db.session.add(event)
-        db.session.commit()
-        
-        # Ajouter le créateur comme organisateur
-        organizer = Participant(
-            user_id=sample_user.id,
-            event_id=event.id,
-            type='organisateur',
-            registration_status='Validé'
-        )
-        db.session.add(organizer)
-        db.session.commit()
-        
-        return event
-
-
-@pytest.fixture(scope='function')
-def sample_participant(app, sample_event):
-    """Crée un participant de test (PJ)."""
-    with app.app_context():
-        user = User(
-            email='participant@test.com',
-            password_hash=generate_password_hash('pass123'),
-            nom='Participant',
-            prenom='Test',
-            role='user'
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        participant = Participant(
-            user_id=user.id,
-            event_id=sample_event.id,
-            type='PJ',
-            group='Groupe A',
-            registration_status='En attente'
-        )
-        db.session.add(participant)
-        db.session.commit()
-        
-        return participant
-
-
-@pytest.fixture(scope='function')
-def auth_client(client, sample_user):
-    """
-    Client authentifié avec un utilisateur standard.
+    from datetime import datetime, timedelta
+    import json
     
-    Simule une session de connexion.
-    """
-    with client:
-        client.post('/login', data={
-            'email': 'user@test.com',
-            'password': 'password123'
-        }, follow_redirects=True)
-        yield client
+    event = Event(
+        name='Test Event',
+        description='Event for testing',
+        date_start=datetime.now() + timedelta(days=30),
+        date_end=datetime.now() + timedelta(days=32),
+        location='Test Location',
+        statut='En préparation',
+        groups_config=json.dumps({
+            "PJ": ["Groupe A", "Groupe B"],
+            "PNJ": ["Groupe C"],
+            "Organisateur": ["général", "coordinateur"]
+        })
+    )
+    db.session.add(event)
+    db.session.commit()
+    
+    # Ajouter le créateur comme organisateur
+    participant = Participant(
+        event_id=event.id,
+        user_id=user_creator.id,
+        type='organisateur',
+        group='général',
+        registration_status='Validé'
+    )
+    db.session.add(participant)
+    db.session.commit()
+    
+    return event
 
 
-@pytest.fixture(scope='function')
-def admin_client(client, sample_admin):
+@pytest.fixture
+def sample_event(event_sample):
+    """Alias pour les anciens tests."""
+    return event_sample
+
+
+@pytest.fixture
+def sample_participant(db, event_sample, user_regular):
+    """Alias pour les anciens tests."""
+    return create_participant(db, event_sample, user_regular)
+
+
+# Clients authentifiés
+
+@pytest.fixture
+def auth_client(client, user_regular):
+    """Client connecté en tant qu'utilisateur régulier."""
+    login(client, 'user@test.com', 'password123')
+    return client
+
+
+@pytest.fixture
+def admin_client(client, user_admin):
+    """Client connecté en tant qu'administrateur."""
+    login(client, 'admin@test.com', 'admin123')
+    return client
+
+
+# Helpers de test
+
+def login(client, email, password):
     """
-    Client authentifié avec un administrateur.
+    Helper pour se connecter.
+    
+    Args:
+        client: Client de test Flask
+        email: Email de l'utilisateur
+        password: Mot de passe
+        
+    Returns:
+        Response de la requête de login
     """
-    with client:
-        client.post('/login', data={
-            'email': 'admin@test.com',
-            'password': 'admin123'
-        }, follow_redirects=True)
-        yield client
+    return client.post('/login', data={
+        'email': email,
+        'password': password
+    }, follow_redirects=True)
+
+
+def logout(client):
+    """Helper pour se déconnecter."""
+    return client.get('/logout', follow_redirects=True)
+
+
+def create_participant(db, event, user, participant_type='PJ', status='Validé'):
+    """
+    Helper pour créer un participant.
+    
+    Args:
+        db: Session database
+        event: Événement
+        user: Utilisateur
+        participant_type: Type (PJ, PNJ, organisateur)
+        status: Statut d'inscription
+        
+    Returns:
+        Participant créé
+    """
+    participant = Participant(
+        event_id=event.id,
+        user_id=user.id,
+        type=participant_type,
+        group='Test Group',
+        registration_status=status
+    )
+    db.session.add(participant)
+    db.session.commit()
+    return participant

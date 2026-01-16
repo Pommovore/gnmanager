@@ -4,9 +4,9 @@
 <div class="container mt-4">
     <div class="d-flex justify-content-between align-items-center mb-4">
         <h2>📊 Logs d'Activité</h2>
-        <a href="{{ url_for('main.dashboard') }}" class="btn btn-secondary">Retour au Dashboard</a>
+        <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Retour au Dashboard</a>
     </div>
-    
+
     {% if logs %}
     <div class="mb-3">
         <button id="markViewedBtn" class="btn btn-primary">
@@ -16,7 +16,7 @@
             <span class="badge bg-warning text-dark">●</span> = Nouveau
         </span>
     </div>
-    
+
     <div class="table-responsive">
         <table class="table table-hover">
             <thead class="table-dark">
@@ -29,65 +29,65 @@
             </thead>
             <tbody>
                 {% for log in logs %}
-                <tr {% if not log.is_viewed %}class="table-warning"{% endif %}>
+                <tr {% if not log.is_viewed %}class="table-warning" {% endif %}>
                     <td>
                         <small>{{ log.created_at.strftime('%d/%m/%Y') }}</small><br>
                         <small class="text-muted">{{ log.created_at.strftime('%H:%M:%S') }}</small>
                     </td>
                     <td>
                         {% if log.action_type == 'user_registration' %}
-                            <span class="badge bg-success">
-                                <i class="bi bi-person-plus"></i> Inscription
-                            </span>
+                        <span class="badge bg-success">
+                            <i class="bi bi-person-plus"></i> Inscription
+                        </span>
                         {% elif log.action_type == 'event_creation' %}
-                            <span class="badge bg-info">
-                                <i class="bi bi-calendar-plus"></i> Création événement
-                            </span>
+                        <span class="badge bg-info">
+                            <i class="bi bi-calendar-plus"></i> Création événement
+                        </span>
                         {% elif log.action_type == 'event_participation' %}
-                            <span class="badge bg-primary">
-                                <i class="bi bi-people"></i> Demande participation
-                            </span>
+                        <span class="badge bg-primary">
+                            <i class="bi bi-people"></i> Demande participation
+                        </span>
                         {% endif %}
                     </td>
                     <td>
                         {% if log.user %}
-                            <strong>{{ log.user.email }}</strong>
-                            {% if log.user.prenom and log.user.nom %}
-                                <br><small class="text-muted">{{ log.user.prenom }} {{ log.user.nom }}</small>
-                            {% endif %}
+                        <strong>{{ log.user.email }}</strong>
+                        {% if log.user.prenom and log.user.nom %}
+                        <br><small class="text-muted">{{ log.user.prenom }} {{ log.user.nom }}</small>
+                        {% endif %}
                         {% else %}
-                            <span class="text-muted">Utilisateur supprimé</span>
+                        <span class="text-muted">Utilisateur supprimé</span>
                         {% endif %}
                     </td>
                     <td>
                         {% if log.action_type == 'user_registration' %}
-                            <div>
-                                <strong>{{ log.details_dict.prenom }} {{ log.details_dict.nom }}</strong>
-                            </div>
-                            <small class="text-muted">
-                                Email: {{ log.details_dict.email }}
-                                {% if log.details_dict.genre %}
-                                    | Genre: {{ log.details_dict.genre }}
-                                {% endif %}
-                            </small>
+                        <div>
+                            <strong>{{ log.details_dict.prenom }} {{ log.details_dict.nom }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Email: {{ log.details_dict.email }}
+                            {% if log.details_dict.genre %}
+                            | Genre: {{ log.details_dict.genre }}
+                            {% endif %}
+                        </small>
                         {% elif log.action_type == 'event_creation' %}
-                            <div>
-                                <strong>{{ log.details_dict.event_name }}</strong>
-                            </div>
-                            <small class="text-muted">
-                                Lieu: {{ log.details_dict.location }}
-                                | Du {{ log.details_dict.date_start }} au {{ log.details_dict.date_end }}
-                            </small>
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Lieu: {{ log.details_dict.location }}
+                            | Du {{ log.details_dict.date_start }} au {{ log.details_dict.date_end }}
+                        </small>
                         {% elif log.action_type == 'event_participation' %}
-                            <div>
-                                <strong>{{ log.details_dict.event_name }}</strong>
-                            </div>
-                            <small class="text-muted">
-                                Type: <span class="badge bg-secondary">{{ log.details_dict.type }}</span>
-                                {% if log.details_dict.group and log.details_dict.group != 'Aucun' %}
-                                    | Groupe: <span class="badge bg-secondary">{{ log.details_dict.group }}</span>
-                                {% endif %}
-                            </small>
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Type: <span class="badge bg-secondary">{{ log.details_dict.type }}</span>
+                            {% if log.details_dict.group and log.details_dict.group != 'Aucun' %}
+                            | Groupe: <span class="badge bg-secondary">{{ log.details_dict.group }}</span>
+                            {% endif %}
+                        </small>
                         {% endif %}
                     </td>
                 </tr>
@@ -103,25 +103,25 @@
 </div>
 
 <script>
-document.getElementById('markViewedBtn').addEventListener('click', function() {
-    if (confirm('Marquer tous les logs comme consultés ?')) {
-        fetch('{{ url_for("main.mark_logs_viewed") }}', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        })
-        .then(response => response.json())
-        .then(data => {
-            if (data.success) {
-                location.reload();
-            }
-        })
-        .catch(error => {
-            console.error('Erreur:', error);
-            alert('Erreur lors de la mise à jour des logs');
-        });
-    }
-});
+    document.getElementById('markViewedBtn').addEventListener('click', function () {
+        if (confirm('Marquer tous les logs comme consultés ?')) {
+            fetch('{{ url_for("admin.mark_logs_viewed") }}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        location.reload();
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur:', error);
+                    alert('Erreur lors de la mise à jour des logs');
+                });
+        }
+    });
 </script>
 {% endblock %}

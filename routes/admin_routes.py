@@ -127,6 +127,57 @@ def update_profile():
     return redirect(url_for('admin.dashboard'))
 
 
+
+
+@admin_bp.route('/admin/user/<int:user_id>/events')
+@login_required
+@admin_required
+def user_events(user_id):
+    """
+    Affiche tous les événements auxquels un utilisateur participe.
+    
+    Args:
+        user_id: ID de l'utilisateur
+        
+    Returns:
+        Template avec liste des événements de l'utilisateur
+    """
+    user = User.query.get_or_404(user_id)
+    
+    # Récupérer toutes les participations de l'utilisateur avec les événements liés
+    participations = Participant.query.filter_by(user_id=user_id)\
+        .options(joinedload(Participant.event))\
+        .options(joinedload(Participant.role))\
+        .order_by(Participant.event_id.desc())\
+        .all()
+    
+    # Grouper par événement (au cas où plusieurs rôles)
+    events_data = []
+    seen_events = set()
+    
+    for p in participations:
+        if p.event_id not in seen_events:
+            seen_events.add(p.event_id)
+            events_data.append({
+                'event': p.event,
+                'participation': p,
+                'role_name': p.role.name if p.role else None
+            })
+    
+    breadcrumbs = [
+        ('Dashboard', url_for('admin.dashboard')),
+        ('Utilisateurs', url_for('admin.dashboard', admin_view='users') + '#admin'),
+        (user.email, '#')
+    ]
+    
+    return render_template(
+        'user_events.html',
+        user=user,
+        events_data=events_data,
+        breadcrumbs=breadcrumbs
+    )
+
+
 @admin_bp.route('/admin/user/add', methods=['POST'])
 @login_required
 @admin_required
