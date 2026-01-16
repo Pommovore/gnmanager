@@ -111,7 +111,7 @@ def detail(event_id):
     # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
-    is_organizer = participant and participant.type == ParticipantType.ORGANISATEUR.value
+    is_organizer = participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower()
     groups_config = json.loads(event.groups_config or '{}')
     
     breadcrumbs = [
@@ -223,6 +223,11 @@ def join(event_id):
     Le statut initial est 'À valider' et nécessite validation par un organisateur.
     """
     event = Event.query.get_or_404(event_id)
+    
+    if event.statut in ['Annulé', 'Terminé']:
+        flash('Impossible de rejoindre cet événement (Annulé ou Terminé).', 'danger')
+        return redirect(url_for('event.detail', event_id=event.id))
+        
     if Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first():
         flash('Vous participez déjà à cet événement.', 'warning')
         return redirect(url_for('event.detail', event_id=event.id))

@@ -30,14 +30,22 @@
                         style="height: 200px; object-fit: cover;">
                     {% endif %}
                     <div class="card-body">
+                        <!-- 1. Titre -->
                         <h1 class="card-title">{{ event.name }}</h1>
+
+                        <!-- 2. Date -->
                         <p class="text-muted">
                             Du {{ event.date_start.strftime('%d/%m/%Y') }} au {{ event.date_end.strftime('%d/%m/%Y')
                             }}<br>
                             {{ event.location }}
                         </p>
-                        <p>Status actuel : <span class="badge bg-info">{{ event.statut }}</span></p>
+
+                        <!-- 3. Description -->
                         <p class="mt-3">{{ event.description }}</p>
+
+                        <!-- 4. Statut Actuel -->
+                        <p>Status actuel : <span class="badge bg-info">{{ event.statut }}</span></p>
+
                         <div class="d-flex flex-wrap gap-2 mb-3">
                             {% if event.org_link_url %}
                             <a href="{{ event.org_link_url }}" target="_blank" class="btn btn-outline-secondary">
@@ -52,11 +60,14 @@
                             {% endif %}
                         </div>
 
+                        <!-- 5. Statut Utilisateur / Boutons -->
+                        {% if participant %}
+                        <!-- Cas: Utilisateur participe déjà -->
+
                         {% if is_organizer %}
-                        <div class="alert alert-warning">Vous êtes organisateur de cet événement.</div>
+                        <div class="alert alert-warning mb-2">Vous êtes organisateur de cet événement.</div>
                         {% endif %}
 
-                        {% if participant %}
                         {% if participant.type %}
                         {% set badge_class = "bg-secondary" %}
                         {% if participant.type.lower() == 'organisateur' %}
@@ -67,30 +78,54 @@
                         {% set badge_class = "bg-primary" %}
                         {% endif %}
 
-                        <p>Votre rôle :
-                            {% if participant.registration_status == 'En attente' or participant.registration_status ==
-                            'À valider' %}
-                            <span class="badge bg-light text-dark border">
+                        <div class="mt-3">
+                            <p class="mb-1">Votre statut :</p>
+                            {% if participant.registration_status == 'En attente' or participant.registration_status
+                            == 'À valider' %}
+                            <span class="badge bg-light text-dark border fs-6">
                                 {{ participant.type }} (En Attente)
                             </span>
                             {% else %}
-                            <span class="badge {{ badge_class }}">
+                            <span class="badge {{ badge_class }} fs-6">
                                 {{ participant.type }}
                                 {% if participant.group and participant.group != 'Peu importe' %}
                                 - {{ participant.group }}
                                 {% endif %}
                             </span>
                             {% endif %}
-                        </p>
+                        </div>
                         {% endif %}
-                        <p>Statut inscription : {{ participant.registration_status }}</p>
-                        {% elif event.statut == 'Annulé' %}
-                        <button class="btn btn-secondary" disabled>Événement annulé</button>
+                        <p class="mt-2 text-muted"><small>Statut inscription : {{ participant.registration_status
+                                }}</small></p>
+
                         {% else %}
-                        <button type="button" class="btn btn-success" data-bs-toggle="modal"
+                        <!-- Cas: Utilisateur ne participe pas encore -->
+
+                        {% if event.statut == 'Inscriptions ouvertes' %}
+                        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal"
                             data-bs-target="#joinModal">
                             Rejoindre l'événement
                         </button>
+
+                        {% elif event.statut in ['En préparation', 'Inscriptions fermées', 'Casting en cours',
+                        'Casting terminé', 'Rôles en cours de préparation', 'Rôles en cours d\'envois', 'Rôles
+                        envoyés, préparatifs de l\'événement'] %}
+                        <!-- Avant "Événement en cours" mais pas "Inscriptions ouvertes" -->
+                        <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal"
+                            data-bs-target="#joinModal">
+                            J'aimerais participer
+                        </button>
+
+                        {% else %}
+                        <!-- Statuts: Événement en cours, Terminé, Annulé, Reporté -->
+                        <!-- Aucun bouton affiché -->
+                        {% if event.statut == 'Annulé' %}
+                        <button class="btn btn-secondary" disabled>Événement annulé</button>
+                        {% elif event.statut == 'Terminé' %}
+                        <button class="btn btn-secondary" disabled>Événement clôturé</button>
+                        {% endif %}
+                        {% endif %}
+
                         {% endif %}
                     </div>
                 </div>
@@ -104,7 +139,7 @@
                     <div class="card-header">Modifier les généralités</div>
                     <div class="card-body">
                         <form method="POST" action="/event/{{ event.id }}/update_general">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="mb-3">
                                 <label class="form-label">Titre de l'événement</label>
                                 <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
@@ -164,7 +199,7 @@
                             Statut actuel : <strong>{{ event.statut }}</strong>
                         </div>
                         <form method="POST" action="/event/{{ event.id }}/update_status">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="list-group mb-3">
                                 {% set statuses = [
                                 'En préparation',
@@ -188,7 +223,8 @@
                                 </label>
                                 {% endfor %}
                             </div>
-                            <p class="text-muted small">Les statuts "En cours" et "Terminé" sont automatiques selon les
+                            <p class="text-muted small">Les statuts "En cours" et "Terminé" sont automatiques selon
+                                les
                                 dates.</p>
                             <button type="submit" class="btn btn-primary">Mettre à jour</button>
                         </form>
@@ -206,9 +242,10 @@
                     <div class="card-header">Configuration des Groupes</div>
                     <div class="card-body">
                         <form method="POST" action="/event/{{ event.id }}/update_groups">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="alert alert-info">
-                                <small>Définissez ici les listes de choix de groupes pour chaque type de participant.
+                                <small>Définissez ici les listes de choix de groupes pour chaque type de
+                                    participant.
                                     Séparez les valeurs par des virgules.</small><br>
                                 <small><strong>Exemple:</strong> <em>Garde de Nuit, Sauvageons, Marcheurs
                                         Blancs</em></small>
@@ -254,7 +291,7 @@
                 <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
             </div>
             <form action="/event/{{ event.id }}/join" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                 <div class="modal-body">
                     <div class="mb-3">
                         <label class="form-label">Type d'inscription</label>
@@ -278,43 +315,42 @@
             </form>
         </div>
     </div>
-</div>
-{% endblock %}
+    {% endblock %}
 
-{% block scripts %}
-<script id="groups-config-data" type="application/json">
+    {% block scripts %}
+    <script id="groups-config-data" type="application/json">
     {{ groups_config| tojson }}
 </script>
-<script>
-    const groupsConfig = JSON.parse(document.getElementById('groups-config-data').textContent);
+    <script>
+        const groupsConfig = JSON.parse(document.getElementById('groups-config-data').textContent);
 
-    function updateGroupOptions() {
-        const typeSelect = document.getElementById('joinTypeSelect');
-        const groupSelect = document.getElementById('joinGroupSelect');
-        const selectedType = typeSelect.value;
+        function updateGroupOptions() {
+            const typeSelect = document.getElementById('joinTypeSelect');
+            const groupSelect = document.getElementById('joinGroupSelect');
+            const selectedType = typeSelect.value;
 
-        // Clear options
-        groupSelect.innerHTML = '';
+            // Clear options
+            groupSelect.innerHTML = '';
 
-        // Get groups for this type
-        let groups = [];
-        if (selectedType === 'PJ') groups = groupsConfig.PJ || [];
-        else if (selectedType === 'PNJ') groups = groupsConfig.PNJ || [];
-        else if (selectedType === 'Organisateur') groups = groupsConfig.Organisateur || []; // Case sensitive match with key
+            // Get groups for this type
+            let groups = [];
+            if (selectedType === 'PJ') groups = groupsConfig.PJ || [];
+            else if (selectedType === 'PNJ') groups = groupsConfig.PNJ || [];
+            else if (selectedType === 'Organisateur') groups = groupsConfig.Organisateur || []; // Case sensitive match with key
 
-        // Default if empty
-        if (groups.length === 0) groups = ['Peu importe'];
+            // Default if empty
+            if (groups.length === 0) groups = ['Peu importe'];
 
-        // Populate
-        groups.forEach(g => {
-            const opt = document.createElement('option');
-            opt.value = g;
-            opt.textContent = g;
-            groupSelect.appendChild(opt);
-        });
-    }
+            // Populate
+            groups.forEach(g => {
+                const opt = document.createElement('option');
+                opt.value = g;
+                opt.textContent = g;
+                groupSelect.appendChild(opt);
+            });
+        }
 
-    // Initialize on load
-    document.addEventListener('DOMContentLoaded', updateGroupOptions);
-</script>
-{% endblock %}
+        // Initialize on load
+        document.addEventListener('DOMContentLoaded', updateGroupOptions);
+    </script>
+    {% endblock %}

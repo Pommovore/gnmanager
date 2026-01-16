@@ -198,6 +198,82 @@ class TestEventJoin:
         # Devrait afficher un message d'erreur
         assert b'inscription' in response.data.lower() or b'particip' in response.data.lower()
 
+    def test_cannot_join_finished_event(self, client, sample_event, db):
+        """Test qu'on ne peut pas rejoindre un événement terminé."""
+        from models import User, Participant
+        from werkzeug.security import generate_password_hash
+        from tests.conftest import login
+        
+        # Mettre l'événement en statut terminé
+        sample_event.statut = 'Terminé'
+        db.session.commit()
+        
+        # Créer un nouvel utilisateur
+        user = User(
+            email='latecomer@test.com',
+            nom='Late', 
+            prenom='Comer',
+            password_hash=generate_password_hash('pass')
+        )
+        db.session.add(user)
+        db.session.commit()
+        
+        login(client, 'latecomer@test.com', 'pass')
+        
+        response = client.post(f'/event/{sample_event.id}/join', data={
+            'type': 'PJ'
+        }, follow_redirects=True)
+        
+        assert response.status_code == 200
+        assert b'impossible' in response.data.lower() or b'cloture' in response.data.lower() or b'termine' in response.data.lower()
+        
+        # Vérifier qu'aucune participation n'a été créée
+        p = Participant.query.filter_by(event_id=sample_event.id, user_id=user.id).first()
+        assert p is None
+
+
+class TestEventDetailUI:
+    """Tests spécifiques pour l'interface utilisateur de la page détail événement."""
+
+    def test_button_open_registration(self, auth_client, sample_event, db):
+        """Test: 'Inscriptions ouvertes' affiche 'Rejoindre l'événement'."""
+        sample_event.statut = 'Inscriptions ouvertes'
+        db.session.commit()
+        
+        response = auth_client.get(f'/event/{sample_event.id}')
+        assert response.status_code == 200
+        # encode('utf-8') peut être nécessaire selon comment Flask renvoie la réponse, 
+        # mais bytes literal b'' avec des caractères ASCII est ok. Pour accent :
+        assert "Rejoindre l'événement".encode('utf-8') in response.data
+
+    def test_button_preparation_phase(self, auth_client, sample_event, db):
+        """Test: 'En préparation' affiche 'J'aimerais participer'."""
+        sample_event.statut = 'En préparation'
+        db.session.commit()
+        
+        response = auth_client.get(f'/event/{sample_event.id}')
+        assert response.status_code == 200
+        assert "J'aimerais participer".encode('utf-8') in response.data
+
+    def test_button_disabled_when_finished(self, auth_client, sample_event, db):
+        """Test: 'Terminé' affiche 'Événement clôturé' et bouton désactivé."""
+        sample_event.statut = 'Terminé'
+        db.session.commit()
+        
+        response = auth_client.get(f'/event/{sample_event.id}')
+        assert response.status_code == 200
+        assert "Événement clôturé".encode('utf-8') in response.data
+        assert b'disabled' in response.data
+
+    def test_organizer_notice(self, client, sample_event, user_creator, db):
+        """Test: L'organisateur voit la mention 'Vous êtes organisateur'."""
+        from tests.conftest import login
+        login(client, 'creator@test.com', 'creator123')
+        
+        response = client.get(f'/event/{sample_event.id}')
+        assert response.status_code == 200
+        assert "Vous êtes organisateur de cet événement".encode('utf-8') in response.data
+
 
 class TestEventActivityLog:
     """Tests de la journalisation des activités."""

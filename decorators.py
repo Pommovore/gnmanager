@@ -65,7 +65,7 @@ def organizer_required(f):
             user_id=current_user.id
         ).first()
         
-        if not participant or participant.type != ParticipantType.ORGANISATEUR.value:
+        if not participant or participant.type.lower() != ParticipantType.ORGANISATEUR.value.lower():
             flash('Accès réservé aux organisateurs de cet événement.', 'danger')
             return redirect(url_for('event.detail', event_id=event.id))
         
