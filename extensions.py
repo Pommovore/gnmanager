@@ -13,10 +13,12 @@ from flask_migrate import Migrate
 from flask_wtf.csrf import CSRFProtect
 from flask_limiter import Limiter
 from flask_limiter.util import get_remote_address
+from authlib.integrations.flask_client import OAuth
 
 mail = Mail()
 migrate = Migrate()
 csrf = CSRFProtect()
+oauth = OAuth()
 limiter = Limiter(
     key_func=get_remote_address,
     default_limits=["200 per hour", "50 per minute"],

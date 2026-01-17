@@ -47,6 +47,34 @@
                         <span class="badge bg-primary">
                             <i class="bi bi-people"></i> Demande participation
                         </span>
+                        {% elif log.action_type == 'Modification statut' %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="bi bi-arrow-repeat"></i> Changement statut
+                        </span>
+                        {% elif log.action_type == 'Suppression utilisateur' %}
+                        <span class="badge bg-danger">
+                            <i class="bi bi-person-x"></i> Suppression user
+                        </span>
+                        {% elif log.action_type == 'Mise à jour événement' %}
+                        <span class="badge bg-info text-dark">
+                            <i class="bi bi-pencil"></i> Modif. événement
+                        </span>
+                        {% elif log.action_type == 'Mise à jour participant' %}
+                        <span class="badge bg-info text-dark">
+                            <i class="bi bi-person-gear"></i> Modif. participant
+                        </span>
+                        {% elif log.action_type == 'Mise à jour groupes' %}
+                        <span class="badge bg-secondary">
+                            <i class="bi bi-collection"></i> Config. groupes
+                        </span>
+                        {% elif log.action_type == 'Mise à jour utilisateur' %}
+                        <span class="badge bg-info text-dark">
+                            <i class="bi bi-person-gear"></i> Modif. user
+                        </span>
+                        {% elif log.action_type == 'Suppression événement' %}
+                        <span class="badge bg-danger">
+                            <i class="bi bi-trash"></i> Suppression événement
+                        </span>
                         {% endif %}
                     </td>
                     <td>
@@ -88,6 +116,63 @@
                             | Groupe: <span class="badge bg-secondary">{{ log.details_dict.group }}</span>
                             {% endif %}
                         </small>
+                        {% elif log.action_type == 'Modification statut' %}
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                            {% if log.details_dict.participant_email %}
+                            <br><small class="text-muted">Participant: {{ log.details_dict.participant_email }}</small>
+                            {% endif %}
+                        </div>
+                        <small class="text-muted">
+                            {{ log.details_dict.old_status }} <i class="bi bi-arrow-right"></i> {{
+                            log.details_dict.new_status }}
+                            {% if log.details_dict.changed_by %}
+                            <br>Par: {{ log.details_dict.changed_by }}
+                            {% endif %}
+                        </small>
+                        {% elif log.action_type == 'Suppression utilisateur' %}
+                        <div>
+                            <strong>{{ log.details_dict.target_email }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Nom: {{ log.details_dict.name }}
+                        </small>
+                        {% elif log.action_type == 'Mise à jour événement' %}
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Champs modifiés: {{ log.details_dict.updated_fields }}
+                        </small>
+                        {% elif log.action_type == 'Mise à jour participant' %}
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Participant: {{ log.details_dict.target_user_email }}<br>
+                            Action: {{ log.details_dict.updated_fields }}
+                        </small>
+                        {% elif log.action_type == 'Mise à jour groupes' %}
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Configuration des groupes mise à jour
+                        </small>
+                        {% elif log.action_type == 'Mise à jour utilisateur' %}
+                        <div>
+                            <strong>{{ log.details_dict.target_email }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Champs modifiés: {{ log.details_dict.updated_fields }}
+                        </small>
+                        {% elif log.action_type == 'Suppression événement' %}
+                        <div>
+                            <strong>{{ log.details_dict.event_name }}</strong>
+                        </div>
+                        <small class="text-muted">
+                            Supprimé par: {{ log.details_dict.deleted_by_email }}
+                        </small>
                         {% endif %}
                     </td>
                 </tr>
@@ -108,7 +193,8 @@
             fetch('{{ url_for("admin.mark_logs_viewed") }}', {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': "{{ csrf_token() }}"
                 }
             })
                 .then(response => response.json())

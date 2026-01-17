@@ -15,6 +15,13 @@
                 href="#list-groups" role="tab">Configuration Groupes</a>
             <a class="list-group-item list-group-item-action" href="/event/{{ event.id }}/participants">Participants</a>
             {% endif %}
+            {% if is_organizer or current_user.is_admin %}
+            <hr class="my-1">
+            <button type="button" class="list-group-item list-group-item-action list-group-item-danger"
+                data-bs-toggle="modal" data-bs-target="#deleteEventModal">
+                <i class="bi bi-trash"></i> Supprimer
+            </button>
+            {% endif %}
         </div>
     </div>
 
@@ -180,6 +187,53 @@
                                         value="{{ event.date_end.strftime('%Y-%m-%d') }}" required>
                                 </div>
                             </div>
+
+                            <hr>
+                            <h5 class="mb-3">Jauges (Participants Max)</h5>
+                            <div class="row">
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">Organisateurs</label>
+                                    <div class="d-flex align-items-center">
+                                        {% set limit = event.max_organizers if event.max_organizers is not none else 5
+                                        %}
+                                        {% set org_color = 'green' if count_orgs == limit else ('#FF8C00' if count_orgs
+                                        < limit else 'red' ) %} <span class="fw-bold me-2"
+                                            style="white-space: nowrap; color: {{ org_color }}">
+                                            {{ count_orgs }} inscrits sur
+                                            </span>
+                                            <input type="number" class="form-control" name="max_organizers"
+                                                value="{{ limit }}" min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">PJ</label>
+                                    <div class="d-flex align-items-center">
+                                        {% set limit = event.max_pjs if event.max_pjs is not none else 50 %}
+                                        {% set pj_color = 'green' if count_pjs == limit else ('#FF8C00' if count_pjs <
+                                            limit else 'red' ) %} <span class="fw-bold me-2"
+                                            style="white-space: nowrap; color: {{ pj_color }}">
+                                            {{ count_pjs }} inscrits sur
+                                            </span>
+                                            <input type="number" class="form-control" name="max_pjs" value="{{ limit }}"
+                                                min="0">
+                                    </div>
+                                </div>
+                                <div class="col-md-4 mb-3">
+                                    <label class="form-label">PNJ</label>
+                                    <div class="d-flex align-items-center">
+                                        {% set limit = event.max_pnjs if event.max_pnjs is not none else 10 %}
+                                        {% set pnj_color = 'green' if count_pnjs == limit else ('#FF8C00' if count_pnjs
+                                        < limit else 'red' ) %} <span class="fw-bold me-2"
+                                            style="white-space: nowrap; color: {{ pnj_color }}">
+                                            {{ count_pnjs }} inscrits sur
+                                            </span>
+                                            <input type="number" class="form-control" name="max_pnjs"
+                                                value="{{ limit }}" min="0">
+                                    </div>
+                                </div>
+                            </div>
+                            <hr>
+
                             <div class="mb-3">
                                 <label class="form-label">Description</label>
                                 <textarea class="form-control" name="description"
@@ -343,40 +397,74 @@
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-success">Valider ma demande</button>
                 </div>
+
             </form>
         </div>
     </div>
-    {% endblock %}
+</div>
 
-    {% block scripts %}
-    <script>
+<!-- Delete Event Modal -->
+<div class="modal fade" id="deleteEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Supprimer l'événement ?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Attention !</strong> Cette action est <u>irréversible</u>.</p>
+                <p>Vous êtes sur le point de supprimer l'événement <strong>{{ event.name }}</strong>.</p>
+                <div class="text-danger">
+                    Ceci supprimera définitivement :
+                    <ul>
+                        <li>Toutes les informations de l'événement</li>
+                        <li>Toutes les inscriptions et participants</li>
+                        <li>Tous les rôles configurés</li>
+                    </ul>
+                </div>
+                <p>Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('event.delete_event', event_id=event.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-danger">Oui, tout supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
 
-        // Initialize on load
-        document.addEventListener('DOMContentLoaded', function () {
+{% block scripts %}
+<script>
 
-            // Gestion dynamique du modal d'inscription
-            var joinModal = document.getElementById('joinModal');
-            if (joinModal) {
-                joinModal.addEventListener('show.bs.modal', function (event) {
-                    var button = event.relatedTarget;
-                    var mode = button.getAttribute('data-mode');
-                    var helpMsg = document.getElementById('joinHelpWithMessage');
-                    var commentLabel = document.getElementById('commentLabel');
-                    var submitBtn = joinModal.querySelector('button[type="submit"]');
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', function () {
 
-                    var modalActionType = document.getElementById('modalActionType');
+        // Gestion dynamique du modal d'inscription
+        var joinModal = document.getElementById('joinModal');
+        if (joinModal) {
+            joinModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var mode = button.getAttribute('data-mode');
+                var helpMsg = document.getElementById('joinHelpWithMessage');
+                var commentLabel = document.getElementById('commentLabel');
+                var submitBtn = joinModal.querySelector('button[type="submit"]');
 
-                    if (mode === 'interest') {
-                        helpMsg.classList.remove('d-none');
-                        commentLabel.textContent = "Votre message :";
-                        if (modalActionType) modalActionType.textContent = "Préinscription";
-                    } else {
-                        helpMsg.classList.add('d-none');
-                        commentLabel.textContent = "Une précision ?";
-                        if (modalActionType) modalActionType.textContent = "Inscription";
-                    }
-                });
-            }
-        });
-    </script>
-    {% endblock %}
+                var modalActionType = document.getElementById('modalActionType');
+
+                if (mode === 'interest') {
+                    helpMsg.classList.remove('d-none');
+                    commentLabel.textContent = "Votre message :";
+                    if (modalActionType) modalActionType.textContent = "Préinscription";
+                } else {
+                    helpMsg.classList.add('d-none');
+                    commentLabel.textContent = "Une précision ?";
+                    if (modalActionType) modalActionType.textContent = "Inscription";
+                }
+            });
+        }
+    });
+</script>
+{% endblock %}

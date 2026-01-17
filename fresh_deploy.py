@@ -25,8 +25,10 @@ import sys
 import shutil
 import subprocess
 import argparse
+
 import yaml
 import time
+import json
 from pathlib import Path
 
 try:
@@ -343,6 +345,33 @@ APP_PUBLIC_HOST={host}:{port}
 SECRET_KEY={secret_key}
 PYTHONUNBUFFERED=1
 """
+    
+    # Lecture des credentials Google optionnels
+    # On cherche d'abord dans le dossier config local (d'où est lancé le script)
+    google_creds_path = './config/google_credentials.json'
+    
+    # Pour être robuste, on cherche aussi par rapport au fichier de script
+    if not os.path.exists(google_creds_path):
+         google_creds_path = os.path.join(os.path.dirname(__file__), 'config', 'google_credentials.json')
+
+    if os.path.exists(google_creds_path):
+        try:
+            with open(google_creds_path, 'r') as f:
+                creds = json.load(f)
+                # Structure typique: {"web": {"client_id": "...", "client_secret": "..."}}
+                # ou direct {"client_id": "...", ...}
+                web_config = creds.get('web', creds)
+                
+                client_id = web_config.get('client_id')
+                client_secret = web_config.get('client_secret')
+                
+                if client_id and client_secret:
+                    print(f"🔑 Ajout des credentials Google depuis {google_creds_path}")
+                    env_content += f"GOOGLE_CLIENT_ID={client_id}\n"
+                    env_content += f"GOOGLE_CLIENT_SECRET={client_secret}\n"
+        except Exception as e:
+            print(f"⚠️ Erreur lecture google_credentials.json: {e}")
+
     
     if ssh:
         # Écrire localement temporairement

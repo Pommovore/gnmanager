@@ -42,7 +42,7 @@ def dashboard():
         users_pagination = User.query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
         
     # Logique de filtrage
-    filter_type = request.args.get('filter', 'all')
+    filter_type = request.args.get('filter', 'future')
     
     # Identifier les événements de l'utilisateur
     my_participations = Participant.query.filter_by(user_id=current_user.id).all()
@@ -238,6 +238,21 @@ def admin_update_full_user(user_id):
         user.is_banned = False
         
     db.session.commit()
+    
+    # Log user update
+    log = ActivityLog(
+        user_id=current_user.id,
+        action_type=ActivityLogType.USER_UPDATE.value,
+        details=json.dumps({
+            'target_user_id': user.id,
+            'target_email': user.email,
+            'updated_fields': 'Admin Full Update',
+            'new_role': user.role
+        })
+    )
+    db.session.add(log)
+    db.session.commit()
+    
     flash(f"Utilisateur {user.email} mis à jour.", "success")
     return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
 
@@ -283,7 +298,10 @@ def admin_delete_user(user_id):
         log = ActivityLog(
             user_id=current_user.id,
             action_type=ActivityLogType.USER_DELETION.value,
-            details=f"{user.email} {user.nom or ''} {user.prenom or ''}"
+            details=json.dumps({
+                'target_email': user.email,
+                'name': f"{user.nom or ''} {user.prenom or ''}".strip()
+            })
         )
         db.session.add(log)
         

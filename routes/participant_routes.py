@@ -14,6 +14,12 @@ from sqlalchemy.orm import joinedload
 from constants import ParticipantType, RegistrationStatus, PAFStatus, ActivityLogType
 from decorators import organizer_required
 import json
+import csv
+import io
+from flask import Response, session
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
+import datetime
 
 participant_bp = Blueprint('participant', __name__)
 
@@ -75,6 +81,20 @@ def bulk_update(event_id):
             p.payment_method = request.form.get(f'pay_method_{p_id}', p.payment_method)
             p.comment = request.form.get(f'comment_{p_id}', p.comment)
             
+            # Log bulk update for this participant
+            log = ActivityLog(
+                user_id=current_user.id,
+                action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+                event_id=event.id,
+                details=json.dumps({
+                    'participant_id': p.id,
+                    'update_type': 'bulk_update',
+                    'new_type': p.type,
+                    'new_group': p.group
+                })
+            )
+            db.session.add(log)
+            
     db.session.commit()
     flash('Participants mis à jour avec succès.', 'success')
     return redirect(url_for('participant.manage', event_id=event.id))
@@ -101,6 +121,21 @@ def update(event_id, p_id):
     p.payment_amount = float(request.form.get('payment_amount', 0))
     p.payment_method = request.form.get('payment_method')
     p.comment = request.form.get('comment')
+    
+    # Log individual update
+    log = ActivityLog(
+        user_id=current_user.id,
+        action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+        event_id=event.id,
+        details=json.dumps({
+            'participant_id': p.id,
+            'update_type': 'single_update',
+            'new_type': p.type,
+            'new_group': p.group,
+            'paf_status': p.paf_status
+        })
+    )
+    db.session.add(log)
     
     db.session.commit()
     flash('Participant mis à jour.', 'success')
@@ -146,7 +181,11 @@ def change_status(event_id, p_id):
     log = ActivityLog(
         user_id=current_user.id,
         action_type=ActivityLogType.STATUS_CHANGE.value,
-        details=f"{participant.user.email} {participant.user.nom or ''} {participant.user.prenom or ''}"
+        details=json.dumps({
+            'participant': participant.user.email,
+            'name': f"{participant.user.prenom or ''} {participant.user.nom or ''}",
+            'new_status': participant.registration_status
+        })
     )
     db.session.add(log)
     
@@ -204,6 +243,19 @@ def api_assign():
     participant.role_id = role.id
     role.assigned_participant_id = participant.id
     
+    # Log assignment
+    log = ActivityLog(
+        user_id=current_user.id,
+        action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+        event_id=event.id,
+        details=json.dumps({
+            'action': 'role_assign',
+            'role_name': role.name,
+            'participant_id': participant.id
+        })
+    )
+    db.session.add(log)
+    
     db.session.commit()
     return jsonify({'success': True})
 
@@ -232,7 +284,179 @@ def api_unassign():
             if p:
                 p.role_id = None
             role.assigned_participant_id = None
+            
+            # Log unassignment
+            log = ActivityLog(
+                user_id=current_user.id,
+                action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+                event_id=event.id,
+                details=json.dumps({
+                    'action': 'role_unassign',
+                    'role_name': role.name,
+                    'assigned_participant_id': p.id if p else None
+                })
+            )
+            db.session.add(log)
+            
             db.session.commit()
             return jsonify({'success': True})
             
     return jsonify({'error': 'Invalid request'}), 400
+
+
+@participant_bp.route('/event/<int:event_id>/export/csv', methods=['POST'])
+@login_required
+@organizer_required
+def export_csv(event_id):
+    """
+    Export des participants au format CSV.
+    """
+    event = Event.query.get_or_404(event_id)
+    participants = Participant.query.filter_by(event_id=event.id).options(joinedload(Participant.user)).all()
+    
+    # Création du CSV en mémoire
+    si = io.StringIO()
+    writer = csv.writer(si, delimiter=';', quoting=csv.QUOTE_ALL)
+    
+    # En-têtes CSV
+    headers = [
+        'Email', 'Nom', 'Prénom', 'Age', 'Genre', 
+        'Type', 'Groupe', 'Statut Inscription', 
+        'PAF Statut', 'Montant (€)', 'Méthode Paiement', 
+        'Rôle Assigné', 'Commentaire'
+    ]
+    writer.writerow(headers)
+    
+    for p in participants:
+        row = [
+            p.user.email,
+            p.user.nom or '',
+            p.user.prenom or '',
+            p.user.age or '',
+            p.user.genre or '',
+            p.type or '',
+            p.group or '',
+            p.registration_status or '',
+            p.paf_status or '',
+            p.payment_amount or 0,
+            p.payment_method or '',
+            p.role.name if p.role else '',
+            p.comment or ''
+        ]
+        writer.writerow(row)
+        
+    output = si.getvalue()
+    si.close()
+    
+    # Ajouter BOM pour Excel (utf-8-sig)
+    output = '\ufeff' + output
+    
+    # Nom du fichier
+    filename = f"{event.name.replace(' ', '_')}_participants.csv"
+    
+    return Response(
+        output,
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )
+
+
+@participant_bp.route('/event/<int:event_id>/export/google', methods=['POST'])
+@login_required
+@organizer_required
+def export_google(event_id):
+    """
+    Export des participants vers Google Sheets.
+    """
+    # 1. Vérifier si l'utilisateur a un token Google
+    token = session.get('google_token')
+    if not token:
+        flash('Veuillez d\'abord connecter votre compte Google pour utiliser cette fonctionnalité.', 'warning')
+        return redirect(url_for('auth.login_google'))
+        
+    try:
+        # 2. Préparer les données
+        event = Event.query.get_or_404(event_id)
+        participants = Participant.query.filter_by(event_id=event.id).options(joinedload(Participant.user)).all()
+        
+        headers = [
+            'Email', 'Nom', 'Prénom', 'Age', 'Genre', 
+            'Type', 'Groupe', 'Statut Inscription', 
+            'PAF Statut', 'Montant (€)', 'Méthode Paiement', 
+            'Rôle Assigné', 'Commentaire'
+        ]
+        
+        rows = [headers]
+        for p in participants:
+            rows.append([
+                p.user.email,
+                p.user.nom or '',
+                p.user.prenom or '',
+                str(p.user.age or ''),
+                p.user.genre or '',
+                p.type or '',
+                p.group or '',
+                p.registration_status or '',
+                p.paf_status or '',
+                str(p.payment_amount or 0),
+                p.payment_method or '',
+                p.role.name if p.role else '',
+                p.comment or ''
+            ])
+            
+        # 3. Construire les credentials
+        creds = Credentials(
+            token['access_token'],
+            refresh_token=token.get('refresh_token'),
+            token_uri='https://oauth2.googleapis.com/token',
+            client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+            client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+            scopes=token.get('scope')
+        )
+        
+        service = build('sheets', 'v4', credentials=creds)
+        
+        # 4. Créer la feuille
+        spreadsheet_body = {
+            'properties': {
+                'title': f"{event.name} - Participants ({datetime.datetime.now().strftime('%Y-%m-%d %H:%M')})"
+            }
+        }
+        
+        spreadsheet = service.spreadsheets().create(body=spreadsheet_body, fields='spreadsheetId,spreadsheetUrl').execute()
+        spreadsheet_id = spreadsheet.get('spreadsheetId')
+        spreadsheet_url = spreadsheet.get('spreadsheetUrl')
+        
+        # 5. Écrire les données
+        body = {
+            'values': rows
+        }
+        
+        service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id, range="A1",
+            valueInputOption="RAW", body=body
+        ).execute()
+        
+        # 6. Formatting (Optionnel mais sympa)
+        # Met la première ligne en gras
+        requests = [{
+            'repeatCell': {
+                'range': {'sheetId': 0, 'startRowIndex': 0, 'endRowIndex': 1},
+                'cell': {'userEnteredFormat': {'textFormat': {'bold': True}}},
+                'fields': 'userEnteredFormat.textFormat.bold'
+            }
+        }]
+        service.spreadsheets().batchUpdate(
+            spreadsheetId=spreadsheet_id,
+            body={'requests': requests}
+        ).execute()
+
+        flash(f'Export réussi ! Votre feuille est prête : <a href="{spreadsheet_url}" target="_blank">Ouvrir Google Sheets</a>', 'success')
+        
+    except Exception as e:
+        flash(f"Erreur lors de l'export Google : {str(e)}", 'danger')
+        # En cas d'expiration de token, on pourrait rediriger vers auth
+        if '401' in str(e):
+             return redirect(url_for('auth.login_google'))
+             
+    return redirect(url_for('participant.manage', event_id=event_id))

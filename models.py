@@ -107,6 +107,11 @@ class Event(db.Model):
     # "Évènement en cours", "Terminé", "Annulé", "Reporté"
     groups_config = db.Column(db.Text, default='{"PJ": ["Peu importe"], "PNJ": ["Peu importe"], "Organisateur": ["Peu importe"]}')
     
+    # Nombre maximum de participants
+    max_pjs = db.Column(db.Integer, default=50)
+    max_pnjs = db.Column(db.Integer, default=10)
+    max_organizers = db.Column(db.Integer, default=5)
+    
     def __repr__(self):
         return f'<Event {self.name}>'
 

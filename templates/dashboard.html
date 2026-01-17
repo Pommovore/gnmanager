@@ -23,10 +23,13 @@
             <div class="d-flex gap-2">
                 <form action="/dashboard" method="GET" class="d-flex align-items-center">
                     <select name="filter" class="form-select me-2" onchange="this.form.submit()">
-                        <option value="all" {% if current_filter=='all' %}selected{% endif %}>Tous les GN</option>
-                        <option value="mine" {% if current_filter=='mine' %}selected{% endif %}>Mes GN</option>
-                        <option value="future" {% if current_filter=='future' %}selected{% endif %}>GN à venir</option>
-                        <option value="past" {% if current_filter=='past' %}selected{% endif %}>GN passés</option>
+                        <option value="all" {% if current_filter=='all' %}selected{% endif %}>Tous les Événements
+                        </option>
+                        <option value="mine" {% if current_filter=='mine' %}selected{% endif %}>Mes Événements</option>
+                        <option value="future" {% if current_filter=='future' %}selected{% endif %}>Événements à venir
+                        </option>
+                        <option value="past" {% if current_filter=='past' %}selected{% endif %}>Événements passés
+                        </option>
                     </select>
                 </form>
                 <a href="/event/create" class="btn btn-primary">Créer</a>

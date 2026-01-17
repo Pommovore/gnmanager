@@ -13,7 +13,8 @@ from models import db, User, AccountValidationToken, PasswordResetToken, Activit
 from auth import generate_password, send_email
 from werkzeug.security import generate_password_hash, check_password_hash
 from datetime import datetime, timedelta
-from extensions import limiter
+from extensions import limiter, oauth
+from flask import session
 from constants import ActivityLogType, DefaultValues
 import uuid
 import json
@@ -248,3 +249,41 @@ def logout():
     """Déconnexion de l'utilisateur."""
     logout_user()
     return redirect(url_for('auth.login'))
+
+@auth_bp.route('/login/google')
+def login_google():
+    """Redirige vers la page de connexion Google."""
+    google = oauth.create_client('google')
+    if not google:
+        flash("L'authentification Google n'est pas configurée (identifiants manquants).", 'danger')
+        return redirect(url_for('auth.login'))
+        
+    redirect_uri = url_for('auth.authorize_google', _external=True)
+    return google.authorize_redirect(redirect_uri)
+
+
+@auth_bp.route('/auth/google/callback')
+def authorize_google():
+    """Callback de retour de Google."""
+    google = oauth.create_client('google')
+    if not google:
+        flash("Erreur de configuration Google.", 'danger')
+        return redirect(url_for('auth.login'))
+        
+    try:
+        # Récupération du token
+        token = google.authorize_access_token()
+        session['google_token'] = token
+        
+        # On pourrait aussi connecter l'utilisateur ici s'il n'est pas loggué
+        # resp = google.get('userinfo')
+        # user_info = resp.json()
+        # ... logique de login ...
+        
+        flash('Connexion Google réussie ! Vous pouvez maintenant utiliser l\'export Sheets.', 'success')
+        
+        # Rediriger vers la page d'où l'on vient si stockée, sinon dashboard
+        return redirect(url_for('admin.dashboard'))
+    except Exception as e:
+        flash(f'Erreur d\'authentification Google : {str(e)}', 'danger')
+        return redirect(url_for('auth.login'))

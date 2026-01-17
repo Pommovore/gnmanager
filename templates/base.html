@@ -15,7 +15,8 @@
             <a class="navbar-brand" href="/">GN Manager</a>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav ms-auto align-items-center">
-                <span class="badge bg-secondary rounded-pill me-3">{{ current_user.email }} ({{ current_user.prenom }} {{ current_user.nom }})</span>
+                <span class="badge bg-secondary rounded-pill me-3">{{ current_user.prenom }} {{ current_user.nom|upper
+                    }} ({{ current_user.email }})</span>
                 <a class="nav-link" href="/logout">Déconnexion</a>
             </div>
             {% endif %}

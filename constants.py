@@ -134,7 +134,13 @@ class ActivityLogType(Enum):
     EVENT_CREATION = 'event_creation'
     EVENT_PARTICIPATION = 'event_participation'
     STATUS_CHANGE = 'Modification statut'
+
     USER_DELETION = 'Suppression utilisateur'
+    EVENT_UPDATE = 'Mise à jour événement'
+    PARTICIPANT_UPDATE = 'Mise à jour participant'
+    GROUPS_UPDATE = 'Mise à jour groupes'
+    USER_UPDATE = 'Mise à jour utilisateur'
+    EVENT_DELETION = 'Suppression événement'
 
 
 # Constantes diverses

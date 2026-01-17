@@ -17,7 +17,7 @@ Usage:
 from flask import Flask
 from models import db, User
 from flask_login import LoginManager
-from extensions import mail, migrate, csrf, limiter
+from extensions import mail, migrate, csrf, limiter, oauth
 import os
 
 
@@ -104,7 +104,27 @@ def create_app(test_config=None):
     mail.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)
+    csrf.init_app(app)
     limiter.init_app(app)
+    oauth.init_app(app)
+    
+    # Configuration OAuth Google
+    if os.environ.get('GOOGLE_CLIENT_ID') and os.environ.get('GOOGLE_CLIENT_SECRET'):
+        oauth.register(
+            name='google',
+            client_id=os.environ.get('GOOGLE_CLIENT_ID'),
+            client_secret=os.environ.get('GOOGLE_CLIENT_SECRET'),
+            access_token_url='https://accounts.google.com/o/oauth2/token',
+            access_token_params=None,
+            authorize_url='https://accounts.google.com/o/oauth2/auth',
+            authorize_params=None,
+            api_base_url='https://www.googleapis.com/oauth2/v1/',
+            client_kwargs={'scope': 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'},
+            jwks_uri='https://www.googleapis.com/oauth2/v3/certs'
+        )
+        app.logger.info("✅ Google OAuth configuré")
+    else:
+        app.logger.warning("⚠️  Google OAuth non configuré (GOOGLE_CLIENT_ID/SECRET manquants)")
     
     # Configuration du gestionnaire de connexion
     login_manager = LoginManager()

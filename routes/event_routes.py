@@ -15,7 +15,7 @@ Ce module gère :
 from flask import Blueprint, render_template, request, redirect, url_for, flash
 from markupsafe import Markup
 from flask_login import login_required, current_user
-from models import db, Event, Participant, ActivityLog
+from models import db, Event, Participant, ActivityLog, Role
 from datetime import datetime
 from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
 from decorators import organizer_required
@@ -114,13 +114,19 @@ def detail(event_id):
     
     is_organizer = participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower()
     groups_config = json.loads(event.groups_config or '{}')
+
+    # Calcul des compteurs de participants (hors rejetés)
+    count_pjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
+    count_pnjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PNJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
+    count_orgs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.ORGANISATEUR.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     
     breadcrumbs = [
         ('GN Manager', '/dashboard'),
         (event.name, '#')  # Page actuelle
     ]
 
-    return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs)
+    return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
+                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
@@ -158,10 +164,31 @@ def update_general(event_id):
         if org_link_title is not None: event.org_link_title = org_link_title
         if google_form_url is not None: event.google_form_url = google_form_url
         
+        # Mise à jour des jauges
+        if request.form.get('max_pjs'):
+            event.max_pjs = int(request.form.get('max_pjs'))
+        if request.form.get('max_pnjs'):
+            event.max_pnjs = int(request.form.get('max_pnjs'))
+        if request.form.get('max_organizers'):
+            event.max_organizers = int(request.form.get('max_organizers'))
+        
         # Checkbox handling: presence means True
         event.google_form_active = 'google_form_active' in request.form
             
+        event.google_form_active = 'google_form_active' in request.form
+            
         db.session.commit()
+        
+        # Log update
+        log = ActivityLog(
+            action_type=ActivityLogType.EVENT_UPDATE.value,
+            user_id=current_user.id,
+            event_id=event.id,
+            details=json.dumps({'updated_fields': 'General Info (Name, Date, Limits, etc.)', 'event_name': event.name})
+        )
+        db.session.add(log)
+        db.session.commit()
+
         flash('Informations générales mises à jour.', 'success')
     except (ValueError, TypeError) as e:
         flash('Erreur de format de date. Veuillez utiliser le format AAAA-MM-JJ.', 'danger')
@@ -182,8 +209,26 @@ def update_status(event_id):
         
     statut = request.form.get('statut')
     if statut:
+        old_status = event.statut
         event.statut = statut
         db.session.commit()
+        
+        # Log status change
+        log = ActivityLog(
+            action_type=ActivityLogType.STATUS_CHANGE.value,
+            user_id=current_user.id,
+            event_id=event.id,
+            details=json.dumps({
+                'old_status': old_status, 
+                'new_status': statut, 
+                'target': 'EVENT',
+                'event_name': event.name,
+                'changed_by': current_user.email
+            })
+        )
+        db.session.add(log)
+        db.session.commit()
+
         flash('Statut mis à jour.', 'success')
         
     return redirect(url_for('event.detail', event_id=event.id))
@@ -212,6 +257,16 @@ def update_groups(event_id):
     }
     
     event.groups_config = json.dumps(config)
+    db.session.commit()
+    
+    # Log groups update
+    log = ActivityLog(
+        action_type=ActivityLogType.GROUPS_UPDATE.value,
+        user_id=current_user.id,
+        event_id=event.id,
+        details=json.dumps({'message': 'Groups configuration updated'})
+    )
+    db.session.add(log)
     db.session.commit()
     
     flash('Configuration des groupes mise à jour.', 'success')
@@ -268,8 +323,74 @@ def join(event_id):
     
     flash("Demande d'inscription envoyée ! En attente de validation.", 'success')
     
+
     if event.google_form_active and event.google_form_url:
         message = Markup(f"Veuillez remplir ce formulaire si ce n'est pas déjà fait : <a href='{event.google_form_url}' target='_blank' class='alert-link'>Formulaire</a>")
         flash(message, 'info')
         
     return redirect(url_for('event.detail', event_id=event.id))
+
+
+@event_bp.route('/event/<int:event_id>/delete', methods=['POST'])
+@login_required
+def delete_event(event_id):
+    """
+    Suppression complète d'un événement et de ses données associées.
+    
+    Accessible aux admin, créateurs et organisateurs de l'événement.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Vérification des permissions
+    is_organizer = False
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    if participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower():
+        is_organizer = True
+        
+    if not (current_user.is_admin or is_organizer):
+        flash("Vous n'avez pas les droits pour supprimer cet événement.", "danger")
+        return redirect(url_for('event.detail', event_id=event_id))
+        
+    try:
+        event_name = event.name # Sauvegarde du nom pour le log
+        
+        # 1. Supprimer les Rôles (Cascade manuelle si nécessaire, mais foreign key set to null or delete logic needed)
+        # Note: SQLAlchemy cascade might handle this depending on model def, but explicit is safer here to be sure
+        Role.query.filter_by(event_id=event.id).delete()
+        
+        # 2. Supprimer les Participants
+        Participant.query.filter_by(event_id=event.id).delete()
+        
+        # 3. Supprimer les Logs liés directement à l'événement ?
+        # Le User demande "toutes les données concernant cet événement". 
+        # Les anciens ActivityLogs référençant l'event_id vont avoir event_id=NULL si on ne les supprime pas et que la contrainte le fait.
+        # Mais pour l'historique système, on préfère souvent garder les traces même si l'objet est supprimé.
+        # Cependant, pour respecter "toutes les données", on va laisser l'activity log de suppression faire foi.
+        # On va mettre à NULL les event_id des logs existants pour éviter les incohérences ou erreurs FK, 
+        # ou les laisser tels quels si la BDD est configurée en CASCADE (ce qui n'est pas garanti par défaut en SQLite/SQLAlchemy sans config explicite).
+        # On va explicitement set NULL pour être propre.
+        ActivityLog.query.filter_by(event_id=event.id).update({'event_id': None})
+        
+        # 4. Supprimer l'événement
+        db.session.delete(event)
+        
+        # 5. Logger la suppression
+        log = ActivityLog(
+            action_type=ActivityLogType.EVENT_DELETION.value,
+            user_id=current_user.id,
+            details=json.dumps({
+                'event_name': event_name,
+                'deleted_by_email': current_user.email
+            })
+        )
+        db.session.add(log)
+        
+        db.session.commit()
+        
+        flash(f"L'événement '{event_name}' et toutes ses données ont été supprimés.", "success")
+        return redirect(url_for('admin.dashboard'))
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erreur lors de la suppression : {str(e)}", "danger")
+        return redirect(url_for('event.detail', event_id=event_id))
