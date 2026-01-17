@@ -90,8 +90,7 @@ def import_data(args):
         sys.exit(1)
         
     from app import create_app
-    from extensions import db
-    from models import User, Event, Participant
+    from models import db, User, Event, Participant
     
     app = create_app()
     with app.app_context():
@@ -259,8 +258,7 @@ def import_data_csv(args):
         sys.exit(1)
     
     from app import create_app
-    from extensions import db
-    from models import User, Event, Participant, Role
+    from models import db, User, Event, Participant, Role
     
     app = create_app()
     with app.app_context():

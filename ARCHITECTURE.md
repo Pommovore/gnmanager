@@ -18,9 +18,8 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 ### Scripts utilitaires
 
 - **`deploy.py`** : Script de déploiement (local et distant via SSH)
-- **`generate_csvs.py`** : Génération de données de test
-- **`import_csvs.py`** : Import des données depuis CSV
-- **`seed_data.py`** et **`seed_data_append.py`** : Génération de données factices
+- **`manage_db.py`** : Import/Export de données (JSON et CSV)
+- **`seed_data.py`** : Génération de données de test complet avec export CSV auto
 
 ### Configuration
 
@@ -228,8 +227,12 @@ Pour tester l'envoi d'email en local :
 
 ### Reset de la base de données
 ```bash
-rm gnmanager.db instance/gnmanager.db
-uv run python deploy.py --reset-db --import-data
+# Réinitialisation via le script de déploiement (recommandé)
+uv run python deploy.py --create-test-db
+
+# Ou manuellement via manage_db.py
+rm instance/gnmanager.db
+uv run python manage_db.py import -f config/ --clean
 ```
 
 ### Consultation des logs (serveur distant)

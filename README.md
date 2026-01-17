@@ -140,9 +140,8 @@ gnmanager/
 ├── models.py              # Modèles SQLAlchemy
 ├── auth.py                # Authentification et emails
 ├── extensions.py          # Extensions Flask
-├── deploy.py              # Script de déploiement
-├── generate_csvs.py       # Génération de données de test
-├── import_csvs.py         # Import de données depuis CSV
+├── manage_db.py           # Gestion de la BDD (export/import JSON/CSV)
+├── seed_data.py           # Génération de données de test et export CSV automatique
 ├── pyproject.toml         # Dépendances Python (uv)
 ├── config/
 │   ├── deploy_config.yaml          # Configuration de déploiement
@@ -169,16 +168,30 @@ Consultez [ARCHITECTURE.md](ARCHITECTURE.md) pour :
 
 ## 🧪 Données de Test
 
-Le script `generate_csvs.py` crée automatiquement :
-- 15 utilisateurs avec différents rôles
-- 5 événements variés
-- 30 rôles
-- 21 participations
-
-Utilisation manuelle :
+### Génération automatique (Recommandé)
+Le script `seed_data.py` crée une base de données complète et exporte automatiquement les données en CSV dans `config/` :
 ```bash
-uv run python generate_csvs.py
-uv run python import_csvs.py
+uv run python seed_data.py
+```
+
+### Export / Import manuel (manage_db.py)
+Utilisez `manage_db.py` pour sauvegarder ou restaurer des données. Le script détecte automatiquement le format (JSON ou dossier CSV).
+
+```bash
+# Export vers un seul fichier JSON
+uv run python manage_db.py export -f backup.json
+
+# Export vers un dossier de fichiers CSV
+uv run python manage_db.py export -f config/
+
+# Import (avec --clean pour réinitialiser les tables avant)
+uv run python manage_db.py import -f config/ --clean
+```
+
+### Déploiement avec données de test
+L'option `--create-test-db` automatise le reset et l'import CSV :
+```bash
+uv run python deploy.py --create-test-db
 ```
 
 ## 🔒 Sécurité
