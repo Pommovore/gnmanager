@@ -225,59 +225,66 @@ def deploy_remote(config, args):
 
     # 4. Data & DB Reset
     logger.info("\n--- Configuration des données ---")
-    if args.reset_db:
-        reset_db = 'o'
-    else:
-        reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
-
-    if reset_db in ['o', 'y']:
-        logger.info("Suppression de la base de données...")
-        run_command_remote(ssh, f"cd {target_dir} && rm -f gnmanager.db instance/gnmanager.db")
     
-    if args.import_data:
-        answer = 'o'
+    # Check for --create-test-db option first
+    if args.create_test_db:
+        logger.info("Option --create-test-db activée : réinitialisation et import depuis config/")
+        run_command_remote(ssh, f"cd {target_dir} && rm -f gnmanager.db instance/gnmanager.db")
+        run_command_remote(ssh, f"{py_cmd} manage_db.py import -f config/ --clean")
     else:
-        answer = input("Voulez-vous importer les données de test sur le serveur distant ? (o/n) : ").strip().lower()
+        if args.reset_db:
+            reset_db = 'o'
+        else:
+            reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
 
-    if answer in ['o', 'y']:
-        logger.info("\n--- Configuration du Compte Créateur ---")
-        if args.admin_email:
-             admin_email = args.admin_email
-             logger.info(f"Email (CLI) : {admin_email}")
-        elif config and 'admin' in config and 'email' in config['admin']:
-             admin_email = config['admin']['email']
-             logger.info(f"Email (Config) : {admin_email}")
-        else:
-             admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
-             
-        if args.admin_password:
-             admin_pass = args.admin_password
-             logger.info("Mot de passe (CLI) : *****")
-        elif config and 'admin' in config and 'password' in config['admin']:
-             admin_pass = config['admin']['password']
-             logger.info("Mot de passe (Config) : *****")
-        else:
-             admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
-             
-        if args.admin_nom:
-             admin_nom = args.admin_nom
-        elif config and 'admin' in config and 'nom' in config['admin']:
-             admin_nom = config['admin']['nom']
-        else:
-             admin_nom = input("Nom de famille : ").strip() or "Admin"
-             
-        if args.admin_prenom:
-             admin_prenom = args.admin_prenom
-        elif config and 'admin' in config and 'prenom' in config['admin']:
-             admin_prenom = config['admin']['prenom']
-        else:
-             admin_prenom = input("Prénom : ").strip() or "System"
+        if reset_db in ['o', 'y']:
+            logger.info("Suppression de la base de données...")
+            run_command_remote(ssh, f"cd {target_dir} && rm -f gnmanager.db instance/gnmanager.db")
         
-        # Escape quotes if necessary, simpler to assume basic chars for now
-        gen_cmd = f"{py_cmd} generate_csvs.py --admin-email '{admin_email}' --admin-password '{admin_pass}' --admin-nom '{admin_nom}' --admin-prenom '{admin_prenom}'"
-        
-        run_command_remote(ssh, gen_cmd)
-        run_command_remote(ssh, f"{py_cmd} import_csvs.py")
+        if args.import_data:
+            answer = 'o'
+        else:
+            answer = input("Voulez-vous importer les données de test sur le serveur distant ? (o/n) : ").strip().lower()
+
+        if answer in ['o', 'y']:
+            logger.info("\n--- Configuration du Compte Créateur ---")
+            if args.admin_email:
+                 admin_email = args.admin_email
+                 logger.info(f"Email (CLI) : {admin_email}")
+            elif config and 'admin' in config and 'email' in config['admin']:
+                 admin_email = config['admin']['email']
+                 logger.info(f"Email (Config) : {admin_email}")
+            else:
+                 admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
+                 
+            if args.admin_password:
+                 admin_pass = args.admin_password
+                 logger.info("Mot de passe (CLI) : *****")
+            elif config and 'admin' in config and 'password' in config['admin']:
+                 admin_pass = config['admin']['password']
+                 logger.info("Mot de passe (Config) : *****")
+            else:
+                 admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
+                 
+            if args.admin_nom:
+                 admin_nom = args.admin_nom
+            elif config and 'admin' in config and 'nom' in config['admin']:
+                 admin_nom = config['admin']['nom']
+            else:
+                 admin_nom = input("Nom de famille : ").strip() or "Admin"
+                 
+            if args.admin_prenom:
+                 admin_prenom = args.admin_prenom
+            elif config and 'admin' in config and 'prenom' in config['admin']:
+                 admin_prenom = config['admin']['prenom']
+            else:
+                 admin_prenom = input("Prénom : ").strip() or "System"
+            
+            # Escape quotes if necessary, simpler to assume basic chars for now
+            gen_cmd = f"{py_cmd} generate_csvs.py --admin-email '{admin_email}' --admin-password '{admin_pass}' --admin-nom '{admin_nom}' --admin-prenom '{admin_prenom}'"
+            
+            run_command_remote(ssh, gen_cmd)
+            run_command_remote(ssh, f"{py_cmd} import_csvs.py")
 
     # 5. Run App (Systemd adaptation)
     logger.info("Mise à jour de la configuration et redémarrage du service...")
@@ -370,64 +377,75 @@ def deploy_local(config, args, mode='local'):
     # Data
     logger.info("--- 2. Données ---")
     
-    if args.reset_db:
-        reset_db = 'o'
-    else:
-        reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
-        
-    if reset_db in ['o', 'y']:
-        logger.info("Suppression de la base de données...")
+    # Check for --create-test-db option first
+    if args.create_test_db:
+        logger.info("Option --create-test-db activée : réinitialisation et import depuis config/")
         if os.path.exists('gnmanager.db'):
             os.remove('gnmanager.db')
         if os.path.exists('instance/gnmanager.db'):
             os.remove('instance/gnmanager.db')
-
-    if args.import_data:
-        answer = 'o'
-    else:
-        answer = input("Voulez-vous importer les données de test ? (o/n) : ").strip().lower()
         
-    if answer in ['o', 'y']:
-        logger.info("\n--- Configuration du Compte Créateur ---")
-        if args.admin_email:
-             admin_email = args.admin_email
-             logger.info(f"Email (CLI) : {admin_email}")
-        elif config and 'admin' in config and 'email' in config['admin']:
-             admin_email = config['admin']['email']
-             logger.info(f"Email (Config) : {admin_email}")
-        else:
-             admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
-             
-        if args.admin_password:
-             admin_pass = args.admin_password
-             logger.info("Mot de passe (CLI) : *****")
-        elif config and 'admin' in config and 'password' in config['admin']:
-             admin_pass = config['admin']['password']
-             logger.info("Mot de passe (Config) : *****")
-        else:
-             admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
-             
-        if args.admin_nom:
-             admin_nom = args.admin_nom
-        elif config and 'admin' in config and 'nom' in config['admin']:
-             admin_nom = config['admin']['nom']
-        else:
-             admin_nom = input("Nom de famille : ").strip() or "Admin"
-             
-        if args.admin_prenom:
-             admin_prenom = args.admin_prenom
-        elif config and 'admin' in config and 'prenom' in config['admin']:
-             admin_prenom = config['admin']['prenom']
-        else:
-             admin_prenom = input("Prénom : ").strip() or "System"
-
         cmd_prefix = "uv run python" if shutil.which('uv') else "python"
-        
-        # Escape args for safety (basic)
-        gen_cmd = f"{cmd_prefix} generate_csvs.py --admin-email \"{admin_email}\" --admin-password \"{admin_pass}\" --admin-nom \"{admin_nom}\" --admin-prenom \"{admin_prenom}\""
-        
-        run_command_local(gen_cmd)
-        run_command_local(f"{cmd_prefix} import_csvs.py")
+        run_command_local(f"{cmd_prefix} manage_db.py import -f config/ --clean")
+    else:
+        if args.reset_db:
+            reset_db = 'o'
+        else:
+            reset_db = input("Voulez-vous réinitialiser (SUPPRIMER) la base de données existante ? (o/n) : ").strip().lower()
+            
+        if reset_db in ['o', 'y']:
+            logger.info("Suppression de la base de données...")
+            if os.path.exists('gnmanager.db'):
+                os.remove('gnmanager.db')
+            if os.path.exists('instance/gnmanager.db'):
+                os.remove('instance/gnmanager.db')
+
+        if args.import_data:
+            answer = 'o'
+        else:
+            answer = input("Voulez-vous importer les données de test ? (o/n) : ").strip().lower()
+            
+        if answer in ['o', 'y']:
+            logger.info("\n--- Configuration du Compte Créateur ---")
+            if args.admin_email:
+                 admin_email = args.admin_email
+                 logger.info(f"Email (CLI) : {admin_email}")
+            elif config and 'admin' in config and 'email' in config['admin']:
+                 admin_email = config['admin']['email']
+                 logger.info(f"Email (Config) : {admin_email}")
+            else:
+                 admin_email = input("Email de l'administrateur / créateur : ").strip() or "admin@gnmanager.fr"
+                 
+            if args.admin_password:
+                 admin_pass = args.admin_password
+                 logger.info("Mot de passe (CLI) : *****")
+            elif config and 'admin' in config and 'password' in config['admin']:
+                 admin_pass = config['admin']['password']
+                 logger.info("Mot de passe (Config) : *****")
+            else:
+                 admin_pass = input("Mot de passe de l'administrateur : ").strip() or "admin1234"
+                 
+            if args.admin_nom:
+                 admin_nom = args.admin_nom
+            elif config and 'admin' in config and 'nom' in config['admin']:
+                 admin_nom = config['admin']['nom']
+            else:
+                 admin_nom = input("Nom de famille : ").strip() or "Admin"
+                 
+            if args.admin_prenom:
+                 admin_prenom = args.admin_prenom
+            elif config and 'admin' in config and 'prenom' in config['admin']:
+                 admin_prenom = config['admin']['prenom']
+            else:
+                 admin_prenom = input("Prénom : ").strip() or "System"
+
+            cmd_prefix = "uv run python" if shutil.which('uv') else "python"
+            
+            # Escape args for safety (basic)
+            gen_cmd = f"{cmd_prefix} generate_csvs.py --admin-email \"{admin_email}\" --admin-password \"{admin_pass}\" --admin-nom \"{admin_nom}\" --admin-prenom \"{admin_prenom}\""
+            
+            run_command_local(gen_cmd)
+            run_command_local(f"{cmd_prefix} import_csvs.py")
 
     # Run
     logger.info("--- 3. Lancement ---")
@@ -478,6 +496,7 @@ def main():
     parser.add_argument('--dpcfg', default='config/deploy_config.yaml', help='Chemin du fichier de configuration')
     parser.add_argument('--reset-db', action='store_true', help='Réinitialiser automatiquement la base de données')
     parser.add_argument('--import-data', action='store_true', help='Importer automatiquement les données de test')
+    parser.add_argument('--create-test-db', action='store_true', help='Réinitialiser la BD et importer les données de test depuis config/db_test_*.csv')
     parser.add_argument('--admin-email', help="Email de l'administrateur")
     parser.add_argument('--admin-password', help="Mot de passe de l'administrateur")
     parser.add_argument('--admin-nom', help="Nom de l'administrateur")

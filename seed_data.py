@@ -5,11 +5,88 @@ from datetime import datetime, time, timedelta
 from dotenv import load_dotenv
 import random
 import json
+import csv
+import os
 
 # Charger les variables d'environnement
 load_dotenv()
 
 app = create_app()
+
+def export_to_csv():
+    """Exporte toutes les données de la base vers des fichiers CSV dans config/"""
+    print("\n=== Export des données vers CSV ===")
+    
+    csv_dir = 'config'
+    os.makedirs(csv_dir, exist_ok=True)
+    
+    # Export Users
+    users = User.query.all()
+    users_file = os.path.join(csv_dir, 'db_test_users.csv')
+    with open(users_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'email', 'password_hash', 'nom', 'prenom', 'age', 'genre', 'avatar_url', 'role', 'is_banned', 'is_deleted'])
+        for u in users:
+            writer.writerow([
+                u.id, u.email, u.password_hash, u.nom, u.prenom, u.age, 
+                u.genre or '', u.avatar_url or '', u.role, u.is_banned, u.is_deleted
+            ])
+    print(f"✓ Exported {len(users)} users to {users_file}")
+    
+    # Export Events
+    events = Event.query.all()
+    events_file = os.path.join(csv_dir, 'db_test_events.csv')
+    with open(events_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'name', 'description', 'date_start', 'date_end', 'location', 
+                        'background_image', 'visibility', 'organizer_structure', 'org_link_url',
+                        'org_link_title', 'google_form_url', 'google_form_active', 'external_link', 
+                        'statut', 'groups_config'])
+        for e in events:
+            writer.writerow([
+                e.id, e.name, e.description or '', 
+                e.date_start.isoformat() if e.date_start else '',
+                e.date_end.isoformat() if e.date_end else '',
+                e.location or '', e.background_image or '', e.visibility or 'public',
+                e.organizer_structure or '', e.org_link_url or '', e.org_link_title or '',
+                e.google_form_url or '', e.google_form_active or False, e.external_link or '',
+                e.statut, e.groups_config or '{}'
+            ])
+    print(f"✓ Exported {len(events)} events to {events_file}")
+    
+    # Export Roles
+    roles = Role.query.all()
+    roles_file = os.path.join(csv_dir, 'db_test_roles.csv')
+    with open(roles_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'event_id', 'name', 'genre', 'group', 'assigned_participant_id', 
+                        'comment', 'google_doc_url', 'pdf_url'])
+        for r in roles:
+            writer.writerow([
+                r.id, r.event_id, r.name, r.genre or '', r.group or '',
+                r.assigned_participant_id or '', r.comment or '', 
+                r.google_doc_url or '', r.pdf_url or ''
+            ])
+    print(f"✓ Exported {len(roles)} roles to {roles_file}")
+    
+    # Export Participants
+    participants = Participant.query.all()
+    participants_file = os.path.join(csv_dir, 'db_test_participants.csv')
+    with open(participants_file, 'w', newline='', encoding='utf-8') as f:
+        writer = csv.writer(f)
+        writer.writerow(['id', 'event_id', 'user_id', 'type', 'group', 'role_id',
+                        'role_communicated', 'role_received', 'registration_status', 'paf_status',
+                        'payment_method', 'payment_amount', 'payment_comment', 'comment', 'custom_image'])
+        for p in participants:
+            writer.writerow([
+                p.id, p.event_id, p.user_id, p.type or '', p.group or '', p.role_id or '',
+                p.role_communicated, p.role_received, p.registration_status, p.paf_status or 'non versée',
+                p.payment_method or '', p.payment_amount or 0.0, p.payment_comment or '',
+                p.comment or '', p.custom_image or ''
+            ])
+    print(f"✓ Exported {len(participants)} participants to {participants_file}")
+    
+    print("\n✓ Export CSV terminé avec succès!")
 
 def create_user(email, nom, prenom, password, age=None):
     user = User(email=email, nom=nom, prenom=prenom, age=age or random.randint(18, 60))
@@ -267,3 +344,7 @@ with app.app_context():
     
     db.session.commit()
     print("Database seeded successfully!")
+    
+    # Export to CSV
+    export_to_csv()
+
