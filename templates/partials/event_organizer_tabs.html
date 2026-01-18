@@ -96,6 +96,15 @@
                     <input type="text" class="form-control" name="google_form_url"
                         value="{{ event.google_form_url or '' }}">
                 </div>
+                <hr>
+                <h6>Notifications Discord</h6>
+                <div class="mb-3">
+                    <label class="form-label">URL Webhook Discord</label>
+                    <input type="text" class="form-control" name="discord_webhook_url"
+                        value="{{ event.discord_webhook_url or '' }}"
+                        placeholder="https://discord.com/api/webhooks/...">
+                    <div class="form-text">Laissez vide pour désactiver les notifications Discord.</div>
+                </div>
                 <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
             </form>
         </div>

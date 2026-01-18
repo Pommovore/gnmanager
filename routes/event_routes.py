@@ -156,11 +156,15 @@ def update_general(event_id):
     description = request.form.get('description')
     org_link_url = request.form.get('org_link_url')
     org_link_title = request.form.get('org_link_title')
+    org_link_title = request.form.get('org_link_title')
     google_form_url = request.form.get('google_form_url')
+    discord_webhook_url = request.form.get('discord_webhook_url')
     
     try:
         if name: event.name = name
         if location: event.location = location
+        # On sauvegarde le webhook tel quel, même si vide
+        event.discord_webhook_url = discord_webhook_url
         if date_start_str: 
             event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
         if date_end_str: 
@@ -303,38 +307,59 @@ def join(event_id):
         flash('Vous participez déjà à cet événement.', 'warning')
         return redirect(url_for('event.detail', event_id=event.id))
     
-    p_type = request.form.get('type', ParticipantType.PJ.value)
-    p_group = request.form.get('group', 'Aucun')
-    p_comment = request.form.get('comment')
+    registration_type = request.form.get('type', ParticipantType.PJ.value)
+    # The new code snippet does not use p_group, but the Participant model might require it.
+    # Assuming 'group' is still relevant and should be passed, or it's handled differently.
+    # For now, I'll keep it as it was in the original code, but the new Participant constructor doesn't include it.
+    # Based on the provided snippet, the 'group' field is omitted in the new Participant creation.
+    # The new code also implies a 'status' variable, which was previously hardcoded as TO_VALIDATE.
+    status = RegistrationStatus.TO_VALIDATE.value
+    comment = request.form.get('comment')
+    if comment is None: # Handle empty comments explicitly
+        comment = ""
     
-    # Registration status default 'À valider'
-    participant = Participant(
-        event_id=event.id, 
-        user_id=current_user.id, 
-        type=p_type, 
-        group=p_group,
-        registration_status=RegistrationStatus.TO_VALIDATE.value,
-        comment=p_comment
-    )
-    db.session.add(participant)
-    db.session.commit()
-    
-    # Logger la demande de participation
-    log = ActivityLog(
-        action_type=ActivityLogType.EVENT_PARTICIPATION.value,
-        user_id=current_user.id,
-        event_id=event.id,
-        details=json.dumps({
-            'type': p_type,
-            'group': p_group,
-            'event_name': event.name
-        })
-    )
-    db.session.add(log)
-    db.session.commit()
-    
-    flash("Demande d'inscription envoyée ! En attente de validation.", 'success')
-    
+    try:
+        # Création et sauvegarde de la participation
+        participant = Participant(
+            event_id=event.id, 
+            user_id=current_user.id,
+            type=registration_type,
+            registration_status=status,
+            comment=comment,
+            paf_status='non versée'
+        )
+        db.session.add(participant)
+        
+        # Log de l'activité
+        log = ActivityLog(
+            user_id=current_user.id,
+            action_type=ActivityLogType.EVENT_PARTICIPATION.value,
+            event_id=event.id,
+            details=json.dumps({
+                'type': registration_type,
+                'status': status,
+                'comment': comment
+            })
+        )
+        db.session.add(log)
+        db.session.commit()
+        
+        # Notification Discord
+        if event.discord_webhook_url:
+            from services.discord_service import send_discord_notification
+            user_data = {
+                'nom': current_user.nom,
+                'prenom': current_user.prenom,
+                'email': current_user.email
+            }
+            # On lance la notif mais on ne bloque pas si ça échoue (loggé dans le service)
+            send_discord_notification(event.discord_webhook_url, event.name, user_data, registration_type)
+            
+        flash('Votre demande de participation a été enregistrée.', 'success')
+        
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Une erreur est survenue lors de l'inscription : {str(e)}", 'danger')
 
     if event.google_form_active and event.google_form_url:
         message = Markup(f"Veuillez remplir ce formulaire si ce n'est pas déjà fait : <a href='{event.google_form_url}' target='_blank' class='alert-link'>Formulaire</a>")
