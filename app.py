@@ -18,7 +18,57 @@ from flask import Flask
 from models import db, User
 from flask_login import LoginManager
 from extensions import mail, migrate, csrf, limiter, oauth
+from werkzeug.middleware.proxy_fix import ProxyFix
 import os
+
+
+
+class MagicPrefixMiddleware(object):
+    """
+    Middleware "Magique" pour gérer le double-préfixe avec Nginx.
+    
+    Problème : 
+    - Nginx a 'proxy_redirect / /gnmanager/;' qui ajoute /gnmanager aux redirections.
+    - Flask a besoin de SCRIPT_NAME='/gnmanager' pour générer des liens HTML corrects.
+    - MAIS si Flask a SCRIPT_NAME, il génère aussi des redirections avec /gnmanager.
+    - Résultat : Nginx ajoute un 2ème préfixe -> /gnmanager/gnmanager/login.
+    
+    Solution :
+    1. On force SCRIPT_NAME pour que le HTML soit bon.
+    2. On INTERCEPTE la réponse. Si c'est une redirection (Header Location) qui contient le préfixe,
+       on l'ENLÈVE avant de l'envoyer à Nginx.
+    3. Nginx reçoit une Location sans préfixe, applique sa règle, et remet LE préfixe.
+    """
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix.rstrip('/')
+
+    def __call__(self, environ, start_response):
+        # 1. Forcer SCRIPT_NAME pour la génération d'URL (HTML)
+        environ['SCRIPT_NAME'] = self.prefix
+        
+        def custom_start_response(status, headers, exc_info=None):
+            # 2. Intercepter les headers pour nettoyer les redirections
+            if status.startswith('3'): # Redirection (301, 302, etc.)
+                new_headers = []
+                for name, value in headers:
+                    if name.lower() == 'location':
+                        # Si la location commence par le préfixe
+                        # Cas 1: Exact match (/gnmanager -> /)
+                        if value == self.prefix:
+                            value = '/'
+                        # Cas 2: Sous-chemin (/gnmanager/login -> /login)
+                        elif value.startswith(self.prefix + '/'):
+                            value = value[len(self.prefix):]
+                        
+                        # Note: Si c'est une URL absolue (http://...), on ne touche à rien
+                        # et c'est très bien comme ça.
+                    new_headers.append((name, value))
+                return start_response(status, new_headers, exc_info)
+            return start_response(status, headers, exc_info)
+
+
+        return self.app(environ, custom_start_response)
 
 
 def create_app(test_config=None):
@@ -27,25 +77,20 @@ def create_app(test_config=None):
     
     Cette fonction implémente le pattern Application Factory de Flask.
     Elle initialise tous les composants nécessaires:
-    - Configuration de l'application
-    - Base de données
-    - Système d'authentification
-    - Service d'email
-    - Protection CSRF
-    - Rate limiting
-    - Routes
-    
-    Returns:
-        Flask: Application Flask configurée et prête à l'emploi
-        
-    Raises:
-        ValueError: Si SECRET_KEY n'est pas définie en production
-        
-    Note:
-        La clé secrète DOIT être définie via la variable d'environnement
-        SECRET_KEY en production pour des raisons de sécurité.
+    ...
     """
     app = Flask(__name__)
+    
+    # Gestion du préfixe d'URL (ex: /gnmanager)
+    # Utilisation du middleware magique pour compatibilité Nginx force-redirect
+    app_root = os.environ.get('APPLICATION_ROOT')
+    if app_root:
+        app.wsgi_app = MagicPrefixMiddleware(app.wsgi_app, prefix=app_root)
+        app.config['APPLICATION_ROOT'] = app_root
+        print(f"✅ Application configurée avec MagicPrefixMiddleware: {app_root}")
+    else:
+        # Fallback local
+        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     
     # Appliquer la configuration de test si fournie
     if test_config:

@@ -48,7 +48,7 @@ isateurs.
     groups_config = json.loads(event.groups_config or '{}')
     
     breadcrumbs = [
-        ('GN Manager', '/dashboard'),
+        ('GN Manager', url_for('admin.dashboard')),
         (event.name, url_for('event.detail', event_id=event.id)),
         ('Gestion des Participants', '#')
     ]
@@ -372,7 +372,7 @@ def export_google(event_id):
     token = session.get('google_token')
     if not token:
         flash('Veuillez d\'abord connecter votre compte Google pour utiliser cette fonctionnalité.', 'warning')
-        return redirect(url_for('auth.login_google'))
+        return redirect(url_for('auth.login_google', _external=True))
         
     try:
         # 2. Préparer les données

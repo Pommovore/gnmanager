@@ -3,7 +3,7 @@
 <div class="row mb-3">
     <div class="col-12">
         <h2>Casting - {{ event.name }}</h2>
-        <a href="/event/{{ event.id }}" class="btn btn-secondary">Retour à l'événement</a>
+        <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary">Retour à l'événement</a>
     </div>
 </div>
 

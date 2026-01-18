@@ -340,6 +340,23 @@ def admin_logs():
     return render_template('admin_logs.html', logs=logs)
 
 
+@admin_bp.route('/admin/logs/delete-all', methods=['POST'])
+@login_required
+@admin_required
+def delete_all_logs():
+    """Supprime tous les logs d'activité."""
+    try:
+        # Suppression de tous les enregistrements
+        num_deleted = db.session.query(ActivityLog).delete()
+        db.session.commit()
+        flash(f"{num_deleted} logs ont été supprimés.", "success")
+    except Exception as e:
+        db.session.rollback()
+        flash(f"Erreur lors de la suppression des logs : {str(e)}", "danger")
+    
+    return redirect(url_for('admin.admin_logs'))
+
+
 @admin_bp.route('/admin/logs/mark-viewed', methods=['POST'])
 @login_required
 @admin_required

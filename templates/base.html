@@ -12,12 +12,12 @@
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
-            <a class="navbar-brand" href="/">GN Manager</a>
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">GN Manager</a>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav ms-auto align-items-center">
                 <span class="badge bg-secondary rounded-pill me-3">{{ current_user.prenom }} {{ current_user.nom|upper
                     }} ({{ current_user.email }})</span>
-                <a class="nav-link" href="/logout">Déconnexion</a>
+                <a class="nav-link" href="{{ url_for('auth.logout') }}">Déconnexion</a>
             </div>
             {% endif %}
         </div>

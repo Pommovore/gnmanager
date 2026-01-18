@@ -251,18 +251,77 @@ def rename_old_deployment(target_dir, ssh=None, sudo_password=None):
     print(f"✅ Ancien déploiement sauvegardé dans {old_path}")
 
 
-def clone_repository(target_dir, user, sudo_password=None, ssh=None):
-    """Clone le repository GitHub."""
-    print(f"📥 Clone du repository GitHub dans {target_dir}...")
-    # Utiliser sudo (root) pour le clone car le dossier parent (ex: /opt) n'est peut-être pas inscriptible
-    # La propriété sera corrigée juste après par setup_ownership
-    run_command(
-        "sudo git clone https://github.com/Pommovore/gnmanager.git",
-        cwd=target_dir,
-        sudo_password=sudo_password,
-        ssh=ssh
-    )
-    print("✅ Repository cloné")
+
+def transfer_files(target_dir, user, sudo_password=None, ssh=None):
+    """Transfère les fichiers suivis par git vers la cible (au lieu de cloner)."""
+    gnmanager_path = os.path.join(target_dir, 'gnmanager')
+    print(f"📂 Transfert des fichiers locaux vers {gnmanager_path}...")
+    
+    # 1. Lister les fichiers suivis par git
+    try:
+        files = subprocess.check_output(['git', 'ls-files'], text=True).strip().splitlines()
+    except Exception as e:
+        print(f"❌ Erreur git ls-files: {e}")
+        sys.exit(1)
+        
+    # Ajouter config/deploy_config.yaml et google_credentials.json s'ils ne sont pas suivis
+    extras = ['config/deploy_config.yaml', 'config/google_credentials.json']
+    for extra in extras:
+        if os.path.exists(extra):
+            files.append(extra)
+            
+    # Créer le dossier racine (si n'existe pas)
+    run_command(f"sudo mkdir -p {gnmanager_path}", sudo_password=sudo_password, ssh=ssh)
+    # Donner la propriété temporaire pour pouvoir écrire
+    # Pour remote, on utilise l'user SSH connecté par défaut s'il n'est pas spécifié, 
+    # mais ici on a 'user' (le user cible). 
+    # Pour simplifier l'écriture SFTP, on donne les droits au user courant (SSH ou local)
+    current_user_cmd = "whoami"
+    if ssh:
+        stdin, stdout, stderr = ssh.exec_command(current_user_cmd)
+        current_user = stdout.read().decode().strip()
+    else:
+        current_user = subprocess.check_output(current_user_cmd, shell=True, text=True).strip()
+        
+    run_command(f"sudo chown -R {current_user} {gnmanager_path}", sudo_password=sudo_password, ssh=ssh)
+    
+    if ssh:
+        sftp = ssh.open_sftp()
+        for f in files:
+            local_path = f
+            remote_path = os.path.join(gnmanager_path, f).replace("\\", "/") # Pour compat windaube si jamais
+            remote_dir = os.path.dirname(remote_path)
+            
+            # Créer les dossiers parents s'ils n'existent pas
+            # Optimisation: on pourrait cacher les dirs créés
+            try:
+                # On essaie de stat le fichier pour voir s'il existe (non pertinent pour l'écriture mais pour le dossier)
+                # SFTP n'a pas mkdir -p, il faut itérer. 
+                # Simplification: on utilise une commande shell pour mkdir -p
+                pass
+            except:
+                pass
+
+            # Utiliser une commande shell pour créer le dossier parent
+            # C'est plus rapide et fiable que de récurser en SFTP
+            run_command(f"mkdir -p {remote_dir}", ssh=ssh) # Pas besoin de sudo car on a chown le dossier parent
+            
+            try:
+                sftp.put(local_path, remote_path)
+            except Exception as e:
+                print(f"⚠️ Erreur copie {f}: {e}")
+
+        sftp.close()
+    else:
+        # Local copy
+        for f in files:
+            src = os.path.abspath(f)
+            dst = os.path.join(gnmanager_path, f)
+            os.makedirs(os.path.dirname(dst), exist_ok=True)
+            shutil.copy2(src, dst)
+            
+    print(f"✅ {len(files)} fichiers transférés")
+
 
 
 def setup_ownership(target_dir, user, sudo_password=None, ssh=None):
@@ -312,7 +371,9 @@ def install_dependencies(target_dir, user, sudo_password=None, ssh=None):
     print("✅ Dépendances installées")
 
 
-def create_env_file(target_dir, config, user, sudo_password=None, ssh=None):
+
+# 2. Update definition
+def create_env_file(target_dir, config, user, sudo_password=None, ssh=None, force_local=False):
     """Crée le fichier .env avec les variables d'environnement."""
     gnmanager_path = os.path.join(target_dir, 'gnmanager')
     env_path = os.path.join(gnmanager_path, '.env')
@@ -328,6 +389,10 @@ def create_env_file(target_dir, config, user, sudo_password=None, ssh=None):
     
     host = deploy_config.get('machine_name', '0.0.0.0')
     port = deploy_config.get('port', 5000)
+    
+    
+    # Récupérer app_prefix depuis la config
+    app_prefix = deploy_config.get('app_prefix')
     
     # Si machine_name est distant, on veut quand même écouter sur 0.0.0.0
     flask_host = '0.0.0.0' 
@@ -345,6 +410,10 @@ APP_PUBLIC_HOST={host}:{port}
 SECRET_KEY={secret_key}
 PYTHONUNBUFFERED=1
 """
+    # Si un préfixe est configuré ET qu'on n'est pas en force_local
+    if app_prefix and not force_local:
+        env_content += f"APPLICATION_ROOT={app_prefix}\n"
+
     
     # Lecture des credentials Google optionnels
     # On cherche d'abord dans le dossier config local (d'où est lancé le script)
@@ -526,6 +595,12 @@ Exemples:
         help='Chemin vers deploy_config.yaml (défaut: ./config/deploy_config.yaml)'
     )
     
+    parser.add_argument(
+        '--local',
+        action='store_true',
+        help='Forcer le déploiement local (ignore la configuration de machine distante)'
+    )
+    
     args = parser.parse_args()
     
     # Charger la configuration
@@ -538,16 +613,36 @@ Exemples:
     
     is_remote = machine_name not in ['localhost', '127.0.0.1', '0.0.0.0']
     
+    if args.local:
+        print("ℹ️  Mode LOCAL (DEV) forcé par argument")
+        print("   -> Exécution 'sur place' sans copie de fichiers")
+        is_remote = False
+        machine_name = 'localhost'
+        # Pour simuler la structure attedue (target/gnmanager), on pointe target vers le parent du dossier courant
+        # Hypothèse: le script est dans la racine du projet
+        current_dir = os.path.dirname(os.path.abspath(__file__))
+        args.target_dir = os.path.dirname(current_dir)
+        print(f"   -> Répertoire de travail: {current_dir}")
+    
     # Vérifier les variables d'environnement
     user = os.environ.get('GNMANAGER_USER')
     if not user:
-        print("❌ Variable d'environnement GNMANAGER_USER non définie")
-        sys.exit(1)
+        if args.local:
+            # En local dev, on peut déduire l'user courant si non défini
+            import getpass
+            user = getpass.getuser()
+            print(f"ℹ️  GNMANAGER_USER non défini, utilisation de l'utilisateur courant: {user}")
+        else:
+            print("❌ Variable d'environnement GNMANAGER_USER non définie")
+            sys.exit(1)
     
     sudo_password = os.environ.get('GNMANAGER_PWD')
     if not sudo_password:
-        print("⚠️  Variable d'environnement GNMANAGER_PWD non définie")
-        print("   Mode interactif pour sudo")
+        if args.local:
+             print("ℹ️  GNMANAGER_PWD non défini. Les commandes sudo demanderont le mot de passe interactif.")
+        else:
+            print("⚠️  Variable d'environnement GNMANAGER_PWD non définie")
+            print("   Mode interactif pour sudo")
     
     ssh = None
     if is_remote:
@@ -559,8 +654,8 @@ Exemples:
     print("=" * 70)
     print("🚀 DÉPLOIEMENT PRODUCTION GN MANAGER")
     print("=" * 70)
-    print(f"🎯 Mode: {'REMOTE (' + machine_name + ')' if is_remote else 'LOCAL'}")
-    print(f"📁 Répertoire cible: {args.target_dir}")
+    print(f"🎯 Mode: {'REMOTE (' + machine_name + ')' if is_remote else 'LOCAL (DEV)'}")
+    print(f"📁 Répertoire cible: {os.path.join(args.target_dir, 'gnmanager')}")
     print(f"👤 Utilisateur: {user}")
     print("=" * 70)
     
@@ -572,24 +667,28 @@ Exemples:
         if args.kill:
             kill_port_processes(port, sudo_password, ssh)
         
-        # 2. Backup de l'ancien déploiement
-        rename_old_deployment(args.target_dir, ssh, sudo_password)
-        
-        # 3. Clone du repository
-        clone_repository(args.target_dir, user, sudo_password, ssh)
-        
-        # 4. Configuration de la propriété
-        setup_ownership(args.target_dir, user, sudo_password, ssh)
-        
-        # 5. Copie de la configuration
-        copy_config(args.config, args.target_dir, ssh)
+        # Steps 2, 3, 4, 5 sont sautés en mode local dev
+        if not args.local:
+            # 2. Backup de l'ancien déploiement
+            rename_old_deployment(args.target_dir, ssh, sudo_password)
+            
+            # 3. Transfert des fichiers
+            transfer_files(args.target_dir, user, sudo_password, ssh)
+            
+            # 4. Configuration de la propriété
+            setup_ownership(args.target_dir, user, sudo_password, ssh)
+            
+            # 5. Copie de la configuration
+            copy_config(args.config, args.target_dir, ssh)
+        else:
+            print("⏩ [Local] Skipped: Backup, Transfert, Propriété, Config Copy")
         
         # 6. Installation des dépendances
         # user=None car on ne veut PAS utiliser sudo (le dossier nous appartient et on veut garder le PATH)
         install_dependencies(args.target_dir, None, sudo_password, ssh)
         
         # 7. Création du fichier .env
-        create_env_file(args.target_dir, config, None, sudo_password, ssh)
+        create_env_file(args.target_dir, config, None, sudo_password, ssh, force_local=args.local)
         
         # 8. Création du compte admin
         create_admin_user(args.target_dir, config, None, sudo_password, ssh)

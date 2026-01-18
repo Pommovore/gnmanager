@@ -1,102 +1,122 @@
 # Guide de Déploiement - GN Manager
 
-Ce document détaille la procédure pour déployer l'application sur le serveur distant **minimoi.mynetgear.com**.
+Ce document détaille la procédure de déploiement de l'application GN Manager en utilisant le nouveau script unifié `fresh_deploy.py`.
 
-## 1. Préparation de la Configuration
+Ce script automatise entièrement le processus :
+1. Arrêt du service existant
+2. Backup de l'ancienne version
+3. Clone propre depuis GitHub
+4. Installation des dépendances (`uv`)
+5. Configuration (`.env`, `config.yaml`)
+6. Création/Mise à jour de la base de données et du compte admin
+7. Redémarrage du service
 
-Vérifiez que le fichier `config/deploy_config.yaml` est correctement configuré pour la cible distante :
+## 1. Prérequis
 
+### Configuration
+Assurez-vous que le fichier `config/deploy_config.yaml` est correct.
+
+Pour un déploiement **DISTANT** (Production) :
 ```yaml
-location: remote
-
 deploy:
-  machine_name: "minimoi.mynetgear.com"
-  port: 8880
-  target_directory: "/opt/gnmanager/"
-
-# ... le reste de la configuration (email, admin, etc.) doit être valide
+  machine_name: "minimoi.mynetgear.com"  # Adresse du serveur
+  port: 8880                             # Port d'écoute Flask
+  app_prefix: "/gnmanager"               # IMPORTANT pour le reverse proxy
 ```
 
-## 2. Authentification SSH
+Pour un déploiement **LOCAL** (Test) :
+```yaml
+deploy:
+  machine_name: "localhost"
+  port: 5000
+```
 
-Le script de déploiement utilise `paramiko` pour se connecter via SSH. Vous devez définir les identifiants dans votre environnement avant de lancer le script.
+### Variables d'Environnement
+Le script nécessite des variables d'environnement pour l'authentification (SSH et sudo).
 
-### Sous WSL / Bash
+**Linux / macOS / WSL :**
 ```bash
-export GNMANAGER_USER=votre_user_ssh
-export GNMANAGER_PWD=votre_mot_de_passe_ssh
+export GNMANAGER_USER=votre_user_linux  # Utilisateur sur la machine cible (ex: gnmanager)
+export GNMANAGER_PWD=votre_mot_de_passe # Mot de passe (pour SSH et/ou sudo)
 ```
 
-### Sous PowerShell
+**PowerShell :**
 ```powershell
-$env:GNMANAGER_USER="votre_user_ssh"
-$env:GNMANAGER_PWD="votre_mot_de_passe_ssh"
+$env:GNMANAGER_USER="votre_user_linux"
+$env:GNMANAGER_PWD="votre_mot_de_passe"
 ```
 
-## 3. Commandes de Déploiement
+## 2. Utilisation du Script `fresh_deploy.py`
 
-Le déploiement s'effectue via le script `deploy.py` exécuté avec `uv`.
+Le script s'exécute depuis la racine du projet local.
 
-### Cas A : Mise à jour du code (Standard)
-Utilisez cette commande pour déployer les dernières modifications du code **sans toucher à la base de données**.
-
+### Syntaxe
 ```bash
-uv run python deploy.py --dpcfg config/deploy_config.yaml
+python fresh_deploy.py [TARGET_DIR] [OPTIONS]
 ```
 
-### Cas B : Installation Complète / Reset (Attention !)
-Utilisez cette commande pour une première installation ou pour **réinitialiser complètement** l'application (toutes les données seront effacées).
+**Arguments :**
+- `TARGET_DIR` : Répertoire parent où installer l'application (ex: `/opt`). L'application sera dans `/opt/gnmanager`.
+
+**Options :**
+- `--systemd` : Gère automatiquement l'arrêt et le redémarrage du service systemd `gnmanager.service`.
+- `--create-test-db` : Réinitialise la base de données et importe les données de test (ATTENTION : perte de données).
+- `--kill` : Tue brutalement tout processus écoutant sur le port configuré avant de démarrer.
+- `--config PATH` : Chemin vers le fichier de config (défaut : `./config/deploy_config.yaml`).
+
+## 3. Exemples de Déploiement
+
+### 🚀 Déploiement Production (Remote)
+Mise à jour du code sur le serveur distant, sans toucher à la base de données.
 
 ```bash
-uv run python deploy.py --dpcfg config/deploy_config.yaml --reset-db --import-data \
-  --admin-email 'jchodorowski@gmail.com' \
-  --admin-password 'votre_password_admin' \
-  --admin-nom 'Chodorowski' \
-  --admin-prenom 'Jacques'
+# 1. Définir les credentials
+export GNMANAGER_USER=gnmanager
+export GNMANAGER_PWD=monSuperMotDePasse
+
+# 2. Lancer le déploiement
+# Le script détecte "remote" grâce à deploy_config.yaml
+python fresh_deploy.py /opt --systemd
 ```
 
-## 4. Vérification et Maintenance
+### 💥 Réinitialisation Complète (Production ou Test)
+Pour réinstaller proprement et remettre des données de test (utile pour les démos ou environnements de qualif).
 
-Une fois déployé, vous pouvez interagir avec le serveur distant pour vérifier le bon fonctionnement.
-
-### Connexion au serveur
 ```bash
-ssh $GNMANAGER_USER@minimoi.mynetgear.com
+python fresh_deploy.py /opt --systemd --create-test-db --kill
 ```
 
-### Gestion du Service
-L'application tourne comme un service systemd nommé `gnmanager`.
+### 💻 Déploiement Local (Test)
+Si `deploy_config.yaml` contient `machine_name: localhost`.
 
 ```bash
+python fresh_deploy.py /tmp/test_deploy --kill --create-test-db
+```
+
+## 4. Gestion du Service (Post-Déploiement)
+
+Une fois déployé, l'application est gérée par **systemd** sur le serveur.
+
+```bash
+# Se connecter au serveur
+ssh $GNMANAGER_USER@machine_cible
+
 # Vérifier le statut
 sudo systemctl status gnmanager.service
 
-# Redémarrer le service
-sudo systemctl restart gnmanager.service
-
-# Arrêter le service
-sudo systemctl stop gnmanager.service
-```
-
-### Logs
-```bash
-# Logs du service systemd
+# Voir les logs en direct
 journalctl -u gnmanager.service -f
-
-# Logs de l'application (événements, erreurs applicatives)
-tail -f /opt/gnmanager/app.log
 ```
 
-## 5. Dépannage Courant
+## 5. Dépannage
 
-- **Erreur SSH** : Vérifiez que `GNMANAGER_USER` et `GNMANAGER_PWD` sont bien définis et que vous pouvez vous connecter manuellement via `ssh`.
-- **Erreur Base de Données** : Si vous changez le schéma de la base (nouveaux modèles), vous devrez peut-être faire un reset DB ou gérer une migration manuelle (Alembic non configuré pour auto-migrate en prod pour l'instant).
-- **Service ne démarre pas** : Vérifiez les logs avec `journalctl` pour voir si ce n'est pas un problème de variables d'environnement (`.env` mal généré) ou de port déjà utilisé.
-- **Erreur SECURITY ERROR: SECRET_KEY** : Si les logs affichent cette erreur, c'est que la clé secrète manque dans le fichier `.env` sur le serveur.
-  1. Connectez-vous au serveur : `ssh $GNMANAGER_USER@minimoi.mynetgear.com`
-  2. Générez une clé : `python3 -c 'import secrets; print(secrets.token_hex(32))'`
-  3. Ajoutez-la au fichier `.env` :
+- **Erreur SSH / Authentification** : Vérifiez `GNMANAGER_USER` et `GNMANAGER_PWD`.
+- **Problème de Prefix URL** : Si les liens (CSS, JS, Login) ne fonctionnent pas, vérifiez que `app_prefix` est bien défini dans `deploy_config.yaml` et que `APPLICATION_ROOT` apparaît bien dans le fichier `/opt/gnmanager/.env` sur le serveur.
+- **Service en échec** : 
+  1. Regardez les logs : `journalctl -u gnmanager -n 50`
+  2. Tentez de lancer l'app manuellement pour voir l'erreur :
      ```bash
-     echo "SECRET_KEY=votre_cle_generee" >> /opt/gnmanager/.env
+     cd /opt/gnmanager
+     source .env
+     uv run python app.py
      ```
-  4. Redémarrez le service : `sudo systemctl restart gnmanager.service`

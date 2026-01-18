@@ -121,7 +121,7 @@ def detail(event_id):
     count_orgs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.ORGANISATEUR.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     
     breadcrumbs = [
-        ('GN Manager', '/dashboard'),
+        ('GN Manager', url_for('admin.dashboard')),
         (event.name, '#')  # Page actuelle
     ]
 
