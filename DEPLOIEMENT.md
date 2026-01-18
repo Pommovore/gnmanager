@@ -1,15 +1,16 @@
 # Guide de Déploiement - GN Manager
 
-Ce document détaille la procédure de déploiement de l'application GN Manager en utilisant le nouveau script unifié `fresh_deploy.py`.
+Ce document détaille les scripts de déploiement de l'application GN Manager.
 
-Ce script automatise entièrement le processus :
-1. Arrêt du service existant
-2. Backup de l'ancienne version
-3. Clone propre depuis GitHub
-4. Installation des dépendances (`uv`)
-5. Configuration (`.env`, `config.yaml`)
-6. Création/Mise à jour de la base de données et du compte admin
-7. Redémarrage du service
+## Scripts Disponibles
+
+| Script | Usage |
+|--------|-------|
+| `fresh_deploy.py` | Premier déploiement complet (clone, install, config) |
+| `update_deploy.py` | Mise à jour rapide du code (sans toucher à la BDD) |
+| `manage_db.py` | Export/Import de la base de données |
+
+---
 
 ## 1. Prérequis
 
@@ -18,26 +19,30 @@ Assurez-vous que le fichier `config/deploy_config.yaml` est correct.
 
 Pour un déploiement **DISTANT** (Production) :
 ```yaml
+location: remote
+
 deploy:
   machine_name: "minimoi.mynetgear.com"  # Adresse du serveur
   port: 8880                             # Port d'écoute Flask
-  app_prefix: "/gnmanager"               # IMPORTANT pour le reverse proxy
+  target_directory: "/opt/gnmanager"
 ```
 
 Pour un déploiement **LOCAL** (Test) :
 ```yaml
+location: local
+
 deploy:
   machine_name: "localhost"
   port: 5000
 ```
 
 ### Variables d'Environnement
-Le script nécessite des variables d'environnement pour l'authentification (SSH et sudo).
+Les scripts nécessitent des variables pour l'authentification SSH.
 
 **Linux / macOS / WSL :**
 ```bash
-export GNMANAGER_USER=votre_user_linux  # Utilisateur sur la machine cible (ex: gnmanager)
-export GNMANAGER_PWD=votre_mot_de_passe # Mot de passe (pour SSH et/ou sudo)
+export GNMANAGER_USER=votre_user_linux  # Utilisateur sur la machine cible
+export GNMANAGER_PWD=votre_mot_de_passe # Mot de passe SSH/sudo
 ```
 
 **PowerShell :**
@@ -46,56 +51,101 @@ $env:GNMANAGER_USER="votre_user_linux"
 $env:GNMANAGER_PWD="votre_mot_de_passe"
 ```
 
-## 2. Utilisation du Script `fresh_deploy.py`
+---
 
-Le script s'exécute depuis la racine du projet local.
+## 2. fresh_deploy.py - Premier Déploiement
+
+Script de déploiement complet qui automatise :
+1. Arrêt du service existant
+2. Backup de l'ancienne version
+3. Transfert des fichiers depuis le dépôt local
+4. Installation des dépendances (`uv sync`)
+5. Configuration (`.env`, `config.yaml`)
+6. Création du compte admin
+7. Redémarrage du service
 
 ### Syntaxe
 ```bash
-python fresh_deploy.py [TARGET_DIR] [OPTIONS]
+uv run python fresh_deploy.py [OPTIONS]
 ```
-
-**Arguments :**
-- `TARGET_DIR` : Répertoire parent où installer l'application (ex: `/opt`). L'application sera dans `/opt/gnmanager`.
 
 **Options :**
-- `--systemd` : Gère automatiquement l'arrêt et le redémarrage du service systemd `gnmanager.service`.
-- `--create-test-db` : Réinitialise la base de données et importe les données de test (ATTENTION : perte de données).
-- `--kill` : Tue brutalement tout processus écoutant sur le port configuré avant de démarrer.
-- `--config PATH` : Chemin vers le fichier de config (défaut : `./config/deploy_config.yaml`).
+- `--config PATH` : Chemin vers le fichier de config (défaut : `config/deploy_config.yaml`)
 
-## 3. Exemples de Déploiement
+### Exemples
 
-### 🚀 Déploiement Production (Remote)
-Mise à jour du code sur le serveur distant, sans toucher à la base de données.
-
+**Déploiement Production :**
 ```bash
-# 1. Définir les credentials
 export GNMANAGER_USER=gnmanager
 export GNMANAGER_PWD=monSuperMotDePasse
-
-# 2. Lancer le déploiement
-# Le script détecte "remote" grâce à deploy_config.yaml
-python fresh_deploy.py /opt --systemd
+uv run python fresh_deploy.py
 ```
 
-### 💥 Réinitialisation Complète (Production ou Test)
-Pour réinstaller proprement et remettre des données de test (utile pour les démos ou environnements de qualif).
-
+**Déploiement Local :**
 ```bash
-python fresh_deploy.py /opt --systemd --create-test-db --kill
+uv run python fresh_deploy.py
 ```
 
-### 💻 Déploiement Local (Test)
-Si `deploy_config.yaml` contient `machine_name: localhost`.
+---
 
+## 3. update_deploy.py - Mise à Jour Rapide
+
+Script de mise à jour du **code uniquement**, sans toucher à la base de données.
+Idéal pour déployer des corrections ou nouvelles fonctionnalités.
+
+### Fonctionnement
+1. Arrête le service systemd
+2. Crée une archive locale des fichiers suivis par Git
+3. Upload et extrait l'archive sur le serveur
+4. Redémarre le service
+
+### Syntaxe
 ```bash
-python fresh_deploy.py /tmp/test_deploy --kill --create-test-db
+uv run python update_deploy.py [OPTIONS]
 ```
 
-## 4. Gestion du Service (Post-Déploiement)
+**Options :**
+- `--config PATH` : Fichier de configuration (défaut : `config/deploy_config.yaml`)
+- `--key PATH` : Chemin vers la clé SSH privée (alternative au mot de passe)
 
-Une fois déployé, l'application est gérée par **systemd** sur le serveur.
+### Exemple
+```bash
+export GNMANAGER_USER=gnmanager
+export GNMANAGER_PWD=monSuperMotDePasse
+uv run python update_deploy.py
+```
+
+---
+
+## 4. manage_db.py - Gestion de la Base de Données
+
+Script d'export et import de données en **JSON** ou **CSV**.
+
+### Export
+```bash
+# Export vers dossier CSV
+uv run python manage_db.py export -f config/
+
+# Export vers JSON
+uv run python manage_db.py export -f backup.json
+```
+
+### Import
+```bash
+# Import depuis CSV (avec réinitialisation)
+uv run python manage_db.py import -f config/ --clean
+
+# Import depuis JSON
+uv run python manage_db.py import -f backup.json
+```
+
+**Option `--clean`** : Supprime toutes les données existantes avant l'import.
+
+---
+
+## 5. Gestion du Service (Post-Déploiement)
+
+L'application est gérée par **systemd** sur le serveur.
 
 ```bash
 # Se connecter au serveur
@@ -106,17 +156,24 @@ sudo systemctl status gnmanager.service
 
 # Voir les logs en direct
 journalctl -u gnmanager.service -f
+
+# Redémarrer manuellement
+sudo systemctl restart gnmanager.service
 ```
 
-## 5. Dépannage
+---
 
-- **Erreur SSH / Authentification** : Vérifiez `GNMANAGER_USER` et `GNMANAGER_PWD`.
-- **Problème de Prefix URL** : Si les liens (CSS, JS, Login) ne fonctionnent pas, vérifiez que `app_prefix` est bien défini dans `deploy_config.yaml` et que `APPLICATION_ROOT` apparaît bien dans le fichier `/opt/gnmanager/.env` sur le serveur.
-- **Service en échec** : 
-  1. Regardez les logs : `journalctl -u gnmanager -n 50`
-  2. Tentez de lancer l'app manuellement pour voir l'erreur :
-     ```bash
-     cd /opt/gnmanager
-     source .env
-     uv run python app.py
-     ```
+## 6. Dépannage
+
+| Problème | Solution |
+|----------|----------|
+| Erreur SSH / Authentification | Vérifiez `GNMANAGER_USER` et `GNMANAGER_PWD` |
+| Liens (CSS, JS) cassés | Vérifiez `app_prefix` dans `deploy_config.yaml` |
+| Service en échec | Consultez les logs : `journalctl -u gnmanager -n 50` |
+
+**Test manuel du service :**
+```bash
+cd /opt/gnmanager
+source .venv/bin/activate
+uv run python main.py
+```

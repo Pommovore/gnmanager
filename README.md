@@ -73,12 +73,8 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 ### Déploiement Local
 
 ```bash
-# Installation des dépendances et lancement
-uv run python deploy.py --reset-db --import-data \
-  --admin-email 'admin@example.com' \
-  --admin-password 'password' \
-  --admin-nom 'Dupont' \
-  --admin-prenom 'Jean'
+# Premier déploiement complet (installation depuis GitHub)
+uv run python fresh_deploy.py
 ```
 
 L'application sera accessible sur `http://localhost:5000`
@@ -95,22 +91,30 @@ L'application sera accessible sur `http://localhost:5000`
 
 3. Lancez le déploiement :
    ```bash
-   uv run python deploy.py --reset-db --import-data \
-     --admin-email 'admin@example.com' \
-     --admin-password 'password' \
-     --admin-nom 'Dupont' \
-     --admin-prenom 'Jean'
+   uv run python fresh_deploy.py
    ```
 
-Le script va :
+Le script `fresh_deploy.py` va :
 - Se connecter au serveur via SSH
 - Arrêter le service systemd
-- Transférer les fichiers via SFTP
+- Transférer les fichiers via SFTP (ou cloner depuis GitHub)
 - Installer les dépendances (`uv sync`)
 - Générer le fichier `.env` avec la configuration
-- Réinitialiser la base de données (si `--reset-db`)
-- Importer les données de test (si `--import-data`)
+- Créer le compte administrateur
 - Redémarrer le service systemd
+
+### Mise à jour rapide (sans toucher à la BDD)
+
+Pour déployer uniquement le code sans réinitialiser la base de données :
+```bash
+uv run python update_deploy.py
+```
+
+Ce script :
+- Arrête le service
+- Crée une archive locale des fichiers Git
+- Upload et extrait l'archive sur le serveur
+- Redémarre le service
 
 ### Service systemd
 
@@ -188,10 +192,9 @@ uv run python manage_db.py export -f config/
 uv run python manage_db.py import -f config/ --clean
 ```
 
-### Déploiement avec données de test
-L'option `--create-test-db` automatise le reset et l'import CSV :
+L'option `--clean` réinitialise les tables avant import :
 ```bash
-uv run python deploy.py --create-test-db
+uv run python manage_db.py import -f config/ --clean
 ```
 
 ## 🔒 Sécurité
@@ -255,7 +258,45 @@ uv run python main.py
 
 ```bash
 rm gnmanager.db instance/gnmanager.db
-uv run python deploy.py --reset-db --import-data
+uv run python manage_db.py import -f config/ --clean
+```
+
+## 🚀 Scripts de Déploiement
+
+### fresh_deploy.py
+Script de **premier déploiement** complet. Transfère tous les fichiers, installe les dépendances, configure l'environnement et crée le compte admin.
+
+```bash
+uv run python fresh_deploy.py
+```
+
+**Options principales :**
+- `--config` : Chemin du fichier de configuration (défaut: `config/deploy_config.yaml`)
+
+### update_deploy.py
+Script de **mise à jour rapide** du code sans toucher à la base de données. Idéal pour déployer des corrections ou nouvelles fonctionnalités.
+
+```bash
+uv run python update_deploy.py
+```
+
+**Prérequis :** Variables d'environnement `GNMANAGER_USER` et `GNMANAGER_PWD` définies.
+
+### manage_db.py
+Script de **gestion de la base de données** : export/import en JSON ou CSV.
+
+```bash
+# Export vers dossier CSV
+uv run python manage_db.py export -f config/
+
+# Export vers JSON
+uv run python manage_db.py export -f backup.json
+
+# Import depuis dossier CSV (avec reset)
+uv run python manage_db.py import -f config/ --clean
+
+# Import depuis JSON
+uv run python manage_db.py import -f backup.json
 ```
 
 ## 🐛 Dépannage

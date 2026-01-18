@@ -17,7 +17,8 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 
 ### Scripts utilitaires
 
-- **`deploy.py`** : Script de déploiement (local et distant via SSH)
+- **`fresh_deploy.py`** : Premier déploiement complet (local ou distant via SSH)
+- **`update_deploy.py`** : Mise à jour rapide du code (sans toucher à la BDD)
 - **`manage_db.py`** : Import/Export de données (JSON et CSV)
 - **`seed_data.py`** : Génération de données de test complet avec export CSV auto
 
@@ -53,8 +54,12 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 
 ### Role
 - Rôles dans un événement
+- **Type** : Organisateur, PJ ou PNJ
+- Genre : Homme, Femme, Autre
+- Groupe : lié au type (depuis la config des groupes de l'événement)
 - Assignation à un participant (relation optionnelle)
 - Support de documents Google Docs et PDF
+- Commentaires internes (affichés en tooltip)
 
 ### Participant
 - Liaison User ↔ Event
@@ -132,28 +137,32 @@ La fonction retourne `True` si l'envoi a réussi, `False` sinon.
 
 ## Déploiement
 
-### Local
+### Scripts disponibles
+
+| Script | Usage |
+|--------|-------|
+| `fresh_deploy.py` | Premier déploiement complet |
+| `update_deploy.py` | Mise à jour rapide du code |
+| `manage_db.py` | Gestion de la base de données |
+
+### Premier déploiement (fresh_deploy.py)
 ```bash
-uv run python deploy.py --reset-db --import-data
+export GNMANAGER_USER=utilisateur
+export GNMANAGER_PWD=motdepasse
+uv run python fresh_deploy.py
 ```
 
-### Distant (via SSH)
+### Mise à jour du code (update_deploy.py)
 ```bash
-uv run python deploy.py --reset-db --import-data \
-  --admin-email 'admin@example.com' \
-  --admin-password 'password' \
-  --admin-nom 'Nom' \
-  --admin-prenom 'Prenom'
+uv run python update_deploy.py
 ```
 
 Le script :
 1. Se connecte via SSH au serveur
 2. Arrête le service systemd
-3. Upload les fichiers
-4. Exécute `uv sync` pour installer les dépendances
-5. Génère et upload le fichier `.env`
-6. Optionnellement reset la DB et import les données
-7. Redémarre le service systemd
+3. Crée et upload une archive des fichiers Git
+4. Extrait l'archive sur le serveur
+5. Redémarre le service systemd
 
 ### Service systemd
 Fichier : `/etc/systemd/system/gnmanager.service`
@@ -227,12 +236,12 @@ Pour tester l'envoi d'email en local :
 
 ### Reset de la base de données
 ```bash
-# Réinitialisation via le script de déploiement (recommandé)
-uv run python deploy.py --create-test-db
-
-# Ou manuellement via manage_db.py
+# Supprimer et réimporter depuis les CSV de test
 rm instance/gnmanager.db
 uv run python manage_db.py import -f config/ --clean
+
+# Ou avec seed_data.py pour générer de nouvelles données
+uv run python seed_data.py
 ```
 
 ### Consultation des logs (serveur distant)
