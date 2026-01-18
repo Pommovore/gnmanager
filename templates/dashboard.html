@@ -77,6 +77,8 @@
             {% set status_color = "bg-danger" %}
             {% elif e.statut == "En préparation" %}
             {% set status_color = "bg-info text-dark" %}
+            {% elif e.statut == "Inscriptions ouvertes" %}
+            {% set status_color = "bg-success" %}
             {% endif %}
 
             <a href="{{ url_for('event.detail', event_id=e.id) }}"

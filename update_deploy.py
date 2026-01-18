@@ -28,10 +28,14 @@ except ImportError:
 
 def run_remote(ssh, cmd, sudo=False, password=None):
     """Exécute une commande sur le serveur distant."""
+    # Afficher la commande AVANT d'ajouter le password pour ne pas le logger
+    display_cmd = f"sudo {cmd}" if sudo else cmd
+    print(f"🔧 [REMOTE] {display_cmd}")
+    
+    # Ajouter le password seulement pour l'exécution
     if sudo:
         cmd = f"echo '{password}' | sudo -S -p '' {cmd}"
     
-    print(f"🔧 [REMOTE] {cmd}")
     stdin, stdout, stderr = ssh.exec_command(cmd)
     
     exit_status = stdout.channel.recv_exit_status()
@@ -62,7 +66,7 @@ def main():
     deploy_conf = config['deploy']
     host = deploy_conf['machine_name']
     target_dir = deploy_conf.get('target_directory', '/opt/gnmanager')
-    app_dir = os.path.join(target_dir, 'gnmanager')
+    app_dir = target_dir # Correction: Déploiement direct dans le dossier cible, pas de sous-dossier gnmanager
 
     # Credentials
     user = os.environ.get('GNMANAGER_USER', 'jack') # Default fallback

@@ -22,7 +22,15 @@
         <p class="mt-3">{{ event.description }}</p>
 
         {# 4. Statut Actuel #}
-        <p>Status actuel de l'événement : <span class="badge bg-info">{{ event.statut }}</span></p>
+        {% set status_badge_class = 'bg-info' %}
+        {% if event.statut == 'Inscriptions ouvertes' or event.statut == 'Événement en cours' %}
+        {% set status_badge_class = 'bg-success' %}
+        {% elif event.statut == 'Annulé' %}
+        {% set status_badge_class = 'bg-danger' %}
+        {% elif event.statut == 'Terminé' %}
+        {% set status_badge_class = 'bg-dark' %}
+        {% endif %}
+        <p>Status actuel de l'événement : <span class="badge {{ status_badge_class }}">{{ event.statut }}</span></p>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
             {% if event.org_link_url %}
