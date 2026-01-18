@@ -5,13 +5,13 @@
             href="#list-info" role="tab">Informations</a>
         {% if is_organizer %}
         <a class="list-group-item list-group-item-action" id="list-general-list" data-bs-toggle="list"
-            href="#list-general" role="tab">Description</a>
-        <a class="list-group-item list-group-item-action" id="list-status-list" data-bs-toggle="list"
-            href="#list-status" role="tab">Statut</a>
+            href="#list-general" role="tab"><i class="bi bi-gear"></i> Généralités</a>
         <a class="list-group-item list-group-item-action" id="list-groups-list" data-bs-toggle="list"
             href="#list-groups" role="tab">Configuration Groupes</a>
         <a class="list-group-item list-group-item-action" <a class="list-group-item list-group-item-action"
             href="{{ url_for('participant.manage', event_id=event.id) }}">Participants</a>
+        <a class="list-group-item list-group-item-action" id="list-roles-list" data-bs-toggle="list" href="#list-roles"
+            role="tab"><i class="bi bi-person-badge"></i> Rôles</a>
         {% endif %}
         {% if is_organizer or current_user.is_admin %}
         <hr class="my-1">

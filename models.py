@@ -126,6 +126,7 @@ class Role(db.Model):
         id: Identifiant unique
         event_id: ID de l'événement associé
         name: Nom du rôle
+        type: Type de rôle (Organisateur/PJ/PNJ)
         genre: Genre du rôle (Homme/Femme/Autre)
         group: Groupe auquel appartient le rôle
         assigned_participant_id: ID du participant assigné à ce rôle
@@ -136,6 +137,7 @@ class Role(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
     name = db.Column(db.String(100), nullable=False)
+    type = db.Column(db.String(20))  # Organisateur, PJ, PNJ
     genre = db.Column(db.String(20))
     group = db.Column(db.String(50))
     assigned_participant_id = db.Column(db.Integer, db.ForeignKey('participant.id', use_alter=True, name='fk_role_assigned_participant'), nullable=True)

@@ -29,6 +29,36 @@
                 </div>
 
                 <hr>
+                <h5 class="mb-3">Statut de l'événement</h5>
+                <div class="mb-3">
+                    <select class="form-select" name="statut">
+                        <option value="En préparation" {% if event.statut=='En préparation' %}selected{% endif %}>En
+                            préparation</option>
+                        <option value="Inscriptions ouvertes" {% if event.statut=='Inscriptions ouvertes' %}selected{%
+                            endif %}>Inscriptions ouvertes</option>
+                        <option value="Inscriptions fermées" {% if event.statut=='Inscriptions fermées' %}selected{%
+                            endif %}>Inscriptions fermées</option>
+                        <option value="Casting en cours" {% if event.statut=='Casting en cours' %}selected{% endif %}>
+                            Casting en cours</option>
+                        <option value="Casting terminé" {% if event.statut=='Casting terminé' %}selected{% endif %}>
+                            Casting terminé</option>
+                        <option value="Rôles en cours de préparation" {% if
+                            event.statut=='Rôles en cours de préparation' %}selected{% endif %}>Rôles en cours de
+                            préparation</option>
+                        <option value="Rôles en cours d'envois" {% if event.statut=='Rôles en cours d\' envois'
+                            %}selected{% endif %}>Rôles en cours d'envois</option>
+                        <option value="Rôles envoyés, préparatifs de l'événement" {% if
+                            event.statut=='Rôles envoyés, préparatifs de l\' événement' %}selected{% endif %}>Rôles
+                            envoyés, préparatifs de l'événement</option>
+                        <option value="Événement en cours" {% if event.statut=='Événement en cours' %}selected{% endif
+                            %}>Événement en cours</option>
+                        <option value="Terminé" {% if event.statut=='Terminé' %}selected{% endif %}>Terminé</option>
+                        <option value="Annulé" {% if event.statut=='Annulé' %}selected{% endif %}>Annulé</option>
+                        <option value="Reporté" {% if event.statut=='Reporté' %}selected{% endif %}>Reporté</option>
+                    </select>
+                </div>
+
+                <hr>
                 <h5 class="mb-3">Jauges (Participants Max)</h5>
                 <div class="row">
                     <div class="col-md-4 mb-3">
@@ -111,46 +141,6 @@
     </div>
 </div>
 
-{# Status Tab (Organizer only) #}
-<div class="tab-pane fade" id="list-status" role="tabpanel">
-    <div class="card">
-        <div class="card-header">Modifier le Statut</div>
-        <div class="card-body">
-            <form method="POST" action="{{ url_for('event.update_status', event_id=event.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <div class="mb-3">
-                    <label class="form-label">Statut de l'événement</label>
-                    <select class="form-select" name="statut">
-                        <option value="En préparation" {% if event.statut=='En préparation' %}selected{% endif %}>En
-                            préparation</option>
-                        <option value="Inscriptions ouvertes" {% if event.statut=='Inscriptions ouvertes' %}selected{%
-                            endif %}>Inscriptions ouvertes</option>
-                        <option value="Inscriptions fermées" {% if event.statut=='Inscriptions fermées' %}selected{%
-                            endif %}>Inscriptions fermées</option>
-                        <option value="Casting en cours" {% if event.statut=='Casting en cours' %}selected{% endif %}>
-                            Casting en cours</option>
-                        <option value="Casting terminé" {% if event.statut=='Casting terminé' %}selected{% endif %}>
-                            Casting terminé</option>
-                        <option value="Rôles en cours de préparation" {% if event.statut=='Rôles en cours de
-                            préparation' %}selected{% endif %}>Rôles en cours de préparation</option>
-                        <option value="Rôles en cours d'envois" {% if event.statut=='Rôles en cours d\' envois'
-                            %}selected{% endif %}>Rôles en cours d'envois</option>
-                        <option value="Rôles envoyés, préparatifs de l'événement" {%if event.statut=='Rôles envoyés,
-                            préparatifs de l\' événement' %}selected{% endif %}>Rôles envoyés, préparatifs de
-                            l'événement</option>
-                        <option value="Événement en cours" {% if event.statut=='Événement en cours' %}selected{% endif
-                            %}>Événement en cours</option>
-                        <option value="Terminé" {% if event.statut=='Terminé' %}selected{% endif %}>Terminé</option>
-                        <option value="Annulé" {% if event.statut=='Annulé' %}selected{% endif %}>Annulé</option>
-                        <option value="Reporté" {% if event.statut=='Reporté' %}selected{% endif %}>Reporté</option>
-                    </select>
-                </div>
-                <button type="submit" class="btn btn-primary">Mettre à jour le statut</button>
-            </form>
-        </div>
-    </div>
-</div>
-
 {# Groups Configuration Tab (Organizer only) #}
 <div class="tab-pane fade" id="list-groups" role="tabpanel">
     <div class="card">
@@ -181,3 +171,310 @@
         </div>
     </div>
 </div>
+
+{# Roles Tab (Organizer only) #}
+<div class="tab-pane fade" id="list-roles" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Gestion des Rôles</span>
+            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+                <i class="bi bi-plus"></i> Ajouter un rôle
+            </button>
+        </div>
+        <div class="card-body">
+            {# Roles Table #}
+            {% if roles and roles|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Nom</th>
+                            <th>Type</th>
+                            <th>Genre</th>
+                            <th>Groupe</th>
+                            <th>GDoc</th>
+                            <th>PDF</th>
+                            <th class="text-center">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                        <tr>
+                            <td>
+                                {% if role.comment %}
+                                <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ role.comment }}">
+                                    {{ role.name }} <i class="bi bi-info-circle text-muted small"></i>
+                                </span>
+                                {% else %}
+                                {{ role.name }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if role.type == 'Organisateur' %}
+                                <span class="badge bg-warning text-dark">{{ role.type }}</span>
+                                {% elif role.type == 'PJ' %}
+                                <span class="badge bg-success">{{ role.type }}</span>
+                                {% elif role.type == 'PNJ' %}
+                                <span class="badge bg-info">{{ role.type }}</span>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>{{ role.genre or '-' }}</td>
+                            <td>{{ role.group or '-' }}</td>
+                            <td>
+                                {% if role.google_doc_url %}
+                                <a href="{{ role.google_doc_url }}" target="_blank"
+                                    class="btn btn-sm btn-outline-primary">
+                                    <i class="bi bi-file-earmark-text"></i> gdoc
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if role.pdf_url %}
+                                <a href="{{ role.pdf_url }}" target="_blank" class="btn btn-sm btn-outline-danger">
+                                    <i class="bi bi-file-pdf"></i> pdf
+                                </a>
+                                {% else %}
+                                -
+                                {% endif %}
+                            </td>
+                            <td class="text-center">
+                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                                    data-bs-target="#editRoleModal{{ role.id }}" title="Modifier ce rôle">
+                                    <i class="bi bi-gear"></i>
+                                </button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-person-badge" style="font-size: 3rem;"></i>
+                <p class="mt-2">Aucun rôle défini pour cet événement.</p>
+                <p class="small">Cliquez sur "Ajouter un rôle" pour commencer.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Add Role Modal #}
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-labelledby="addRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('event.add_role', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRoleModalLabel">
+                        <i class="bi bi-plus-circle"></i> Ajouter un nouveau rôle
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom du rôle *</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type *</label>
+                            <select class="form-select role-type-select" name="type" required data-target="add">
+                                <option value="">Sélectionner...</option>
+                                <option value="Organisateur">Organisateur</option>
+                                <option value="PJ">PJ</option>
+                                <option value="PNJ">PNJ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Groupe</label>
+                            <select class="form-select role-group-select" name="group" id="add-group-select" disabled>
+                                <option value="">Sélectionnez d'abord un type</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Genre</label>
+                            <select class="form-select" name="genre">
+                                <option value="">Non spécifié</option>
+                                <option value="Homme">Homme</option>
+                                <option value="Femme">Femme</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL Google Doc</label>
+                            <input type="url" class="form-control" name="google_doc_url"
+                                placeholder="https://docs.google.com/...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL PDF</label>
+                            <input type="url" class="form-control" name="pdf_url" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-control" name="comment" rows="2"
+                            placeholder="Notes internes sur ce rôle..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check"></i> Créer le rôle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Edit Role Modals #}
+{% for role in roles %}
+<div class="modal fade" id="editRoleModal{{ role.id }}" tabindex="-1" aria-labelledby="editRoleModalLabel{{ role.id }}"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('event.update_role', event_id=event.id, role_id=role.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editRoleModalLabel{{ role.id }}">
+                        <i class="bi bi-gear"></i> Modifier le rôle : {{ role.name }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom du rôle *</label>
+                            <input type="text" class="form-control" name="name" value="{{ role.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type *</label>
+                            <select class="form-select role-type-select" name="type" required
+                                data-target="edit{{ role.id }}">
+                                <option value="">Sélectionner...</option>
+                                <option value="Organisateur" {% if role.type=='Organisateur' %}selected{% endif %}>
+                                    Organisateur</option>
+                                <option value="PJ" {% if role.type=='PJ' %}selected{% endif %}>PJ</option>
+                                <option value="PNJ" {% if role.type=='PNJ' %}selected{% endif %}>PNJ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Groupe</label>
+                            <select class="form-select role-group-select" name="group"
+                                id="edit{{ role.id }}-group-select" data-current="{{ role.group or '' }}">
+                                <option value="">Aucun groupe</option>
+                                {% if role.type and groups_config.get(role.type) %}
+                                {% for grp in groups_config.get(role.type, []) %}
+                                <option value="{{ grp }}" {% if role.group==grp %}selected{% endif %}>{{ grp }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Genre</label>
+                            <select class="form-select" name="genre">
+                                <option value="">Non spécifié</option>
+                                <option value="Homme" {% if role.genre=='Homme' %}selected{% endif %}>Homme</option>
+                                <option value="Femme" {% if role.genre=='Femme' %}selected{% endif %}>Femme</option>
+                                <option value="Autre" {% if role.genre=='Autre' %}selected{% endif %}>Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL Google Doc</label>
+                            <input type="url" class="form-control" name="google_doc_url"
+                                value="{{ role.google_doc_url or '' }}" placeholder="https://docs.google.com/...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL PDF</label>
+                            <input type="url" class="form-control" name="pdf_url" value="{{ role.pdf_url or '' }}"
+                                placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-control" name="comment" rows="2"
+                            placeholder="Notes internes sur ce rôle...">{{ role.comment or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{# JavaScript for dynamic group dropdown based on type #}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Groups configuration from server
+        const groupsConfig = {{ groups_config | tojson | safe
+    }};
+
+    // Handle all type selects (add form and edit modals)
+    document.querySelectorAll('.role-type-select').forEach(function (typeSelect) {
+        typeSelect.addEventListener('change', function () {
+            const target = this.dataset.target;
+            const groupSelect = document.getElementById(target + '-group-select');
+            const selectedType = this.value;
+            const currentGroup = groupSelect.dataset.current || '';
+
+            // Clear existing options
+            groupSelect.innerHTML = '<option value="">Aucun groupe</option>';
+
+            if (selectedType && groupsConfig[selectedType]) {
+                groupSelect.disabled = false;
+                groupsConfig[selectedType].forEach(function (grp) {
+                    const option = document.createElement('option');
+                    option.value = grp;
+                    option.textContent = grp;
+                    if (grp === currentGroup) {
+                        option.selected = true;
+                    }
+                    groupSelect.appendChild(option);
+                });
+            } else {
+                groupSelect.disabled = true;
+            }
+        });
+
+        // Trigger change on page load for edit modals with existing type
+        if (typeSelect.value) {
+            typeSelect.dispatchEvent(new Event('change'));
+        }
+    });
+
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+    tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+
+    // Activate tab from URL hash (for redirect after role creation/update)
+    const hash = window.location.hash;
+    if (hash) {
+        const tabTrigger = document.querySelector('[data-bs-toggle="list"][href="' + hash + '"]');
+        if (tabTrigger) {
+            const tab = new bootstrap.Tab(tabTrigger);
+            tab.show();
+        }
+    }
+});
+</script>

@@ -126,13 +126,16 @@ def detail(event_id):
     count_pnjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PNJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     count_orgs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.ORGANISATEUR.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     
+    # Récupérer les rôles de l'événement
+    roles = Role.query.filter_by(event_id=event.id).order_by(Role.name).all()
+    
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
         (event.name, '#')  # Page actuelle
     ]
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
-                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs)
+                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
@@ -159,10 +162,12 @@ def update_general(event_id):
     org_link_title = request.form.get('org_link_title')
     google_form_url = request.form.get('google_form_url')
     discord_webhook_url = request.form.get('discord_webhook_url')
+    statut = request.form.get('statut')
     
     try:
         if name: event.name = name
         if location: event.location = location
+        if statut: event.statut = statut
         # On sauvegarde le webhook tel quel, même si vide
         event.discord_webhook_url = discord_webhook_url
         if date_start_str: 
@@ -287,6 +292,71 @@ def update_groups(event_id):
     
     flash('Configuration des groupes mise à jour.', 'success')
     return redirect(url_for('event.detail', event_id=event.id))
+
+
+@event_bp.route('/event/<int:event_id>/add_role', methods=['POST'])
+@login_required
+@organizer_required
+def add_role(event_id):
+    """
+    Ajout d'un nouveau rôle à un événement.
+    
+    Accès réservé aux organisateurs.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    name = request.form.get('name')
+    if not name:
+        flash('Le nom du rôle est obligatoire.', 'danger')
+        return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
+    
+    new_role = Role(
+        event_id=event.id,
+        name=name,
+        type=request.form.get('type') or None,
+        genre=request.form.get('genre') or None,
+        group=request.form.get('group') or None,
+        google_doc_url=request.form.get('google_doc_url') or None,
+        pdf_url=request.form.get('pdf_url') or None,
+        comment=request.form.get('comment') or None
+    )
+    
+    db.session.add(new_role)
+    db.session.commit()
+    
+    flash(f'Rôle "{name}" créé avec succès.', 'success')
+    return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
+
+
+@event_bp.route('/event/<int:event_id>/update_role/<int:role_id>', methods=['POST'])
+@login_required
+@organizer_required
+def update_role(event_id, role_id):
+    """
+    Mise à jour d'un rôle existant.
+    
+    Accès réservé aux organisateurs.
+    """
+    event = Event.query.get_or_404(event_id)
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first_or_404()
+    
+    name = request.form.get('name')
+    if not name:
+        flash('Le nom du rôle est obligatoire.', 'danger')
+        return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
+    
+    role.name = name
+    role.type = request.form.get('type') or None
+    role.genre = request.form.get('genre') or None
+    role.group = request.form.get('group') or None
+    role.google_doc_url = request.form.get('google_doc_url') or None
+    role.pdf_url = request.form.get('pdf_url') or None
+    role.comment = request.form.get('comment') or None
+    
+    db.session.commit()
+    
+    flash(f'Rôle "{name}" mis à jour.', 'success')
+    return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
 
 
 @event_bp.route('/event/<int:event_id>/join', methods=['POST'])
