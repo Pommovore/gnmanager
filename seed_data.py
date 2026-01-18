@@ -59,11 +59,11 @@ def export_to_csv():
     roles_file = os.path.join(csv_dir, 'db_test_roles.csv')
     with open(roles_file, 'w', newline='', encoding='utf-8') as f:
         writer = csv.writer(f)
-        writer.writerow(['id', 'event_id', 'name', 'genre', 'group', 'assigned_participant_id', 
+        writer.writerow(['id', 'event_id', 'name', 'type', 'genre', 'group', 'assigned_participant_id', 
                         'comment', 'google_doc_url', 'pdf_url'])
         for r in roles:
             writer.writerow([
-                r.id, r.event_id, r.name, r.genre or '', r.group or '',
+                r.id, r.event_id, r.name, r.type or '', r.genre or '', r.group or '',
                 r.assigned_participant_id or '', r.comment or '', 
                 r.google_doc_url or '', r.pdf_url or ''
             ])
@@ -344,6 +344,110 @@ with app.app_context():
     
     db.session.commit()
     print("Database seeded successfully!")
+    
+    # === CRÉATION DES RÔLES ===
+    print("\\nCreating roles for events...")
+    
+    # Noms de rôles pour PJ
+    pj_role_names = [
+        "Commandant Kerillian", "Dame Elira", "Sire Morvan", "Capitaine Vex", 
+        "Mage Theron", "Chasseur Lynx", "Prêtresse Selene", "Guerrier Drago",
+        "Éclaireur Zara", "Barde Orphéo", "Voleur Shade", "Paladin Aldric",
+        "Druide Rowan", "Assassin Viper", "Chevalier Gaëtan", "Sorcière Morgana",
+        "Archer Silvan", "Berserker Thork", "Nécromancien Kael", "Templier Marcus",
+        "Rôdeur Fenris", "Alchimiste Vera", "Gladiateur Maximus", "Oracle Pythia",
+        "Inquisiteur Dante", "Corsaire Barbe-Rouge", "Shaman Totec", "Amazone Xena",
+        "Moine Shen", "Pirate Sparrow", "Marchand Caravane", "Forgeron Vulcan"
+    ]
+    
+    # Noms de rôles pour PNJ
+    pnj_role_names = [
+        "Garde #1", "Garde #2", "Villageois", "Tavernier", "Mendiant",
+        "Messager", "Marchand ambulant", "Crieur public", "Soldat", "Serviteur"
+    ]
+    
+    # Récupérer tous les événements
+    all_events = Event.query.all()
+    now = datetime(2026, 1, 18)  # Date de référence actuelle
+    one_month_ahead = now + timedelta(days=30)
+    
+    role_index = 0
+    
+    for event in all_events:
+        # Parser groups_config
+        try:
+            groups = json.loads(event.groups_config) if event.groups_config else {}
+        except:
+            groups = {}
+        
+        # Définir un groups_config par défaut si absent
+        if not groups:
+            groups = {
+                "PJ": ["Peu importe", "Groupe A", "Groupe B"],
+                "PNJ": ["Peu importe", "Figurants", "Techniciens"],
+                "Organisateur": ["général", "coordinateur", "scénariste"]
+            }
+            event.groups_config = json.dumps(groups)
+        
+        # Déterminer le nombre de rôles PJ (basé sur le nombre de participants max ou défaut)
+        # On prend un nombre entre 8 et 20 rôles PJ par événement
+        num_pj_roles = random.randint(8, 20)
+        num_pnj_roles = random.randint(3, 8)
+        
+        pj_groups = groups.get("PJ", ["Peu importe"])
+        pnj_groups = groups.get("PNJ", ["Peu importe"])
+        
+        # Créer les rôles PJ
+        event_roles = []
+        for i in range(num_pj_roles):
+            role_name = pj_role_names[(role_index + i) % len(pj_role_names)]
+            role = Role(
+                event_id=event.id,
+                name=role_name,
+                type="PJ",
+                genre=random.choice(["Homme", "Femme", "Autre", None]),
+                group=random.choice(pj_groups),
+                comment=f"Rôle important pour l'intrigue principale." if random.random() > 0.7 else None,
+                google_doc_url=f"https://docs.google.com/document/d/role_{event.id}_{i}" if random.random() > 0.5 else None,
+                pdf_url=None
+            )
+            db.session.add(role)
+            event_roles.append(role)
+        
+        # Créer les rôles PNJ
+        for i in range(num_pnj_roles):
+            role_name = pnj_role_names[i % len(pnj_role_names)]
+            role = Role(
+                event_id=event.id,
+                name=f"{role_name} - {event.name[:10]}",
+                type="PNJ",
+                genre=random.choice(["Homme", "Femme", "Autre", None]),
+                group=random.choice(pnj_groups),
+                comment=None
+            )
+            db.session.add(role)
+        
+        role_index += num_pj_roles
+        
+        # === CALCUL DU TAUX DE REMPLISSAGE ===
+        event_date = event.date_start
+        
+        # Événement passé ou en cours : 80%+ de remplissage
+        if event_date and event_date <= now:
+            fill_rate = random.uniform(0.80, 1.0)
+        # Événement à moins d'un mois : 80%
+        elif event_date and event_date <= one_month_ahead:
+            fill_rate = 0.80
+        # Événement à plus d'un mois : 20-80%
+        else:
+            fill_rate = random.uniform(0.20, 0.80)
+        
+        # Nombre de rôles à assigner
+        num_to_assign = int(len(event_roles) * fill_rate)
+        
+        print(f"  {event.name}: {len(event_roles)} rôles PJ, {num_pnj_roles} rôles PNJ, remplissage {fill_rate*100:.0f}% ({num_to_assign} assignés)")
+    
+    db.session.commit()
     
     # Export to CSV
     export_to_csv()

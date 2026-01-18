@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" data-bs-theme="light">
 
 <head>
     <meta charset="UTF-8">
@@ -9,10 +9,25 @@
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
 </head>
 
+<script>
+    // Appliquer le thème sauvegardé immédiatement pour éviter le flash
+    (function () {
+        const savedTheme = localStorage.getItem('gnmanager-theme') || 'light';
+        document.documentElement.setAttribute('data-bs-theme', savedTheme);
+    })();
+</script>
+
+
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('auth.index') }}">GN Manager</a>
+            <div class="form-check form-switch ms-3 d-flex align-items-center">
+                <input class="form-check-input" type="checkbox" role="switch" id="themeSwitch" style="cursor: pointer;">
+                <label class="form-check-label text-light ms-2" for="themeSwitch" style="cursor: pointer;">
+                    <i class="bi bi-moon-fill" id="themeIcon"></i>
+                </label>
+            </div>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav ms-auto align-items-center">
                 <span class="badge bg-secondary rounded-pill me-3">{{ current_user.prenom }} {{ current_user.nom|upper
@@ -119,6 +134,35 @@
                         toggleBtn.setAttribute('aria-label', 'Afficher le mot de passe');
                     }
                 });
+            });
+        });
+    </script>
+
+    <script>
+        // Script pour le switch de thème clair/sombre
+        document.addEventListener('DOMContentLoaded', function () {
+            const themeSwitch = document.getElementById('themeSwitch');
+            const themeIcon = document.getElementById('themeIcon');
+            const html = document.documentElement;
+
+            // Charger le thème sauvegardé
+            const savedTheme = localStorage.getItem('gnmanager-theme') || 'light';
+            if (savedTheme === 'dark') {
+                themeSwitch.checked = true;
+                themeIcon.className = 'bi bi-sun-fill';
+            }
+
+            // Gérer le changement de thème
+            themeSwitch.addEventListener('change', function () {
+                if (this.checked) {
+                    html.setAttribute('data-bs-theme', 'dark');
+                    localStorage.setItem('gnmanager-theme', 'dark');
+                    themeIcon.className = 'bi bi-sun-fill';
+                } else {
+                    html.setAttribute('data-bs-theme', 'light');
+                    localStorage.setItem('gnmanager-theme', 'light');
+                    themeIcon.className = 'bi bi-moon-fill';
+                }
             });
         });
     </script>
