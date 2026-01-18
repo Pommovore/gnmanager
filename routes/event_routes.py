@@ -19,6 +19,7 @@ from models import db, Event, Participant, ActivityLog, Role
 from datetime import datetime
 from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
 from decorators import organizer_required
+from exceptions import DatabaseError
 import json
 
 event_bp = Blueprint('event', __name__)
@@ -108,7 +109,12 @@ def detail(event_id):
     Returns:
         Template avec les informations de l'événement
     """
-    event = Event.query.get_or_404(event_id)
+    from sqlalchemy.orm import joinedload
+    
+    # Eager load participants and users to avoid N+1 queries
+    event = Event.query\
+        .options(joinedload(Event.participants).joinedload(Participant.user))\
+        .get_or_404(event_id)
     # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
@@ -205,7 +211,13 @@ def update_status(event_id):
     
     Accès réservé aux organisateurs.
     """
-    event = Event.query.get_or_404(event_id)
+    # Import sqlalchemy for eager loading
+    from sqlalchemy.orm import joinedload
+    
+    # Eager load participants and their users to avoid N+1 queries
+    event = Event.query\
+        .options(joinedload(Event.participants).joinedload(Participant.user))\
+        .get_or_404(event_id)
         
     statut = request.form.get('statut')
     if statut:
@@ -390,7 +402,7 @@ def delete_event(event_id):
         flash(f"L'événement '{event_name}' et toutes ses données ont été supprimés.", "success")
         return redirect(url_for('admin.dashboard'))
         
-    except Exception as e:
+    except DatabaseError as e:
         db.session.rollback()
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
         return redirect(url_for('event.detail', event_id=event_id))

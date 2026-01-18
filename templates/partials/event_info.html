@@ -1,0 +1,114 @@
+{# Event information card - extracted from event_detail.html #}
+<div class="card mb-4">
+    {% if event.background_image %}
+    <img src="{{ event.background_image }}" class="card-img-top" alt="Event Image"
+        style="height: 200px; object-fit: cover;">
+    {% endif %}
+    <div class="card-body">
+        {% if is_organizer %}
+        <div class="alert alert-warning mb-2">Vous êtes organisateur de cet événement.</div>
+        {% endif %}
+
+        {# 1. Titre #}
+        <h1 class="card-title">{{ event.name }}</h1>
+
+        {# 2. Date #}
+        <p class="text-muted">
+            Du {{ event.date_start.strftime('%d/%m/%Y') }} au {{ event.date_end.strftime('%d/%m/%Y') }}<br>
+            {{ event.location }}
+        </p>
+
+        {# 3. Description #}
+        <p class="mt-3">{{ event.description }}</p>
+
+        {# 4. Statut Actuel #}
+        <p>Status actuel de l'événement : <span class="badge bg-info">{{ event.statut }}</span></p>
+
+        <div class="d-flex flex-wrap gap-2 mb-3">
+            {% if event.org_link_url %}
+            <a href="{{ event.org_link_url }}" target="_blank" class="btn btn-outline-secondary">
+                <i class="bi bi-link-45deg"></i> {{ event.org_link_title or 'Lien externe' }}
+            </a>
+            {% endif %}
+        </div>
+
+        {# 5. Statut Utilisateur / Boutons #}
+        {% if participant %}
+        {# Cas: Utilisateur participe déjà #}
+        {% if participant.type %}
+        {% set badge_class = "bg-secondary" %}
+        {% if participant.type.lower() == 'organisateur' %}
+        {% set badge_class = "bg-danger" %}
+        {% elif participant.type == 'PJ' %}
+        {% set badge_class = "bg-success" %}
+        {% elif participant.type == 'PNJ' %}
+        {% set badge_class = "bg-primary" %}
+        {% endif %}
+
+        {# Logique couleurs badges #}
+        {% set reg_class = "bg-secondary" %}
+        {% if participant.registration_status == 'Validé' %}{% set reg_class = "bg-success" %}
+        {% elif participant.registration_status == 'Rejeté' %}{% set reg_class = "bg-danger" %}
+        {% elif participant.registration_status in ['En attente', 'À valider'] %}{% set reg_class = "bg-warning
+        text-dark" %}
+        {% endif %}
+
+        {% set paf_class = "bg-secondary" %}
+        {% if participant.paf_status == 'versée' %}{% set paf_class = "bg-success" %}
+        {% elif participant.paf_status == 'partielle' %}{% set paf_class = "bg-warning text-dark" %}
+        {% elif participant.paf_status == 'non versée' %}{% set paf_class = "bg-danger" %}
+        {% endif %}
+
+        <div class="border rounded p-3 bg-light mt-3">
+            <p class="mb-1">
+                <strong>Votre rôle :</strong>
+                <span class="badge {{ badge_class }} ms-2">
+                    {{ participant.type }}
+                    {% if participant.group and participant.group != 'Peu importe' %}
+                    - {{ participant.group }}
+                    {% endif %}
+                </span>
+            </p>
+            <p class="mb-1">
+                <strong>Votre inscription :</strong>
+                <span class="badge {{ reg_class }} ms-2">{{ participant.registration_status }}</span>
+            </p>
+            <p class="mb-0">
+                <strong>Votre PAF :</strong>
+                <span class="badge {{ paf_class }} ms-2">{{ participant.paf_status }}</span>
+            </p>
+            {% if event.google_form_active and event.google_form_url %}
+            <div class="mt-2 pt-2 border-top">
+                <i class="bi bi-file-text text-primary"></i>
+                <strong class="ms-1">Formulaire à remplir :</strong>
+                <a href="{{ event.google_form_url }}" target="_blank" class="ms-1">Accéder au formulaire Google
+                    Forms</a>
+            </div>
+            {% endif %}
+        </div>
+        {% endif %}
+        {% else %}
+        {# Cas: Utilisateur ne participe pas encore #}
+        {% if event.statut == 'Inscriptions ouvertes' %}
+        <button type="button" class="btn btn-success btn-lg" data-bs-toggle="modal" data-bs-target="#joinModal"
+            data-mode="join">
+            Rejoindre l'événement
+        </button>
+        {% elif event.statut in ['En préparation', 'Inscriptions fermées', 'Casting en cours',
+        'Casting terminé', 'Rôles en cours de préparation', 'Rôles en cours d\'envois', 'Rôles envoyés, préparatifs de
+        l\'événement'] %}
+        <button type="button" class="btn btn-outline-primary btn-lg" data-bs-toggle="modal" data-bs-target="#joinModal"
+            data-mode="interest">
+            J'aimerais participer
+        </button>
+        {% else %}
+        {# Statuts: Événement en cours, Terminé, Annulé, Reporté #}
+        {% if event.statut == 'Annulé' %}
+        <button class="btn btn-secondary" disabled>Événement annulé</button>
+        {% elif event.statut == 'Terminé' %}
+        <button class="btn btn-secondary" disabled>Événement clôturé</button>
+        {% endif %}
+        {% endif %}
+        {% endif %}
+    </div>
+</div>

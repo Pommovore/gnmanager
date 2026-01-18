@@ -18,6 +18,7 @@ from PIL import Image
 from datetime import datetime
 from decorators import admin_required
 from constants import UserRole, ActivityLogType, DefaultValues, RegistrationStatus
+from exceptions import DatabaseError
 from sqlalchemy.orm import joinedload
 import json
 import os
@@ -44,8 +45,11 @@ def dashboard():
     # Logique de filtrage
     filter_type = request.args.get('filter', 'future')
     
-    # Identifier les événements de l'utilisateur
-    my_participations = Participant.query.filter_by(user_id=current_user.id).all()
+    # Identifier les événements de l'utilisateur avec eager loading
+    my_participations = Participant.query\
+        .filter_by(user_id=current_user.id)\
+        .options(joinedload(Participant.event))\
+        .all()
     my_event_ids = [p.event_id for p in my_participations]
     my_roles = {p.event_id: p for p in my_participations}
     
@@ -309,7 +313,7 @@ def admin_delete_user(user_id):
         db.session.commit()
         
         flash(f"Utilisateur {user.email} supprimé définitivement.", "success")
-    except Exception as e:
+    except DatabaseError as e:
         db.session.rollback()
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
         
@@ -350,7 +354,7 @@ def delete_all_logs():
         num_deleted = db.session.query(ActivityLog).delete()
         db.session.commit()
         flash(f"{num_deleted} logs ont été supprimés.", "success")
-    except Exception as e:
+    except DatabaseError as e:
         db.session.rollback()
         flash(f"Erreur lors de la suppression des logs : {str(e)}", "danger")
     

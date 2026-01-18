@@ -1,0 +1,24 @@
+{# Event sidebar navigation - extracted from event_detail.html #}
+<div class="col-md-2 mb-3">
+    <div class="list-group" id="event-tabs" role="tablist">
+        <a class="list-group-item list-group-item-action active" id="list-info-list" data-bs-toggle="list"
+            href="#list-info" role="tab">Informations</a>
+        {% if is_organizer %}
+        <a class="list-group-item list-group-item-action" id="list-general-list" data-bs-toggle="list"
+            href="#list-general" role="tab">Description</a>
+        <a class="list-group-item list-group-item-action" id="list-status-list" data-bs-toggle="list"
+            href="#list-status" role="tab">Statut</a>
+        <a class="list-group-item list-group-item-action" id="list-groups-list" data-bs-toggle="list"
+            href="#list-groups" role="tab">Configuration Groupes</a>
+        <a class="list-group-item list-group-item-action" <a class="list-group-item list-group-item-action"
+            href="{{ url_for('participant.manage', event_id=event.id) }}">Participants</a>
+        {% endif %}
+        {% if is_organizer or current_user.is_admin %}
+        <hr class="my-1">
+        <button type="button" class="list-group-item list-group-item-action list-group-item-danger"
+            data-bs-toggle="modal" data-bs-target="#deleteEventModal">
+            <i class="bi bi-trash"></i> Supprimer
+        </button>
+        {% endif %}
+    </div>
+</div>

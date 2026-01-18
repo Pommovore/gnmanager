@@ -1,0 +1,174 @@
+{# Organizer-only tabs content - extracted from event_detail.html #}
+
+{# Description Tab (Organizer only) #}
+<div class="tab-pane fade" id="list-general" role="tabpanel">
+    <div class="card">
+        <div class="card-header">Modifier les généralités</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('event.update_general', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="mb-3">
+                    <label class="form-label">Titre de l'événement</label>
+                    <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Lieu</label>
+                    <input type="text" class="form-control" name="location" value="{{ event.location }}">
+                </div>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date de début</label>
+                        <input type="date" class="form-control" name="date_start"
+                            value="{{ event.date_start.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Date de fin</label>
+                        <input type="date" class="form-control" name="date_end"
+                            value="{{ event.date_end.strftime('%Y-%m-%d') }}" required>
+                    </div>
+                </div>
+
+                <hr>
+                <h5 class="mb-3">Jauges (Participants Max)</h5>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">Organisateurs</label>
+                        <div class="d-flex align-items-center">
+                            {% set limit = event.max_organizers if event.max_organizers is not none else 5 %}
+                            {% set org_color = 'green' if count_orgs == limit else ('#FF8C00' if count_orgs < limit
+                                else 'red' ) %} <span class="fw-bold me-2"
+                                style="white-space: nowrap; color: {{ org_color }}">
+                                {{ count_orgs }} inscrits sur
+                                </span>
+                                <input type="number" class="form-control" name="max_organizers" value="{{ limit }}"
+                                    min="0">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">PJ</label>
+                        <div class="d-flex align-items-center">
+                            {% set limit = event.max_pjs if event.max_pjs is not none else 50 %}
+                            {% set pj_color = 'green' if count_pjs == limit else ('#FF8C00' if count_pjs < limit
+                                else 'red' ) %} <span class="fw-bold me-2"
+                                style="white-space: nowrap; color: {{ pj_color }}">
+                                {{ count_pjs }} inscrits sur
+                                </span>
+                                <input type="number" class="form-control" name="max_pjs" value="{{ limit }}" min="0">
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <label class="form-label">PNJ</label>
+                        <div class="d-flex align-items-center">
+                            {% set limit = event.max_pnjs if event.max_pnjs is not none else 10 %}
+                            {% set pnj_color = 'green' if count_pnjs == limit else ('#FF8C00' if count_pnjs < limit
+                                else 'red' ) %} <span class="fw-bold me-2"
+                                style="white-space: nowrap; color: {{ pnj_color }}">
+                                {{ count_pnjs }} inscrits sur
+                                </span>
+                                <input type="number" class="form-control" name="max_pnjs" value="{{ limit }}" min="0">
+                        </div>
+                    </div>
+                </div>
+                <hr>
+
+                <div class="mb-3">
+                    <label class="form-label">Description</label>
+                    <textarea class="form-control" name="description" rows="3">{{ event.description }}</textarea>
+                </div>
+                <hr>
+                <h6>Liens Externes</h6>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Lien externe (URL)</label>
+                        <input type="text" class="form-control" name="org_link_url"
+                            value="{{ event.org_link_url or '' }}">
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Titre du lien</label>
+                        <input type="text" class="form-control" name="org_link_title"
+                            value="{{ event.org_link_title or '' }}">
+                    </div>
+                </div>
+                <hr>
+                <h6>Formulaire Google</h6>
+                <div class="mb-3">
+                    <label class="form-label">URL Google Form</label>
+                    <input type="text" class="form-control" name="google_form_url"
+                        value="{{ event.google_form_url or '' }}">
+                </div>
+                <button type="submit" class="btn btn-primary">Enregistrer les modifications</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Status Tab (Organizer only) #}
+<div class="tab-pane fade" id="list-status" role="tabpanel">
+    <div class="card">
+        <div class="card-header">Modifier le Statut</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('event.update_status', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="mb-3">
+                    <label class="form-label">Statut de l'événement</label>
+                    <select class="form-select" name="statut">
+                        <option value="En préparation" {% if event.statut=='En préparation' %}selected{% endif %}>En
+                            préparation</option>
+                        <option value="Inscriptions ouvertes" {% if event.statut=='Inscriptions ouvertes' %}selected{%
+                            endif %}>Inscriptions ouvertes</option>
+                        <option value="Inscriptions fermées" {% if event.statut=='Inscriptions fermées' %}selected{%
+                            endif %}>Inscriptions fermées</option>
+                        <option value="Casting en cours" {% if event.statut=='Casting en cours' %}selected{% endif %}>
+                            Casting en cours</option>
+                        <option value="Casting terminé" {% if event.statut=='Casting terminé' %}selected{% endif %}>
+                            Casting terminé</option>
+                        <option value="Rôles en cours de préparation" {% if event.statut=='Rôles en cours de
+                            préparation' %}selected{% endif %}>Rôles en cours de préparation</option>
+                        <option value="Rôles en cours d'envois" {% if event.statut=='Rôles en cours d\' envois'
+                            %}selected{% endif %}>Rôles en cours d'envois</option>
+                        <option value="Rôles envoyés, préparatifs de l'événement" {%if event.statut=='Rôles envoyés,
+                            préparatifs de l\' événement' %}selected{% endif %}>Rôles envoyés, préparatifs de
+                            l'événement</option>
+                        <option value="Événement en cours" {% if event.statut=='Événement en cours' %}selected{% endif
+                            %}>Événement en cours</option>
+                        <option value="Terminé" {% if event.statut=='Terminé' %}selected{% endif %}>Terminé</option>
+                        <option value="Annulé" {% if event.statut=='Annulé' %}selected{% endif %}>Annulé</option>
+                        <option value="Reporté" {% if event.statut=='Reporté' %}selected{% endif %}>Reporté</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn btn-primary">Mettre à jour le statut</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Groups Configuration Tab (Organizer only) #}
+<div class="tab-pane fade" id="list-groups" role="tabpanel">
+    <div class="card">
+        <div class="card-header">Configuration des groupes</div>
+        <div class="card-body">
+            <form method="POST" action="{{ url_for('event.update_groups', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <p class="text-muted">Séparez les groupes par des virgules. Exemple : Groupe A, Groupe B, Groupe C
+                </p>
+                <div class="mb-3">
+                    <label class="form-label">Groupes PJ</label>
+                    <input type="text" class="form-control" name="groups_pj"
+                        value="{{ groups_config.get('PJ', [])|join(', ') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Groupes PNJ</label>
+                    <input type="text" class="form-control" name="groups_pnj"
+                        value="{{ groups_config.get('PNJ', [])|join(', ') }}">
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Groupes Organisateurs</label>
+                    <input type="text" class="form-control" name="groups_org"
+                        value="{{ groups_config.get('Organisateur', [])|join(', ') }}">
+                </div>
+
+                <button type="submit" class="btn btn-primary">Enregistrer la configuration</button>
+            </form>
+        </div>
+    </div>
+</div>

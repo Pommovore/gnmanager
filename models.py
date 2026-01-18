@@ -190,6 +190,13 @@ class Participant(db.Model):
     comment = db.Column(db.Text)
     custom_image = db.Column(db.String(200))
     
+    # Database indexes for foreign keys (improves query performance)
+    __table_args__ = (
+        db.Index('idx_participant_event', 'event_id'),
+        db.Index('idx_participant_user', 'user_id'),
+        db.Index('idx_participant_status', 'registration_status'),
+    )
+    
     # Relations
     user = db.relationship('User', backref='participations')
     event = db.relationship('Event', backref='participants')

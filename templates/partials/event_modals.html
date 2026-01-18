@@ -1,0 +1,105 @@
+{# Modal dialogs for event - extracted from event_detail.html #}
+
+{# Join Modal #}
+<div class="modal fade" id="joinModal" tabindex="-1" aria-labelledby="joinModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="joinModalLabel"><span id="modalActionType">Inscription</span> à {{
+                    event.name }}</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form action="{{ url_for('event.join', event_id=event.id) }}" method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Type d'inscription</label>
+                        <select name="type" class="form-select" id="joinTypeSelect">
+                            <option value="PJ">PJ</option>
+                            <option value="PNJ">PNJ</option>
+                            <option value="Organisateur">Organisateur</option>
+                        </select>
+                    </div>
+
+                    {# Zone dynamique pour le message d'aide et commentaire #}
+                    <div id="joinHelpWithMessage" class="alert alert-secondary d-none">
+                        les inscriptions ne sont pas actuellement en cours, laissez nous un message avec une précision
+                        concernant votre demande
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label" id="commentLabel">Une précision ?</label>
+                        <textarea name="comment" class="form-control" rows="3"></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">Valider ma demande</button>
+                </div>
+
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Delete Event Modal #}
+<div class="modal fade" id="deleteEventModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Supprimer l'événement ?</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <p><strong>Attention !</strong> Cette action est <u>irréversible</u>.</p>
+                <p>Vous êtes sur le point de supprimer l'événement <strong>{{ event.name }}</strong>.</p>
+                <div class="text-danger">
+                    Ceci supprimera définitivement :
+                    <ul>
+                        <li>Toutes les informations de l'événement</li>
+                        <li>Toutes les inscriptions et participants</li>
+                        <li>Tous les rôles configurés</li>
+                    </ul>
+                </div>
+                <p>Êtes-vous sûr de vouloir continuer ?</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form action="{{ url_for('event.delete_event', event_id=event.id) }}" method="POST">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <button type="submit" class="btn btn-danger">Oui, tout supprimer</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal scripts #}
+<script>
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', function () {
+
+        // Gestion dynamique du modal d'inscription
+        var joinModal = document.getElementById('joinModal');
+        if (joinModal) {
+            joinModal.addEventListener('show.bs.modal', function (event) {
+                var button = event.relatedTarget;
+                var mode = button.getAttribute('data-mode');
+                var helpMsg = document.getElementById('joinHelpWithMessage');
+                var commentLabel = document.getElementById('commentLabel');
+                var submitBtn = joinModal.querySelector('button[type="submit"]');
+
+                var modalActionType = document.getElementById('modalActionType');
+
+                if (mode === 'interest') {
+                    helpMsg.classList.remove('d-none');
+                    commentLabel.textContent = "Votre message :";
+                    if (modalActionType) modalActionType.textContent = "Préinscription";
+                } else {
+                    helpMsg.classList.add('d-none');
+                    commentLabel.textContent = "Une précision ?";
+                    if (modalActionType) modalActionType.textContent = "Inscription";
+                }
+            });
+        }
+    });
+</script>
