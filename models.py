@@ -282,3 +282,65 @@ class ActivityLog(db.Model):
     
     def __repr__(self):
         return f'<ActivityLog {self.action_type} by User:{self.user_id}>'
+
+
+class CastingProposal(db.Model):
+    """
+    Représente une colonne de proposition de casting pour un événement.
+    
+    Chaque événement peut avoir plusieurs propositions (colonnes) pour
+    comparer différentes options d'attribution de rôles.
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement associé
+        name: Nom de la proposition (affiché comme titre de colonne)
+        position: Position d'affichage (ordre des colonnes)
+        created_at: Date de création
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    position = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relations
+    event = db.relationship('Event', backref='casting_proposals')
+    assignments = db.relationship('CastingAssignment', backref='proposal', cascade='all, delete-orphan')
+    
+    def __repr__(self):
+        return f'<CastingProposal {self.name} - Event {self.event_id}>'
+
+
+class CastingAssignment(db.Model):
+    """
+    Attribution d'un participant à un rôle dans une proposition de casting.
+    
+    Attributes:
+        id: Identifiant unique
+        proposal_id: ID de la proposition de casting
+        role_id: ID du rôle
+        participant_id: ID du participant (nullable si non attribué)
+        event_id: ID de l'événement (pour requêtes optimisées)
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    proposal_id = db.Column(db.Integer, db.ForeignKey('casting_proposal.id'), nullable=False)
+    role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
+    participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    
+    # Database indexes for performance
+    __table_args__ = (
+        db.Index('idx_casting_assignment_proposal', 'proposal_id'),
+        db.Index('idx_casting_assignment_role', 'role_id'),
+        db.Index('idx_casting_assignment_event', 'event_id'),
+        db.UniqueConstraint('proposal_id', 'role_id', name='uq_proposal_role'),
+    )
+    
+    # Relations
+    role = db.relationship('Role', backref='casting_assignments')
+    participant = db.relationship('Participant', backref='casting_assignments')
+    event = db.relationship('Event', backref='casting_assignments')
+    
+    def __repr__(self):
+        return f'<CastingAssignment Proposal:{self.proposal_id} Role:{self.role_id} Participant:{self.participant_id}>'

@@ -12,10 +12,10 @@ Ce module gère :
 - Inscription à un événement
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
 from markupsafe import Markup
 from flask_login import login_required, current_user
-from models import db, Event, Participant, ActivityLog, Role
+from models import db, Event, Participant, ActivityLog, Role, CastingProposal, CastingAssignment
 from datetime import datetime
 from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
 from decorators import organizer_required
@@ -501,3 +501,171 @@ def delete_event(event_id):
         db.session.rollback()
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
         return redirect(url_for('event.detail', event_id=event_id))
+
+
+# ============================================================================
+# Casting Routes
+# ============================================================================
+
+@event_bp.route('/event/<int:event_id>/casting_data')
+@login_required
+@organizer_required
+def casting_data(event_id):
+    """
+    Retourne les données de casting au format JSON.
+    
+    Inclut les participants groupés par type, les propositions et les attributions.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Get validated participants grouped by type
+    participants = Participant.query.filter_by(
+        event_id=event_id,
+        registration_status=RegistrationStatus.VALIDATED.value
+    ).all()
+    
+    participants_by_type = {}
+    for p in participants:
+        p_type = p.type or 'Autre'
+        if p_type not in participants_by_type:
+            participants_by_type[p_type] = []
+        participants_by_type[p_type].append({
+            'id': p.id,
+            'nom': p.user.nom or '',
+            'prenom': p.user.prenom or ''
+        })
+    
+    # Get proposals
+    proposals = CastingProposal.query.filter_by(event_id=event_id).order_by(CastingProposal.position).all()
+    proposals_data = [{'id': p.id, 'name': p.name} for p in proposals]
+    
+    # Get assignments: {proposal_id: {role_id: participant_id}}
+    assignments = {}
+    # Add 'main' key for the default column (uses Role.assigned_participant_id)
+    assignments['main'] = {}
+    roles = Role.query.filter_by(event_id=event_id).all()
+    for role in roles:
+        if role.assigned_participant_id:
+            assignments['main'][str(role.id)] = role.assigned_participant_id
+    
+    # Add proposal assignments
+    for proposal in proposals:
+        assignments[str(proposal.id)] = {}
+        for assignment in proposal.assignments:
+            if assignment.participant_id:
+                assignments[str(proposal.id)][str(assignment.role_id)] = assignment.participant_id
+    
+    return jsonify({
+        'participants_by_type': participants_by_type,
+        'proposals': proposals_data,
+        'assignments': assignments
+    })
+
+
+@event_bp.route('/event/<int:event_id>/casting/add_proposal', methods=['POST'])
+@login_required
+@organizer_required
+def add_proposal(event_id):
+    """
+    Ajoute une nouvelle proposition de casting.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json()
+    name = data.get('name', '').strip()
+    
+    if not name:
+        return jsonify({'error': 'Le nom est requis'}), 400
+    
+    # Calculate next position
+    max_pos = db.session.query(db.func.max(CastingProposal.position)).filter_by(event_id=event_id).scalar() or 0
+    
+    proposal = CastingProposal(
+        event_id=event_id,
+        name=name,
+        position=max_pos + 1
+    )
+    db.session.add(proposal)
+    db.session.commit()
+    
+    return jsonify({'id': proposal.id, 'name': proposal.name})
+
+
+@event_bp.route('/event/<int:event_id>/casting/assign', methods=['POST'])
+@login_required
+@organizer_required
+def casting_assign(event_id):
+    """
+    Attribue un participant à un rôle pour une proposition donnée.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json()
+    role_id = data.get('role_id')
+    proposal_id = data.get('proposal_id')
+    participant_id = data.get('participant_id')
+    
+    if not role_id:
+        return jsonify({'error': 'role_id requis'}), 400
+    
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first_or_404()
+    
+    # Handle 'main' proposal (direct role assignment)
+    if proposal_id == 'main':
+        if participant_id:
+            role.assigned_participant_id = int(participant_id)
+        else:
+            role.assigned_participant_id = None
+        db.session.commit()
+        return jsonify({'success': True})
+    
+    # Handle custom proposal assignments
+    proposal = CastingProposal.query.filter_by(id=proposal_id, event_id=event_id).first_or_404()
+    
+    # Find or create assignment
+    assignment = CastingAssignment.query.filter_by(
+        proposal_id=proposal_id,
+        role_id=role_id
+    ).first()
+    
+    if participant_id:
+        if assignment:
+            assignment.participant_id = int(participant_id)
+        else:
+            assignment = CastingAssignment(
+                proposal_id=proposal_id,
+                role_id=role_id,
+                participant_id=int(participant_id),
+                event_id=event_id
+            )
+            db.session.add(assignment)
+    else:
+        if assignment:
+            db.session.delete(assignment)
+    
+    db.session.commit()
+    return jsonify({'success': True})
+
+
+@event_bp.route('/event/<int:event_id>/casting/delete_proposal', methods=['POST'])
+@login_required
+@organizer_required
+def delete_proposal(event_id):
+    """
+    Supprime une proposition de casting et toutes ses attributions.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json()
+    proposal_id = data.get('proposal_id')
+    
+    if not proposal_id:
+        return jsonify({'error': 'proposal_id requis'}), 400
+    
+    proposal = CastingProposal.query.filter_by(id=proposal_id, event_id=event_id).first_or_404()
+    
+    # Cascade delete handles assignments
+    db.session.delete(proposal)
+    db.session.commit()
+    
+    return jsonify({'success': True})

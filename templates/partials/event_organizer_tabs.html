@@ -263,6 +263,331 @@
     </div>
 </div>
 
+{# Casting Tab (Organizer only) #}
+<div class="tab-pane fade" id="list-casting" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span><i class="bi bi-person-video2"></i> Casting</span>
+            <div class="d-flex gap-2">
+                <div class="input-group input-group-sm" style="max-width: 300px;">
+                    <input type="text" class="form-control" id="new-proposal-name"
+                        placeholder="Nom de la proposition...">
+                    <button class="btn btn-primary" type="button" id="add-proposal-btn">
+                        <i class="bi bi-plus"></i> Ajouter une proposition
+                    </button>
+                </div>
+            </div>
+        </div>
+        <div class="card-body">
+            {% if roles and roles|length > 0 %}
+            <div class="table-responsive">
+                <table class="table table-hover table-sm" id="casting-table">
+                    <thead>
+                        <tr>
+                            <th style="min-width: 150px;">Rôle</th>
+                            <th style="min-width: 80px;">Type</th>
+                            <th style="min-width: 200px;" class="proposal-column" data-proposal-id="main">Attribution
+                            </th>
+                            {# Dynamic proposal columns will be added here by JavaScript #}
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for role in roles %}
+                        <tr data-role-id="{{ role.id }}" data-role-type="{{ role.type }}">
+                            <td>
+                                {% if role.comment %}
+                                <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ role.comment }}">
+                                    {{ role.name }} <i class="bi bi-info-circle text-muted small"></i>
+                                </span>
+                                {% else %}
+                                {{ role.name }}
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if role.type == 'Organisateur' %}
+                                <span class="badge bg-warning text-dark">{{ role.type }}</span>
+                                {% elif role.type == 'PJ' %}
+                                <span class="badge bg-success">{{ role.type }}</span>
+                                {% elif role.type == 'PNJ' %}
+                                <span class="badge bg-info">{{ role.type }}</span>
+                                {% else %}
+                                <span class="badge bg-secondary">-</span>
+                                {% endif %}
+                            </td>
+                            <td class="assignment-cell" data-proposal-id="main">
+                                <select class="form-select form-select-sm casting-select" data-role-id="{{ role.id }}"
+                                    data-proposal-id="main" data-role-type="{{ role.type }}">
+                                    <option value="">-- Non attribué --</option>
+                                </select>
+                            </td>
+                            {# Dynamic proposal cells will be added here by JavaScript #}
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="text-center text-muted py-4">
+                <i class="bi bi-person-video2" style="font-size: 3rem;"></i>
+                <p class="mt-2">Aucun rôle défini pour cet événement.</p>
+                <p class="small">Créez d'abord des rôles dans l'onglet "Rôles" pour utiliser le casting.</p>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# Casting JavaScript #}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const eventId = {{ event.id }};
+    const csrfToken = '{{ csrf_token() }}';
+
+
+    // Participants data grouped by type
+    let participantsByType = {};
+    let proposals = [];
+    let assignments = {};
+
+    // Load casting data on tab show
+    const castingTab = document.getElementById('list-casting-list');
+    if (castingTab) {
+        castingTab.addEventListener('shown.bs.tab', loadCastingData);
+        // Also load if already active
+        if (castingTab.classList.contains('active')) {
+            loadCastingData();
+        }
+    }
+
+    async function loadCastingData() {
+        try {
+            const response = await fetch(`/event/${eventId}/casting_data`);
+            const data = await response.json();
+
+            participantsByType = data.participants_by_type;
+            proposals = data.proposals;
+            assignments = data.assignments;
+
+            // Build proposal columns
+            rebuildProposalColumns();
+
+            // Populate all dropdowns
+            populateAllDropdowns();
+
+        } catch (error) {
+            console.error('Error loading casting data:', error);
+        }
+    }
+
+    function rebuildProposalColumns() {
+        const headerRow = document.querySelector('#casting-table thead tr');
+        const bodyRows = document.querySelectorAll('#casting-table tbody tr');
+
+        // Remove existing dynamic proposal columns (keep first 3: Rôle, Type, Attribution)
+        headerRow.querySelectorAll('th.dynamic-proposal').forEach(th => th.remove());
+        bodyRows.forEach(row => {
+            row.querySelectorAll('td.dynamic-proposal').forEach(td => td.remove());
+        });
+
+        // Add proposal columns
+        proposals.forEach(proposal => {
+            // Header
+            const th = document.createElement('th');
+            th.style.minWidth = '200px';
+            th.className = 'proposal-column dynamic-proposal';
+            th.dataset.proposalId = proposal.id;
+            th.innerHTML = `
+                ${proposal.name}
+                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" 
+                        data-proposal-id="${proposal.id}" title="Supprimer cette proposition">
+                    <i class="bi bi-x"></i>
+                </button>
+            `;
+            headerRow.appendChild(th);
+
+            // Body cells
+            bodyRows.forEach(row => {
+                const roleId = row.dataset.roleId;
+                const roleType = row.dataset.roleType;
+                const td = document.createElement('td');
+                td.className = 'assignment-cell dynamic-proposal';
+                td.dataset.proposalId = proposal.id;
+                td.innerHTML = `
+                    <select class="form-select form-select-sm casting-select" 
+                            data-role-id="${roleId}" 
+                            data-proposal-id="${proposal.id}"
+                            data-role-type="${roleType}">
+                        <option value="">-- Non attribué --</option>
+                    </select>
+                `;
+                row.appendChild(td);
+            });
+        });
+
+        // Add event listeners to new delete buttons
+        document.querySelectorAll('.delete-proposal-btn').forEach(btn => {
+            btn.addEventListener('click', deleteProposal);
+        });
+    }
+
+    function populateAllDropdowns() {
+        document.querySelectorAll('.casting-select').forEach(select => {
+            const roleType = select.dataset.roleType;
+            const roleId = select.dataset.roleId;
+            const proposalId = select.dataset.proposalId;
+
+            // Get participants for this role type
+            const participants = participantsByType[roleType] || [];
+
+            // Get already assigned participant IDs for this proposal (excluding current role)
+            const assignedIds = getAssignedParticipantIds(proposalId, roleId);
+
+            // Clear and repopulate
+            select.innerHTML = '<option value="">-- Non attribué --</option>';
+
+            participants.forEach(p => {
+                // Skip if already assigned to another role in this proposal
+                if (assignedIds.includes(p.id)) return;
+
+                const option = document.createElement('option');
+                option.value = p.id;
+                option.textContent = `${p.nom} ${p.prenom}`;
+                select.appendChild(option);
+            });
+
+            // Set current value if assigned
+            const currentAssignment = getAssignment(proposalId, roleId);
+            if (currentAssignment) {
+                select.value = currentAssignment;
+            }
+        });
+
+        // Add change event listeners
+        document.querySelectorAll('.casting-select').forEach(select => {
+            select.removeEventListener('change', handleAssignmentChange);
+            select.addEventListener('change', handleAssignmentChange);
+        });
+    }
+
+    function getAssignedParticipantIds(proposalId, excludeRoleId) {
+        const assigned = [];
+        const proposalAssignments = assignments[proposalId] || {};
+        for (const [roleId, participantId] of Object.entries(proposalAssignments)) {
+            if (roleId !== excludeRoleId && participantId) {
+                assigned.push(parseInt(participantId));
+            }
+        }
+        return assigned;
+    }
+
+    function getAssignment(proposalId, roleId) {
+        return assignments[proposalId]?.[roleId] || null;
+    }
+
+    async function handleAssignmentChange(event) {
+        const select = event.target;
+        const roleId = select.dataset.roleId;
+        const proposalId = select.dataset.proposalId;
+        const participantId = select.value || null;
+
+        try {
+            const response = await fetch(`/event/${eventId}/casting/assign`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    role_id: roleId,
+                    proposal_id: proposalId,
+                    participant_id: participantId
+                })
+            });
+
+            if (response.ok) {
+                // Update local assignments
+                if (!assignments[proposalId]) {
+                    assignments[proposalId] = {};
+                }
+                assignments[proposalId][roleId] = participantId;
+
+                // Refresh all dropdowns for this proposal to update available options
+                populateAllDropdowns();
+            } else {
+                console.error('Failed to save assignment');
+                // Revert the change
+                loadCastingData();
+            }
+        } catch (error) {
+            console.error('Error saving assignment:', error);
+            loadCastingData();
+        }
+    }
+
+    // Add proposal button
+    const addProposalBtn = document.getElementById('add-proposal-btn');
+    if (addProposalBtn) {
+        addProposalBtn.addEventListener('click', async function () {
+            const nameInput = document.getElementById('new-proposal-name');
+            const name = nameInput.value.trim();
+
+            if (!name) {
+                nameInput.classList.add('is-invalid');
+                return;
+            }
+            nameInput.classList.remove('is-invalid');
+
+            try {
+                const response = await fetch(`/event/${eventId}/casting/add_proposal`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ name: name })
+                });
+
+                if (response.ok) {
+                    nameInput.value = '';
+                    loadCastingData();
+                } else {
+                    alert('Erreur lors de la création de la proposition');
+                }
+            } catch (error) {
+                console.error('Error adding proposal:', error);
+            }
+        });
+    }
+
+    async function deleteProposal(event) {
+        const proposalId = event.currentTarget.dataset.proposalId;
+
+        if (!confirm('Supprimer cette proposition et toutes ses attributions ?')) {
+            return;
+        }
+
+        try {
+            const response = await fetch(`/event/${eventId}/casting/delete_proposal`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ proposal_id: proposalId })
+            });
+
+            if (response.ok) {
+                loadCastingData();
+            } else {
+                alert('Erreur lors de la suppression');
+            }
+        } catch (error) {
+            console.error('Error deleting proposal:', error);
+        }
+    }
+});
+</script>
+
 {# Add Role Modal #}
 <div class="modal fade" id="addRoleModal" tabindex="-1" aria-labelledby="addRoleModalLabel" aria-hidden="true">
     <div class="modal-dialog modal-lg">
