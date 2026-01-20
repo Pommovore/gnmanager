@@ -18,11 +18,17 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Upload d'images de fond
 
 ### Gestion des rôles et inscriptions
-- Création de rôles pour chaque événement
-- Inscription des participants
-- Validation des inscriptions
+- Création de rôles pour chaque événement (type, genre, groupe)
+- Inscription des participants avec statuts (À valider, En attente, Validé, Rejeté)
 - Attribution des rôles (casting)
-- Interface drag & drop (SortableJS)
+
+### Système de Casting avancé
+- **Attribution principale** : Colonne par défaut pour assigner les participants
+- **Propositions** : Colonnes additionnelles pour tester différentes versions de casting
+- **Scores (0-10)** : Note attribuée à chaque assignation dans les propositions
+- **Validation** : Switch "Validé/Non-validé" persistant
+- **Affichage conditionnel** : Les participants voient leur rôle assigné uniquement quand le casting est validé
+- Lien vers la fiche PDF du personnage (ou "bientôt disponible...")
 
 ### Administration
 - Tableau de bord complet
@@ -139,26 +145,35 @@ tail -f /opt/gnmanager/app.log
 ```
 gnmanager/
 ├── app.py                  # Factory Flask
-├── main.py                # Point d'entrée
-├── routes.py              # Routes et contrôleurs
-├── models.py              # Modèles SQLAlchemy
-├── auth.py                # Authentification et emails
-├── extensions.py          # Extensions Flask
-├── manage_db.py           # Gestion de la BDD (export/import JSON/CSV)
-├── seed_data.py           # Génération de données de test et export CSV automatique
-├── pyproject.toml         # Dépendances Python (uv)
+├── main.py                 # Point d'entrée
+├── models.py               # Modèles SQLAlchemy
+├── auth.py                 # Authentification et emails
+├── extensions.py           # Extensions Flask
+├── constants.py            # Constantes (statuts, types, etc.)
+├── manage_db.py            # Gestion de la BDD (export/import JSON/CSV)
+├── seed_data.py            # Génération de données de test
+├── fresh_deploy.py         # Premier déploiement
+├── update_deploy.py        # Mise à jour rapide
+├── pyproject.toml          # Dépendances Python (uv)
+├── routes/                 # Routes organisées par domaine
+│   ├── admin_routes.py
+│   ├── auth_routes.py
+│   └── event_routes.py     # Inclut les routes de casting
 ├── config/
-│   ├── deploy_config.yaml          # Configuration de déploiement
-│   └── deploy_config_template.yaml # Template de config
-├── templates/             # Templates Jinja2
+│   ├── deploy_config.yaml
+│   └── db_test_*.csv       # Données de test exportées
+├── migrations/             # Migrations Alembic (Flask-Migrate)
+│   └── versions/
+├── templates/
 │   ├── base.html
-│   ├── login.html
-│   ├── register.html
-│   ├── dashboard.html
-│   └── ...
-├── static/                # CSS, JS, Assets
-├── ARCHITECTURE.md        # Documentation technique détaillée
-└── README.md             # Ce fichier
+│   ├── event_detail.html
+│   └── partials/
+│       ├── event_info.html
+│       └── event_organizer_tabs.html
+├── static/                 # CSS, JS, Assets
+├── instance/               # Base de données SQLite
+├── ARCHITECTURE.md         # Documentation technique
+└── README.md               # Ce fichier
 ```
 
 ## 📖 Documentation
@@ -259,6 +274,24 @@ uv run python main.py
 ```bash
 rm gnmanager.db instance/gnmanager.db
 uv run python manage_db.py import -f config/ --clean
+```
+
+### Migrations de base de données (Flask-Migrate)
+
+Pour gérer les évolutions de schéma lors des mises à jour :
+
+```bash
+# Appliquer les migrations en attente
+uv run flask db upgrade
+
+# Créer une nouvelle migration après modification de models.py
+uv run flask db migrate -m "Description de la migration"
+
+# Voir l'historique
+uv run flask db history
+
+# Rétrograder
+uv run flask db downgrade
 ```
 
 ## 🚀 Scripts de Déploiement

@@ -34,7 +34,11 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
   - `base.html` : Template de base
   - `login.html`, `register.html`, `set_password.html` : Authentification
   - `dashboard.html` : Tableau de bord principal
-  - Autres templates pour les événements, rôles, etc.
+  - `event_detail.html` : Page détail d'un événement
+  - `casting.html` : Page casting standalone (non utilisée actuellement)
+  - **`partials/`** : Templates partiels inclus dans d'autres templates
+    - `event_info.html` : Infos participant avec affichage conditionnel du rôle assigné
+    - `event_organizer_tabs.html` : Onglets organisateur (Généralités, Groupes, Rôles, Casting, Participants)
 
 ### Statiques
 
@@ -51,6 +55,7 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 - Événements GN avec dates, description, lieu
 - Statut manuel (pas d'automatisation)
 - Configuration des groupes (PJ, PNJ, Organisateur) en JSON
+- **`is_casting_validated`** : Boolean pour indiquer si le casting est validé (défaut: False)
 
 ### Role
 - Rôles dans un événement
@@ -66,6 +71,20 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 - Type (Organisateur, PJ, PNJ) et groupe
 - Statut d'inscription (À valider, En attente, Validé, Rejeté)
 - Informations de paiement
+
+### CastingProposal
+- Proposition de casting pour un événement
+- **`name`** : Nom de la proposition
+- **`position`** : Ordre d'affichage des colonnes
+- Relation avec Event
+
+### CastingAssignment
+- Attribution d'un rôle à un participant dans une proposition
+- **`proposal_id`** : Référence à CastingProposal
+- **`role_id`** : Référence au rôle
+- **`participant_id`** : Référence au participant assigné
+- **`event_id`** : Référence à l'événement
+- **`score`** : Note de 0 à 10 (optionnel)
 
 ### AccountValidationToken
 - Tokens pour la validation des nouveaux comptes
@@ -98,6 +117,29 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 3. Vérification que le compte est validé (password_hash != None)
 4. Vérification du mot de passe
 5. Connexion via Flask-Login
+
+## Système de Casting
+
+### Fonctionnalités
+- **Attribution principale** : Colonne par défaut pour attribuer les participants aux rôles
+- **Propositions** : Colonnes additionnelles pour différentes versions de casting
+- **Scores (0-10)** : Note attribuée à chaque assignation dans les propositions
+- **Validation** : Switch "Validé/Non-validé" persistant en base
+
+### Routes API (event_routes.py)
+| Route | Méthode | Description |
+|-------|---------|-------------|
+| `/event/<id>/casting_data` | GET | Données de casting (participants, propositions, assignations) |
+| `/event/<id>/casting/assign` | POST | Assigner un participant à un rôle |
+| `/event/<id>/casting/add_proposal` | POST | Créer une nouvelle proposition |
+| `/event/<id>/casting/delete_proposal` | POST | Supprimer une proposition |
+| `/event/<id>/casting/toggle_validation` | POST | Basculer l'état de validation du casting |
+| `/event/<id>/casting/update_score` | POST | Mettre à jour le score d'une assignation |
+
+### Affichage conditionnel (event_info.html)
+Quand `is_casting_validated` est `True` :
+- Le nom du personnage assigné est affiché sous forme de badge noir
+- Un lien vers la fiche PDF du rôle est affiché (ou "bientôt disponible...")
 
 ## Système de rôles (RBAC)
 
@@ -243,6 +285,28 @@ uv run python manage_db.py import -f config/ --clean
 # Ou avec seed_data.py pour générer de nouvelles données
 uv run python seed_data.py
 ```
+
+### Migrations de base de données (Flask-Migrate/Alembic)
+
+Le projet utilise Flask-Migrate pour gérer les évolutions de schéma.
+
+```bash
+# Appliquer les migrations en attente
+uv run flask db upgrade
+
+# Créer une nouvelle migration après modification de models.py
+uv run flask db migrate -m "Description de la migration"
+
+# Voir l'historique des migrations
+uv run flask db history
+
+# Rétrograder à la version précédente
+uv run flask db downgrade
+```
+
+**Migrations existantes :**
+- `250207c201b0` : Ajout de `google_form_active`
+- `2f8a1c3b4d5e` : Ajout de `is_casting_validated` (Event) et `score` (CastingAssignment)
 
 ### Consultation des logs (serveur distant)
 ```bash

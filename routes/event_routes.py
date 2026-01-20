@@ -129,13 +129,22 @@ def detail(event_id):
     # Récupérer les rôles de l'événement
     roles = Role.query.filter_by(event_id=event.id).order_by(Role.name).all()
     
+    # Récupérer le rôle assigné au participant courant (si casting validé)
+    assigned_role = None
+    if participant and event.is_casting_validated:
+        # Check if participant has a role assigned via Role.assigned_participant_id
+        assigned_role = Role.query.filter_by(
+            event_id=event.id,
+            assigned_participant_id=participant.id
+        ).first()
+    
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
         (event.name, '#')  # Page actuelle
     ]
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
-                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles)
+                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
@@ -514,7 +523,7 @@ def casting_data(event_id):
     """
     Retourne les données de casting au format JSON.
     
-    Inclut les participants groupés par type, les propositions et les attributions.
+    Inclut les participants groupés par type, les propositions, les attributions et les scores.
     """
     event = Event.query.get_or_404(event_id)
     
@@ -539,8 +548,10 @@ def casting_data(event_id):
     proposals = CastingProposal.query.filter_by(event_id=event_id).order_by(CastingProposal.position).all()
     proposals_data = [{'id': p.id, 'name': p.name} for p in proposals]
     
-    # Get assignments: {proposal_id: {role_id: participant_id}}
+    # Get assignments: {proposal_id: {role_id: {participant_id, score}}}
     assignments = {}
+    scores = {}  # {proposal_id: {role_id: score}}
+    
     # Add 'main' key for the default column (uses Role.assigned_participant_id)
     assignments['main'] = {}
     roles = Role.query.filter_by(event_id=event_id).all()
@@ -548,17 +559,22 @@ def casting_data(event_id):
         if role.assigned_participant_id:
             assignments['main'][str(role.id)] = role.assigned_participant_id
     
-    # Add proposal assignments
+    # Add proposal assignments and scores
     for proposal in proposals:
         assignments[str(proposal.id)] = {}
+        scores[str(proposal.id)] = {}
         for assignment in proposal.assignments:
             if assignment.participant_id:
                 assignments[str(proposal.id)][str(assignment.role_id)] = assignment.participant_id
+            if assignment.score is not None:
+                scores[str(proposal.id)][str(assignment.role_id)] = assignment.score
     
     return jsonify({
         'participants_by_type': participants_by_type,
         'proposals': proposals_data,
-        'assignments': assignments
+        'assignments': assignments,
+        'scores': scores,
+        'is_casting_validated': event.is_casting_validated or False
     })
 
 
@@ -666,6 +682,77 @@ def delete_proposal(event_id):
     
     # Cascade delete handles assignments
     db.session.delete(proposal)
+    db.session.commit()
+    
+    return jsonify({'success': True})
+
+
+@event_bp.route('/event/<int:event_id>/casting/toggle_validation', methods=['POST'])
+@login_required
+@organizer_required
+def toggle_casting_validation(event_id):
+    """
+    Bascule l'état de validation du casting.
+    
+    Quand validé, les participants peuvent voir leur rôle assigné.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json() or {}
+    validated = data.get('validated')
+    
+    if validated is not None:
+        event.is_casting_validated = bool(validated)
+    else:
+        event.is_casting_validated = not event.is_casting_validated
+    
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'is_casting_validated': event.is_casting_validated
+    })
+
+
+@event_bp.route('/event/<int:event_id>/casting/update_score', methods=['POST'])
+@login_required
+@organizer_required
+def update_casting_score(event_id):
+    """
+    Met à jour le score d'une attribution de casting.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json()
+    proposal_id = data.get('proposal_id')
+    role_id = data.get('role_id')
+    score = data.get('score')
+    
+    if not proposal_id or not role_id:
+        return jsonify({'error': 'proposal_id et role_id requis'}), 400
+    
+    if proposal_id == 'main':
+        # Main column doesn't support scores (direct assignment)
+        return jsonify({'error': 'Scores non supportés pour la colonne principale'}), 400
+    
+    # Find or create assignment
+    assignment = CastingAssignment.query.filter_by(
+        proposal_id=proposal_id,
+        role_id=role_id
+    ).first()
+    
+    if not assignment:
+        # Create assignment with just the score (no participant yet)
+        assignment = CastingAssignment(
+            proposal_id=proposal_id,
+            role_id=role_id,
+            event_id=event_id,
+            score=int(score) if score is not None and score != '' else None
+        )
+        db.session.add(assignment)
+    else:
+        assignment.score = int(score) if score is not None and score != '' else None
+    
     db.session.commit()
     
     return jsonify({'success': True})

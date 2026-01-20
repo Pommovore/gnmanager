@@ -141,9 +141,60 @@ uv run python manage_db.py import -f backup.json
 
 **Option `--clean`** : Supprime toutes les données existantes avant l'import.
 
+### Tables exportées/importées
+- `User` : Utilisateurs
+- `Event` : Événements (inclut `is_casting_validated`)
+- `Role` : Rôles des personnages
+- `Participant` : Inscriptions
+- `CastingProposal` : Propositions de casting
+- `CastingAssignment` : Attributions (inclut `score`)
+- `PasswordResetToken` : Tokens de reset
+- `AccountValidationToken` : Tokens de validation
+- `ActivityLog` : Logs d'activité
+
 ---
 
-## 5. Gestion du Service (Post-Déploiement)
+## 5. Migrations de Base de Données (Flask-Migrate)
+
+Après une mise à jour du code qui modifie les modèles SQLAlchemy, les migrations doivent être appliquées.
+
+### Appliquer les migrations en production
+```bash
+ssh $GNMANAGER_USER@machine_cible
+cd /opt/gnmanager
+source .venv/bin/activate
+uv run flask db upgrade
+```
+
+### Créer une nouvelle migration (développement)
+```bash
+# Après modification de models.py
+uv run flask db migrate -m "Description de la modification"
+
+# Vérifier le fichier généré dans migrations/versions/
+# Puis appliquer
+uv run flask db upgrade
+```
+
+### Migrations existantes
+| Révision | Description |
+|----------|-------------|
+| `250207c201b0` | Ajout de `google_form_active` à Event |
+| `2f8a1c3b4d5e` | Ajout de `is_casting_validated` (Event) et `score` (CastingAssignment) |
+
+### En cas de problème de migration
+Si la base de données est déjà à jour mais la table `alembic_version` n'est pas synchronisée :
+```bash
+# Marquer la base comme à jour sans exécuter les migrations
+uv run flask db stamp head
+
+# Ou manuellement
+sqlite3 instance/gnmanager.db "DELETE FROM alembic_version; INSERT INTO alembic_version (version_num) VALUES ('2f8a1c3b4d5e');"
+```
+
+---
+
+## 6. Gestion du Service (Post-Déploiement)
 
 L'application est gérée par **systemd** sur le serveur.
 
@@ -163,7 +214,7 @@ sudo systemctl restart gnmanager.service
 
 ---
 
-## 6. Dépannage
+## 7. Dépannage
 
 | Problème | Solution |
 |----------|----------|

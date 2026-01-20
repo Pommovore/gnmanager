@@ -267,7 +267,23 @@
 <div class="tab-pane fade" id="list-casting" role="tabpanel">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span><i class="bi bi-person-video2"></i> Casting</span>
+            <div class="d-flex align-items-center gap-3">
+                <span><i class="bi bi-person-video2"></i> Casting</span>
+                {# Validation Switch #}
+                <div class="d-flex align-items-center">
+                    <div class="form-check form-switch">
+                        <input class="form-check-input" type="checkbox" role="switch" id="castingValidationSwitch" {% if
+                            event.is_casting_validated %}checked{% endif %}>
+                        <label class="form-check-label" for="castingValidationSwitch" id="castingValidationLabel">
+                            {% if event.is_casting_validated %}
+                            <span class="badge bg-success">Validé</span>
+                            {% else %}
+                            <span class="badge bg-secondary">Non-validé</span>
+                            {% endif %}
+                        </label>
+                    </div>
+                </div>
+            </div>
             <div class="d-flex gap-2">
                 <div class="input-group input-group-sm" style="max-width: 300px;">
                     <input type="text" class="form-control" id="new-proposal-name"
@@ -339,8 +355,8 @@
 
 {# Casting JavaScript #}
 <script>
-document.addEventListener('DOMContentLoaded', function() {
-    const eventId = {{ event.id }};
+    document.addEventListener('DOMContentLoaded', function () {
+        const eventId = {{ event.id }};
     const csrfToken = '{{ csrf_token() }}';
 
 
@@ -432,28 +448,35 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function populateAllDropdowns() {
         document.querySelectorAll('.casting-select').forEach(select => {
-            const roleType = select.dataset.roleType;
             const roleId = select.dataset.roleId;
             const proposalId = select.dataset.proposalId;
-
-            // Get participants for this role type
-            const participants = participantsByType[roleType] || [];
 
             // Get already assigned participant IDs for this proposal (excluding current role)
             const assignedIds = getAssignedParticipantIds(proposalId, roleId);
 
-            // Clear and repopulate
+            // Clear and repopulate with ALL participants grouped by type
             select.innerHTML = '<option value="">-- Non attribué --</option>';
 
-            participants.forEach(p => {
-                // Skip if already assigned to another role in this proposal
-                if (assignedIds.includes(p.id)) return;
+            // Add all participants grouped by their type
+            for (const [type, participants] of Object.entries(participantsByType)) {
+                const optgroup = document.createElement('optgroup');
+                optgroup.label = type;
 
-                const option = document.createElement('option');
-                option.value = p.id;
-                option.textContent = `${p.nom} ${p.prenom}`;
-                select.appendChild(option);
-            });
+                participants.forEach(p => {
+                    // Skip if already assigned to another role in this proposal
+                    if (assignedIds.includes(p.id)) return;
+
+                    const option = document.createElement('option');
+                    option.value = p.id;
+                    option.textContent = `${p.nom} ${p.prenom}`;
+                    optgroup.appendChild(option);
+                });
+
+                // Only add optgroup if it has options
+                if (optgroup.childElementCount > 0) {
+                    select.appendChild(optgroup);
+                }
+            }
 
             // Set current value if assigned
             const currentAssignment = getAssignment(proposalId, roleId);
@@ -584,6 +607,44 @@ document.addEventListener('DOMContentLoaded', function() {
         } catch (error) {
             console.error('Error deleting proposal:', error);
         }
+    }
+
+    // Casting validation switch
+    const validationSwitch = document.getElementById('castingValidationSwitch');
+    const validationLabel = document.getElementById('castingValidationLabel');
+
+    if (validationSwitch) {
+        validationSwitch.addEventListener('change', async function () {
+            const validated = this.checked;
+
+            try {
+                const response = await fetch(`/event/${eventId}/casting/toggle_validation`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: JSON.stringify({ validated: validated })
+                });
+
+                const data = await response.json();
+                if (data.success) {
+                    if (data.is_casting_validated) {
+                        validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
+                    } else {
+                        validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
+                    }
+                } else {
+                    // Revert
+                    this.checked = !this.checked;
+                    alert('Erreur lors de la mise à jour');
+                }
+            } catch (error) {
+                console.error('Error toggling validation:', error);
+                this.checked = !this.checked;
+                alert('Erreur lors de la mise à jour');
+            }
+        });
     }
 });
 </script>

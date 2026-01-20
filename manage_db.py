@@ -36,7 +36,14 @@ def serialize_model(instance):
     return data
 
 def export_data(args):
-    """Exporte les données vers un fichier JSON."""
+    """Exporte les données vers un fichier JSON.
+    
+    Exporte TOUTES les tables de la base de données:
+    - Users, Events, Participants, Roles
+    - PasswordResetToken, AccountValidationToken
+    - ActivityLog
+    - CastingProposal, CastingAssignment
+    """
     file_path = args.file
     logger.info(f"Exportation des données vers {file_path}...")
     
@@ -44,11 +51,19 @@ def export_data(args):
         'timestamp': datetime.now().isoformat(),
         'users': [],
         'events': [],
-        'participants': []
+        'roles': [],
+        'participants': [],
+        'password_reset_tokens': [],
+        'account_validation_tokens': [],
+        'activity_logs': [],
+        'casting_proposals': [],
+        'casting_assignments': []
     }
     
     from app import create_app
-    from models import User, Event, Participant
+    from models import (User, Event, Participant, Role, 
+                        PasswordResetToken, AccountValidationToken,
+                        ActivityLog, CastingProposal, CastingAssignment)
     
     app = create_app()
     with app.app_context():
@@ -61,11 +76,41 @@ def export_data(args):
         events = Event.query.all()
         data['events'] = [serialize_model(e) for e in events]
         logger.info(f"  - {len(events)} événements exportés")
+        
+        # Roles
+        roles = Role.query.all()
+        data['roles'] = [serialize_model(r) for r in roles]
+        logger.info(f"  - {len(roles)} rôles exportés")
 
         # Participants
         participants = Participant.query.all()
         data['participants'] = [serialize_model(p) for p in participants]
         logger.info(f"  - {len(participants)} participations exportées")
+        
+        # PasswordResetToken
+        tokens = PasswordResetToken.query.all()
+        data['password_reset_tokens'] = [serialize_model(t) for t in tokens]
+        logger.info(f"  - {len(tokens)} tokens de réinitialisation exportés")
+        
+        # AccountValidationToken
+        validation_tokens = AccountValidationToken.query.all()
+        data['account_validation_tokens'] = [serialize_model(t) for t in validation_tokens]
+        logger.info(f"  - {len(validation_tokens)} tokens de validation exportés")
+        
+        # ActivityLog
+        logs = ActivityLog.query.all()
+        data['activity_logs'] = [serialize_model(l) for l in logs]
+        logger.info(f"  - {len(logs)} logs d'activité exportés")
+        
+        # CastingProposal
+        proposals = CastingProposal.query.all()
+        data['casting_proposals'] = [serialize_model(p) for p in proposals]
+        logger.info(f"  - {len(proposals)} propositions de casting exportées")
+        
+        # CastingAssignment
+        assignments = CastingAssignment.query.all()
+        data['casting_assignments'] = [serialize_model(a) for a in assignments]
+        logger.info(f"  - {len(assignments)} attributions de casting exportées")
         
     with open(file_path, 'w', encoding='utf-8') as f:
         json.dump(data, f, cls=DateTimeEncoder, indent=2, ensure_ascii=False)
@@ -73,7 +118,14 @@ def export_data(args):
     logger.info("Export terminé avec succès.")
 
 def import_data(args):
-    """Importe les données depuis un fichier JSON."""
+    """Importe les données depuis un fichier JSON.
+    
+    Importe TOUTES les tables de la base de données:
+    - Users, Events, Participants, Roles
+    - PasswordResetToken, AccountValidationToken
+    - ActivityLog
+    - CastingProposal, CastingAssignment
+    """
     file_path = args.file
     clean = args.clean
     
@@ -90,17 +142,23 @@ def import_data(args):
         sys.exit(1)
         
     from app import create_app
-    from models import db, User, Event, Participant
+    from models import (db, User, Event, Participant, Role,
+                        PasswordResetToken, AccountValidationToken,
+                        ActivityLog, CastingProposal, CastingAssignment)
     
     app = create_app()
     with app.app_context():
         if clean:
             logger.info("Nettoyage de la base de données...")
             try:
-                # SQLite specific cascade truncate simulation
-                # Ou simplement drop_all / create_all si on veut être radical
-                # Ici on supprime content
+                # Ordre de suppression pour respecter les FK
+                db.session.query(CastingAssignment).delete()
+                db.session.query(CastingProposal).delete()
+                db.session.query(ActivityLog).delete()
+                db.session.query(AccountValidationToken).delete()
+                db.session.query(PasswordResetToken).delete()
                 db.session.query(Participant).delete()
+                db.session.query(Role).delete()
                 db.session.query(Event).delete()
                 db.session.query(User).delete()
                 db.session.commit()
@@ -113,9 +171,7 @@ def import_data(args):
         # Import Users
         logger.info("Importation des utilisateurs...")
         for user_data in data.get('users', []):
-            if not User.query.get(user_data['id']): # Avoid dupes if not clean
-                # Convertir id si nécessaire ou laisser faire?
-                # On assume que l'ID est dans data
+            if not User.query.get(user_data['id']):
                 user = User()
                 for key, value in user_data.items():
                     setattr(user, key, value)
@@ -129,26 +185,31 @@ def import_data(args):
             if not Event.query.get(event_data['id']):
                 event = Event()
                 for key, value in event_data.items():
-                    # Handle datetime conversion
                     if key in ['date_start', 'date_end'] and value:
                         value = datetime.fromisoformat(value)
                     setattr(event, key, value)
                 db.session.add(event)
         db.session.commit()
         logger.info("  - Événements importés.")
+        
+        # Import Roles (AVANT Participants car Participant peut référencer Role)
+        logger.info("Importation des rôles...")
+        for role_data in data.get('roles', []):
+            if not Role.query.get(role_data['id']):
+                role = Role()
+                for key, value in role_data.items():
+                    # Ignorer assigned_participant_id pour l'instant (sera mis à jour après)
+                    if key == 'assigned_participant_id':
+                        continue
+                    setattr(role, key, value)
+                db.session.add(role)
+        db.session.commit()
+        logger.info("  - Rôles importés.")
 
         # Import Participants
         logger.info("Importation des participants...")
         for part_data in data.get('participants', []):
-            # Composite key check might be needed if strictly adding
-            # But let's rely on cleaning or non-collision for now
-            # check existence
-            exists = False
-            if 'id' in part_data:
-                 if Participant.query.get(part_data['id']):
-                     exists = True
-            
-            if not exists:
+            if 'id' in part_data and not Participant.query.get(part_data['id']):
                 part = Participant()
                 for key, value in part_data.items():
                     setattr(part, key, value)
@@ -156,10 +217,89 @@ def import_data(args):
         db.session.commit()
         logger.info("  - Participations importées.")
         
+        # Mettre à jour assigned_participant_id sur les rôles
+        logger.info("Mise à jour des assignations de rôles...")
+        for role_data in data.get('roles', []):
+            if role_data.get('assigned_participant_id'):
+                role = Role.query.get(role_data['id'])
+                if role:
+                    role.assigned_participant_id = role_data['assigned_participant_id']
+        db.session.commit()
+        
+        # Import PasswordResetToken
+        logger.info("Importation des tokens de réinitialisation...")
+        for token_data in data.get('password_reset_tokens', []):
+            if not PasswordResetToken.query.get(token_data['id']):
+                token = PasswordResetToken()
+                for key, value in token_data.items():
+                    if key == 'created_at' and value:
+                        value = datetime.fromisoformat(value)
+                    setattr(token, key, value)
+                db.session.add(token)
+        db.session.commit()
+        logger.info("  - Tokens de réinitialisation importés.")
+        
+        # Import AccountValidationToken
+        logger.info("Importation des tokens de validation...")
+        for token_data in data.get('account_validation_tokens', []):
+            if not AccountValidationToken.query.get(token_data['id']):
+                token = AccountValidationToken()
+                for key, value in token_data.items():
+                    if key == 'created_at' and value:
+                        value = datetime.fromisoformat(value)
+                    setattr(token, key, value)
+                db.session.add(token)
+        db.session.commit()
+        logger.info("  - Tokens de validation importés.")
+        
+        # Import ActivityLog
+        logger.info("Importation des logs d'activité...")
+        for log_data in data.get('activity_logs', []):
+            if not ActivityLog.query.get(log_data['id']):
+                log = ActivityLog()
+                for key, value in log_data.items():
+                    if key == 'created_at' and value:
+                        value = datetime.fromisoformat(value)
+                    setattr(log, key, value)
+                db.session.add(log)
+        db.session.commit()
+        logger.info("  - Logs d'activité importés.")
+        
+        # Import CastingProposal
+        logger.info("Importation des propositions de casting...")
+        for proposal_data in data.get('casting_proposals', []):
+            if not CastingProposal.query.get(proposal_data['id']):
+                proposal = CastingProposal()
+                for key, value in proposal_data.items():
+                    if key == 'created_at' and value:
+                        value = datetime.fromisoformat(value)
+                    setattr(proposal, key, value)
+                db.session.add(proposal)
+        db.session.commit()
+        logger.info("  - Propositions de casting importées.")
+        
+        # Import CastingAssignment
+        logger.info("Importation des attributions de casting...")
+        for assign_data in data.get('casting_assignments', []):
+            if not CastingAssignment.query.get(assign_data['id']):
+                assignment = CastingAssignment()
+                for key, value in assign_data.items():
+                    setattr(assignment, key, value)
+                db.session.add(assignment)
+        db.session.commit()
+        logger.info("  - Attributions de casting importées.")
+        
     logger.info("Import terminé avec succès.")
 
 def export_data_csv(args):
-    """Exporte les données vers des fichiers CSV dans un répertoire."""
+    """Exporte les données vers des fichiers CSV dans un répertoire.
+    
+    Exporte TOUTES les tables de la base de données:
+    - Users, Events, Participants, Roles
+    - PasswordResetToken, AccountValidationToken
+    - ActivityLog
+    - CastingProposal, CastingAssignment
+    """
     dir_path = args.file
     logger.info(f"Exportation des données vers {dir_path}/ (CSV)...")
     
@@ -168,7 +308,9 @@ def export_data_csv(args):
     os.makedirs(dir_path, exist_ok=True)
     
     from app import create_app
-    from models import User, Event, Participant, Role
+    from models import (User, Event, Participant, Role, 
+                        PasswordResetToken, AccountValidationToken,
+                        ActivityLog, CastingProposal, CastingAssignment)
     import csv
     
     app = create_app()
@@ -194,8 +336,9 @@ def export_data_csv(args):
             writer = csv.writer(f)
             writer.writerow(['id', 'name', 'description', 'date_start', 'date_end', 'location',
                            'background_image', 'visibility', 'organizer_structure', 'org_link_url',
-                           'org_link_title', 'google_form_url', 'google_form_active', 'external_link',
-                           'statut', 'groups_config'])
+                           'org_link_title', 'google_form_url', 'google_form_active', 'discord_webhook_url',
+                           'external_link', 'statut', 'groups_config', 'max_pjs', 'max_pnjs', 'max_organizers',
+                           'is_casting_validated'])
             for e in events:
                 writer.writerow([
                     e.id, e.name, e.description or '',
@@ -203,8 +346,10 @@ def export_data_csv(args):
                     e.date_end.isoformat() if e.date_end else '',
                     e.location or '', e.background_image or '', e.visibility or 'public',
                     e.organizer_structure or '', e.org_link_url or '', e.org_link_title or '',
-                    e.google_form_url or '', e.google_form_active or False, e.external_link or '',
-                    e.statut, e.groups_config or '{}'
+                    e.google_form_url or '', e.google_form_active or False, e.discord_webhook_url or '',
+                    e.external_link or '', e.statut, e.groups_config or '{}',
+                    e.max_pjs or 50, e.max_pnjs or 10, e.max_organizers or 5,
+                    e.is_casting_validated or False
                 ])
         logger.info(f"  - {len(events)} événements exportés vers {events_file}")
         
@@ -213,11 +358,11 @@ def export_data_csv(args):
         roles_file = os.path.join(dir_path, 'db_test_roles.csv')
         with open(roles_file, 'w', newline='', encoding='utf-8') as f:
             writer = csv.writer(f)
-            writer.writerow(['id', 'event_id', 'name', 'genre', 'group', 'assigned_participant_id',
+            writer.writerow(['id', 'event_id', 'name', 'type', 'genre', 'group', 'assigned_participant_id',
                            'comment', 'google_doc_url', 'pdf_url'])
             for r in roles:
                 writer.writerow([
-                    r.id, r.event_id, r.name, r.genre or '', r.group or '',
+                    r.id, r.event_id, r.name, r.type or '', r.genre or '', r.group or '',
                     r.assigned_participant_id or '', r.comment or '',
                     r.google_doc_url or '', r.pdf_url or ''
                 ])
@@ -239,11 +384,83 @@ def export_data_csv(args):
                     p.comment or '', p.custom_image or ''
                 ])
         logger.info(f"  - {len(participants)} participations exportées vers {participants_file}")
+        
+        # Export PasswordResetToken
+        tokens = PasswordResetToken.query.all()
+        tokens_file = os.path.join(dir_path, 'db_test_password_reset_tokens.csv')
+        with open(tokens_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'token', 'email', 'created_at'])
+            for t in tokens:
+                writer.writerow([
+                    t.id, t.token, t.email,
+                    t.created_at.isoformat() if t.created_at else ''
+                ])
+        logger.info(f"  - {len(tokens)} tokens de réinitialisation exportés vers {tokens_file}")
+        
+        # Export AccountValidationToken
+        validation_tokens = AccountValidationToken.query.all()
+        val_tokens_file = os.path.join(dir_path, 'db_test_account_validation_tokens.csv')
+        with open(val_tokens_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'token', 'email', 'temp_data', 'created_at'])
+            for t in validation_tokens:
+                writer.writerow([
+                    t.id, t.token, t.email, t.temp_data or '',
+                    t.created_at.isoformat() if t.created_at else ''
+                ])
+        logger.info(f"  - {len(validation_tokens)} tokens de validation exportés vers {val_tokens_file}")
+        
+        # Export ActivityLog
+        logs = ActivityLog.query.all()
+        logs_file = os.path.join(dir_path, 'db_test_activity_logs.csv')
+        with open(logs_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'action_type', 'user_id', 'event_id', 'details', 'is_viewed', 'created_at'])
+            for l in logs:
+                writer.writerow([
+                    l.id, l.action_type, l.user_id or '', l.event_id or '',
+                    l.details or '', l.is_viewed,
+                    l.created_at.isoformat() if l.created_at else ''
+                ])
+        logger.info(f"  - {len(logs)} logs d'activité exportés vers {logs_file}")
+        
+        # Export CastingProposal
+        proposals = CastingProposal.query.all()
+        proposals_file = os.path.join(dir_path, 'db_test_casting_proposals.csv')
+        with open(proposals_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'event_id', 'name', 'position', 'created_at'])
+            for p in proposals:
+                writer.writerow([
+                    p.id, p.event_id, p.name, p.position,
+                    p.created_at.isoformat() if p.created_at else ''
+                ])
+        logger.info(f"  - {len(proposals)} propositions de casting exportées vers {proposals_file}")
+        
+        # Export CastingAssignment
+        assignments = CastingAssignment.query.all()
+        assignments_file = os.path.join(dir_path, 'db_test_casting_assignments.csv')
+        with open(assignments_file, 'w', newline='', encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(['id', 'proposal_id', 'role_id', 'participant_id', 'event_id', 'score'])
+            for a in assignments:
+                writer.writerow([
+                    a.id, a.proposal_id, a.role_id, a.participant_id or '', a.event_id, a.score or ''
+                ])
+        logger.info(f"  - {len(assignments)} attributions de casting exportées vers {assignments_file}")
     
     logger.info("Export CSV terminé avec succès.")
 
 def import_data_csv(args):
-    """Importe les données depuis des fichiers CSV dans un répertoire."""
+    """Importe les données depuis des fichiers CSV dans un répertoire.
+    
+    Importe TOUTES les tables de la base de données:
+    - Users, Events, Participants, Roles
+    - PasswordResetToken, AccountValidationToken
+    - ActivityLog
+    - CastingProposal, CastingAssignment
+    """
     dir_path = args.file
     clean = args.clean
     
@@ -258,13 +475,21 @@ def import_data_csv(args):
         sys.exit(1)
     
     from app import create_app
-    from models import db, User, Event, Participant, Role
+    from models import (db, User, Event, Participant, Role,
+                        PasswordResetToken, AccountValidationToken,
+                        ActivityLog, CastingProposal, CastingAssignment)
     
     app = create_app()
     with app.app_context():
         if clean:
             logger.info("Nettoyage de la base de données...")
             try:
+                # Ordre de suppression pour respecter les FK
+                db.session.query(CastingAssignment).delete()
+                db.session.query(CastingProposal).delete()
+                db.session.query(ActivityLog).delete()
+                db.session.query(AccountValidationToken).delete()
+                db.session.query(PasswordResetToken).delete()
                 db.session.query(Participant).delete()
                 db.session.query(Role).delete()
                 db.session.query(Event).delete()
@@ -322,15 +547,22 @@ def import_data_csv(args):
                         event.org_link_title = row['org_link_title'] if row['org_link_title'] else None
                         event.google_form_url = row['google_form_url'] if row['google_form_url'] else None
                         event.google_form_active = row['google_form_active'].lower() in ['true', '1', 'yes'] if row.get('google_form_active') else False
+                        event.discord_webhook_url = row.get('discord_webhook_url') if row.get('discord_webhook_url') else None
                         event.external_link = row['external_link'] if row['external_link'] else None
                         event.statut = row['statut']
                         event.groups_config = row['groups_config'] if row['groups_config'] else '{}'
+                        event.max_pjs = int(row['max_pjs']) if row.get('max_pjs') else 50
+                        event.max_pnjs = int(row['max_pnjs']) if row.get('max_pnjs') else 10
+                        event.max_organizers = int(row['max_organizers']) if row.get('max_organizers') else 5
+                        event.is_casting_validated = row.get('is_casting_validated', '').lower() in ['true', '1', 'yes'] if row.get('is_casting_validated') else False
                         db.session.add(event)
             db.session.commit()
             logger.info("  - Événements importés.")
         
-        # Import Roles
+        # Import Roles (AVANT Participants car il y a des références croisées)
+        # On importe d'abord sans assigned_participant_id
         roles_file = os.path.join(dir_path, 'db_test_roles.csv')
+        roles_data_for_update = []  # Pour stocker les assigned_participant_id
         if os.path.exists(roles_file):
             logger.info("Importation des rôles...")
             with open(roles_file, 'r', encoding='utf-8') as f:
@@ -341,9 +573,15 @@ def import_data_csv(args):
                         role.id = int(row['id'])
                         role.event_id = int(row['event_id'])
                         role.name = row['name']
+                        role.type = row.get('type') if row.get('type') else None
                         role.genre = row['genre'] if row['genre'] else None
                         role.group = row['group'] if row['group'] else None
-                        role.assigned_participant_id = int(row['assigned_participant_id']) if row['assigned_participant_id'] else None
+                        # On stocke l'assigned_participant_id pour plus tard
+                        if row['assigned_participant_id']:
+                            roles_data_for_update.append({
+                                'id': int(row['id']),
+                                'assigned_participant_id': int(row['assigned_participant_id'])
+                            })
                         role.comment = row['comment'] if row['comment'] else None
                         role.google_doc_url = row['google_doc_url'] if row['google_doc_url'] else None
                         role.pdf_url = row['pdf_url'] if row['pdf_url'] else None
@@ -378,6 +616,107 @@ def import_data_csv(args):
                         db.session.add(part)
             db.session.commit()
             logger.info("  - Participations importées.")
+        
+        # Mise à jour des assigned_participant_id sur les rôles
+        if roles_data_for_update:
+            logger.info("Mise à jour des assignations de rôles...")
+            for role_data in roles_data_for_update:
+                role = Role.query.get(role_data['id'])
+                if role:
+                    role.assigned_participant_id = role_data['assigned_participant_id']
+            db.session.commit()
+        
+        # Import PasswordResetToken
+        tokens_file = os.path.join(dir_path, 'db_test_password_reset_tokens.csv')
+        if os.path.exists(tokens_file):
+            logger.info("Importation des tokens de réinitialisation...")
+            with open(tokens_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if not PasswordResetToken.query.get(int(row['id'])):
+                        token = PasswordResetToken()
+                        token.id = int(row['id'])
+                        token.token = row['token']
+                        token.email = row['email']
+                        token.created_at = datetime.fromisoformat(row['created_at']) if row['created_at'] else None
+                        db.session.add(token)
+            db.session.commit()
+            logger.info("  - Tokens de réinitialisation importés.")
+        
+        # Import AccountValidationToken
+        val_tokens_file = os.path.join(dir_path, 'db_test_account_validation_tokens.csv')
+        if os.path.exists(val_tokens_file):
+            logger.info("Importation des tokens de validation...")
+            with open(val_tokens_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if not AccountValidationToken.query.get(int(row['id'])):
+                        token = AccountValidationToken()
+                        token.id = int(row['id'])
+                        token.token = row['token']
+                        token.email = row['email']
+                        token.temp_data = row['temp_data'] if row['temp_data'] else None
+                        token.created_at = datetime.fromisoformat(row['created_at']) if row['created_at'] else None
+                        db.session.add(token)
+            db.session.commit()
+            logger.info("  - Tokens de validation importés.")
+        
+        # Import ActivityLog
+        logs_file = os.path.join(dir_path, 'db_test_activity_logs.csv')
+        if os.path.exists(logs_file):
+            logger.info("Importation des logs d'activité...")
+            with open(logs_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if not ActivityLog.query.get(int(row['id'])):
+                        log = ActivityLog()
+                        log.id = int(row['id'])
+                        log.action_type = row['action_type']
+                        log.user_id = int(row['user_id']) if row['user_id'] else None
+                        log.event_id = int(row['event_id']) if row['event_id'] else None
+                        log.details = row['details'] if row['details'] else None
+                        log.is_viewed = row['is_viewed'].lower() in ['true', '1', 'yes']
+                        log.created_at = datetime.fromisoformat(row['created_at']) if row['created_at'] else None
+                        db.session.add(log)
+            db.session.commit()
+            logger.info("  - Logs d'activité importés.")
+        
+        # Import CastingProposal
+        proposals_file = os.path.join(dir_path, 'db_test_casting_proposals.csv')
+        if os.path.exists(proposals_file):
+            logger.info("Importation des propositions de casting...")
+            with open(proposals_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if not CastingProposal.query.get(int(row['id'])):
+                        proposal = CastingProposal()
+                        proposal.id = int(row['id'])
+                        proposal.event_id = int(row['event_id'])
+                        proposal.name = row['name']
+                        proposal.position = int(row['position']) if row['position'] else 0
+                        proposal.created_at = datetime.fromisoformat(row['created_at']) if row['created_at'] else None
+                        db.session.add(proposal)
+            db.session.commit()
+            logger.info("  - Propositions de casting importées.")
+        
+        # Import CastingAssignment
+        assignments_file = os.path.join(dir_path, 'db_test_casting_assignments.csv')
+        if os.path.exists(assignments_file):
+            logger.info("Importation des attributions de casting...")
+            with open(assignments_file, 'r', encoding='utf-8') as f:
+                reader = csv.DictReader(f)
+                for row in reader:
+                    if not CastingAssignment.query.get(int(row['id'])):
+                        assignment = CastingAssignment()
+                        assignment.id = int(row['id'])
+                        assignment.proposal_id = int(row['proposal_id'])
+                        assignment.role_id = int(row['role_id'])
+                        assignment.participant_id = int(row['participant_id']) if row['participant_id'] else None
+                        assignment.event_id = int(row['event_id'])
+                        assignment.score = int(row['score']) if row.get('score') else None
+                        db.session.add(assignment)
+            db.session.commit()
+            logger.info("  - Attributions de casting importées.")
     
     logger.info("Import CSV terminé avec succès.")
 

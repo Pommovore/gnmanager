@@ -114,6 +114,9 @@ class Event(db.Model):
     max_pnjs = db.Column(db.Integer, default=10)
     max_organizers = db.Column(db.Integer, default=5)
     
+    # Casting validation status
+    is_casting_validated = db.Column(db.Boolean, default=False)
+    
     def __repr__(self):
         return f'<Event {self.name}>'
 
@@ -328,6 +331,7 @@ class CastingAssignment(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    score = db.Column(db.Integer, nullable=True)  # Score 0-10 for casting preference
     
     # Database indexes for performance
     __table_args__ = (

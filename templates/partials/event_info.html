@@ -76,7 +76,23 @@
                     - {{ participant.group }}
                     {% endif %}
                 </span>
+                {% if assigned_role %}
+                <span class="badge bg-dark ms-2">{{ assigned_role.name }}</span>
+                {% endif %}
             </p>
+            {% if assigned_role %}
+            <p class="mb-1">
+                <i class="bi bi-arrow-right text-primary"></i>
+                <strong class="ms-1">Fiche de personnage :</strong>
+                {% if assigned_role.pdf_url %}
+                <a href="{{ assigned_role.pdf_url }}" target="_blank" class="ms-1">
+                    <i class="bi bi-file-pdf text-danger"></i> Télécharger le PDF
+                </a>
+                {% else %}
+                <span class="text-muted ms-1 fst-italic">bientôt disponible...</span>
+                {% endif %}
+            </p>
+            {% endif %}
             <p class="mb-1">
                 <strong>Votre inscription :</strong>
                 <span class="badge {{ reg_class }} ms-2">{{ participant.registration_status }}</span>
