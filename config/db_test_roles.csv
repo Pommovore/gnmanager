@@ -133,13 +133,14 @@ id,event_id,name,type,genre,group,assigned_participant_id,comment,google_doc_url
 132,7,Mendiant - Vampire: L,,Femme,Peu importe,,,,
 133,7,Messager - Vampire: L,,Autre,Peu importe,,,,
 134,7,Marchand ambulant - Vampire: L,,Autre,Peu importe,,,,
-135,8,Claus Schnabel,PJ,Homme,Peu importe,,,,
-136,8,Karl Schäfer,PJ,Homme,Peu importe,,,,
-137,8,Emilio Franzone,PJ,Homme,Peu importe,,,,
-138,8,Paule Gilbert,PJ,Femme,Peu importe,,,,
-139,8,Augusta Gheriani,PJ,Femme,Peu importe,,,,
+135,8,Claus Schnabel,PJ,Homme,Peu importe,24,,,https://drive.google.com/file/d/1gZ4Bfd2ynXDuGNdbJEjQVsCCQaM1dtYp/view?usp=drive_link
+136,8,Karl Schäfer,PJ,Homme,Peu importe,22,,,https://drive.google.com/file/d/1DRvgXY9wVgeQYDWCDJ1CbNP_xwxvp9Ip/view?usp=drive_link
+137,8,Emilio Franzone,PJ,Homme,Peu importe,21,,,https://drive.google.com/file/d/1JW8XOh-cr6QYpqHQaZkkMkTHjTQ5GjaE/view?usp=drive_link
+138,8,Paule Gilbert,PJ,Femme,Peu importe,23,,,https://drive.google.com/file/d/1IjE6ZZqQBOvG6yUpKMfDaRRxxP3Bkup8/view?usp=drive_link
+139,8,Augusta Gheriani,PJ,Femme,Peu importe,20,,,https://drive.google.com/file/d/1ZZym1NKzipCUr_PxYh-5--LWtsaDicYr/view?usp=drive_link
 140,9,Claus Schnabel,PJ,Homme,Peu importe,,,,
 141,9,Karl Schäfer,PJ,Homme,Peu importe,,,,
 142,9,Emilio Franzone,PJ,Homme,Peu importe,,,,
 143,9,Paule Gilbert,PJ,Femme,Peu importe,,,,
 144,9,Augusta Gheriani,PJ,Femme,Peu importe,,,,
+145,8,Hans Jäger,Organisateur,Homme,Peu importe,18,,,
