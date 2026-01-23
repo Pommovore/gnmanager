@@ -16,7 +16,7 @@ document.addEventListener('DOMContentLoaded', function () {
     let scores = {};
 
     // Load casting data on tab show
-    const castingTab = document.getElementById('list-casting-list');
+    const castingTab = document.querySelector('a[href="#casting-container"]');
     if (castingTab) {
         castingTab.addEventListener('shown.bs.tab', loadCastingData);
         // Also load if already active
