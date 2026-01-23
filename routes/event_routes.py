@@ -20,7 +20,10 @@ from datetime import datetime
 from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
 from decorators import organizer_required
 from exceptions import DatabaseError
+from exceptions import DatabaseError
 import json
+import numpy as np
+from scipy.optimize import linear_sum_assignment
 
 event_bp = Blueprint('event', __name__)
 
@@ -763,14 +766,8 @@ def update_casting_score(event_id):
 @organizer_required
 def auto_assign_casting(event_id):
     """
-    Calcule et attribue automatiquement les rôles en fonction des scores pondérés.
-    
-    Algorithme (Global Greedy):
-    1. Collecte toutes les combinaisons possibles (Rôle, Participant) avec leur score moyen.
-    2. Trie toutes ces combinaisons par score moyen décroissant (de 10 à 0).
-    3. Parcourt la liste triée et attribue si le Rôle ET le Participant sont libres.
-    
-    Cela privilégie les "meilleurs matchs" globaux plutôt que de remplir les rôles un par un.
+    Calcule et attribue automatiquement les rôles en utilisant l'algorithme Hongrois (Kuhn-Munkres).
+    Cela garantit une solution mathématiquement optimale pour maximiser le score global.
     """
     event = Event.query.get_or_404(event_id)
     
@@ -778,68 +775,70 @@ def auto_assign_casting(event_id):
     if event.is_casting_validated:
         return jsonify({'error': 'Le casting est déjà validé'}), 400
     
-    # Récupérer tous les rôles de l'événement
+    # 1. Récupérer les données
     roles = Role.query.filter_by(event_id=event_id).all()
+    n_roles = len(roles)
     
-    # Récupérer toutes les attributions avec scores
+    # Récupérer tous les participants validés
+    participants = Participant.query.filter_by(
+        event_id=event_id, 
+        registration_status=RegistrationStatus.VALIDATED.value
+    ).all()
+    n_parts = len(participants)
+    
+    if n_roles == 0 or n_parts == 0:
+        return jsonify({
+            'success': True,
+            'assigned_count': 0,
+            'total_roles': n_roles,
+            'message': 'Pas de rôles ou pas de participants.'
+        })
+        
+    # Mapping ID -> Index pour la matrice
+    role_to_idx = {r.id: i for i, r in enumerate(roles)}
+    part_to_idx = {p.id: i for i, p in enumerate(participants)}
+    
+    # 2. Construction de la Matrice d'Utilité
+    utility_matrix = np.zeros((n_roles, n_parts))
+    
     assignments = CastingAssignment.query.filter_by(event_id=event_id).all()
     
-    # Construire un dictionnaire de scores: {role_id: {participant_id: [scores]}}
-    role_scores = {}
-    for assignment in assignments:
-        if assignment.participant_id and assignment.score is not None:
-            if assignment.role_id not in role_scores:
-                role_scores[assignment.role_id] = {}
-            
-            participant_id = assignment.participant_id
-            if participant_id not in role_scores[assignment.role_id]:
-                role_scores[assignment.role_id][participant_id] = []
-            
-            role_scores[assignment.role_id][participant_id].append(assignment.score)
+    for a in assignments:
+        if a.participant_id and a.score is not None:
+             if a.role_id in role_to_idx and a.participant_id in part_to_idx:
+                 r_idx = role_to_idx[a.role_id]
+                 p_idx = part_to_idx[a.participant_id]
+                 # On somme les scores
+                 utility_matrix[r_idx, p_idx] += a.score
     
-    # Créer une liste de toutes les assignations possibles avec leur score moyen
-    # Format: (score_moyen, role, participant_id)
-    potential_assignments = []
+    # 3. Matrice de Coût (Maximiser l'utilité => Minimiser -Utilité)
+    cost_matrix = -utility_matrix
     
-    for role in roles:
-        if role.id in role_scores:
-            for participant_id, scores in role_scores[role.id].items():
-                avg_score = sum(scores) / len(scores) if scores else 0
-                potential_assignments.append({
-                    'score': avg_score,
-                    'role': role,
-                    'participant_id': participant_id
-                })
+    # 4. Résolution (Algorithme Hongrois)
+    row_ind, col_ind = linear_sum_assignment(cost_matrix)
     
-    # Trier par score décroissant
-    potential_assignments.sort(key=lambda x: x['score'], reverse=True)
-    
-    # Ensembles pour suivre les éléments déjà assignés
-    assigned_role_ids = set()
-    assigned_participant_ids = set()
+    # 5. Application
     assigned_count = 0
     
-    # Réinitialiser les assignations actuelles des rôles (en mémoire) pour le calcul
+    # Reset
     for role in roles:
         role.assigned_participant_id = None
         
-    # Appliquer l'algorithme glouton global
-    for item in potential_assignments:
-        role = item['role']
-        participant_id = item['participant_id']
+    for i in range(len(row_ind)):
+        r_idx = row_ind[i]
+        p_idx = col_ind[i]
         
-        if role.id not in assigned_role_ids and participant_id not in assigned_participant_ids:
-            # Assignation validée
-            role.assigned_participant_id = participant_id
-            assigned_role_ids.add(role.id)
-            assigned_participant_ids.add(participant_id)
-            assigned_count += 1
-            
+        role = roles[r_idx]
+        participant = participants[p_idx]
+        
+        role.assigned_participant_id = participant.id
+        assigned_count += 1
+        
     db.session.commit()
     
     return jsonify({
         'success': True,
         'assigned_count': assigned_count,
-        'total_roles': len(roles)
+        'total_roles': n_roles
     })
 

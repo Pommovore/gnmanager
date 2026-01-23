@@ -9,6 +9,9 @@ document.addEventListener('DOMContentLoaded', function () {
     const eventId = castingContainer.dataset.eventId;
     const csrfToken = castingContainer.dataset.csrfToken;
 
+    // Handle root path correctly to avoid double slashes when SCRIPT_ROOT is '/'
+    const baseUrl = (typeof SCRIPT_ROOT !== 'undefined' && SCRIPT_ROOT === '/') ? '' : (SCRIPT_ROOT || '');
+
     // Participants data grouped by type
     let participantsByType = {};
     let proposals = [];
@@ -27,7 +30,8 @@ document.addEventListener('DOMContentLoaded', function () {
 
     async function loadCastingData() {
         try {
-            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting_data`);
+            const url = `${baseUrl}/event/${eventId}/casting_data`;
+            const response = await fetch(url);
             const data = await response.json();
 
             participantsByType = data.participants_by_type;
@@ -196,7 +200,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const participantId = select.value || null;
 
         try {
-            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/assign`, {
+            const response = await fetch(`${baseUrl}/event/${eventId}/casting/assign`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -236,7 +240,7 @@ document.addEventListener('DOMContentLoaded', function () {
         const score = parseInt(scoreSelect.value);
 
         try {
-            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/update_score`, {
+            const response = await fetch(`${baseUrl}/event/${eventId}/casting/update_score`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -280,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
             nameInput.classList.remove('is-invalid');
 
             try {
-                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/add_proposal`, {
+                const response = await fetch(`${baseUrl}/event/${eventId}/casting/add_proposal`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -309,7 +313,7 @@ document.addEventListener('DOMContentLoaded', function () {
         }
 
         try {
-            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/delete_proposal`, {
+            const response = await fetch(`${baseUrl}/event/${eventId}/casting/delete_proposal`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -337,7 +341,7 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             try {
-                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/auto_assign`, {
+                const response = await fetch(`${baseUrl}/event/${eventId}/casting/auto_assign`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -369,7 +373,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const validated = this.checked;
 
             try {
-                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/toggle_validation`, {
+                const response = await fetch(`${baseUrl}/event/${eventId}/casting/toggle_validation`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
