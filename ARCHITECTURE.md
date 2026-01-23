@@ -43,6 +43,8 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 ### Statiques
 
 - **`static/`** : Assets CSS, JS, images
+  - `js/casting.js` : Logique de l'interface de casting (externalisé)
+  - `js/event_organizer.js` : Gestion des onglets organisateur
 
 ## Modèles de données
 
@@ -125,6 +127,7 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 - **Propositions** : Colonnes additionnelles pour différentes versions de casting
 - **Scores (0-10)** : Note attribuée à chaque assignation dans les propositions
 - **Validation** : Switch "Validé/Non-validé" persistant en base
+- **Attribution Automatique** : Utilise l'algorithme Hongrois (Kuhn-Munkres) pour maximiser le score global des attributions.
 
 ### Routes API (event_routes.py)
 | Route | Méthode | Description |
@@ -250,7 +253,9 @@ else:
 - **Werkzeug** : Hashage de mots de passe
 - **python-dotenv** : Chargement des variables d'environnement
 - **Paramiko** : Connexions SSH pour le déploiement
+- **Paramiko** : Connexions SSH pour le déploiement
 - **PyYAML** : Parsing de la config de déploiement
+- **NumPy & SciPy** : Calculs matriciels pour l'algorithme d'optimisation de casting
 
 ## Variables d'environnement
 

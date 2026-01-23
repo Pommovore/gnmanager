@@ -100,6 +100,9 @@ Idéal pour déployer des corrections ou nouvelles fonctionnalités.
 3. Upload et extrait l'archive sur le serveur
 4. Redémarre le service
 
+> [!IMPORTANT]
+> Ce script **ne met pas à jour** les dépendances Python. Si vous avez ajouté des packages (ex: `numpy`, `scipy`), connectez-vous au serveur et lancez `uv sync` manuellement.
+
 ### Syntaxe
 ```bash
 uv run python update_deploy.py [OPTIONS]

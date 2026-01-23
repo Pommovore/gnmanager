@@ -23,6 +23,9 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Attribution des rôles (casting)
 
 ### Système de Casting avancé
+- Matrice dynamique Rôles/Participants
+- Algorithme d'attribution automatique optimal (Hongrois/Kuhn-Munkres)
+- Gestion des conflits et validations
 - **Attribution principale** : Colonne par défaut pour assigner les participants
 - **Propositions** : Colonnes additionnelles pour tester différentes versions de casting
 - **Scores (0-10)** : Note attribuée à chaque assignation dans les propositions
@@ -38,9 +41,10 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 
 ## 📋 Prérequis
 
-- **Python 3.12+**
-- **[uv](https://github.com/astral-sh/uv)** pour la gestion des dépendances
-- **SQLite** (inclus avec Python)
+- **Python 3.11+**
+- **uv** (gestionnaire de paquets)
+- **Numpy & Scipy** (pour l'algorithme d'attribution de casting)
+- **Node.js & npm** (optionnel, pour développement frontend avancé)
 - **Compte Brevo** pour l'envoi d'emails (optionnel pour le développement local)
 
 ## 🚀 Installation et Déploiement
