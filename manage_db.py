@@ -726,6 +726,75 @@ def import_data_csv(args):
     
     logger.info("Import CSV terminé avec succès.")
 
+def reset_db(args):
+    """Réinitialise la base de données en conservant un utilisateur spécifique.
+    
+    Supprime toutes les données sauf l'utilisateur spécifié par --keep-email.
+    """
+    keep_email = args.keep_email
+    
+    if not keep_email:
+        logger.error("Erreur: L'argument --keep-email est requis pour la sécurité.")
+        sys.exit(1)
+        
+    logger.warning(f"ATTENTION: Cette opération va supprimer TOUTES les données sauf l'utilisateur {keep_email}.")
+    logger.warning("Êtes-vous sûr ? (L'opération démarrera dans 5 secondes)")
+    import time
+    time.sleep(5)
+    
+    from app import create_app
+    from models import (db, User, Event, Participant, Role,
+                        PasswordResetToken, AccountValidationToken,
+                        ActivityLog, CastingProposal, CastingAssignment)
+    
+    app = create_app()
+    with app.app_context():
+        # Vérifier que l'utilisateur à conserver existe
+        keep_user = User.query.filter_by(email=keep_email).first()
+        if not keep_user:
+            logger.error(f"Erreur: L'utilisateur {keep_email} n'existe pas.")
+            sys.exit(1)
+            
+        logger.info(f"Utilisateur {keep_email} trouvé (ID: {keep_user.id}).")
+        logger.info("Début du nettoyage...")
+        
+        try:
+            # Ordre de suppression pour respecter les FK
+            logger.info("- Suppression des attributions de casting...")
+            db.session.query(CastingAssignment).delete()
+            
+            logger.info("- Suppression des propositions de casting...")
+            db.session.query(CastingProposal).delete()
+            
+            logger.info("- Suppression des logs d'activité...")
+            db.session.query(ActivityLog).delete()
+            
+            logger.info("- Suppression des tokens...")
+            db.session.query(AccountValidationToken).delete()
+            db.session.query(PasswordResetToken).delete()
+            
+            logger.info("- Suppression des participations...")
+            db.session.query(Participant).delete()
+            
+            logger.info("- Suppression des rôles...")
+            db.session.query(Role).delete()
+            
+            logger.info("- Suppression des événements...")
+            db.session.query(Event).delete()
+            
+            logger.info(f"- Suppression des autres utilisateurs...")
+            # Supprimer tous les utilisateurs sauf celui à garder
+            User.query.filter(User.id != keep_user.id).delete(synchronize_session=False)
+            
+            db.session.commit()
+            logger.info("✅ Base de données réinitialisée avec succès.")
+            logger.info(f"L'utilisateur {keep_email} a été conservé.")
+            
+        except Exception as e:
+            db.session.rollback()
+            logger.error(f"Erreur lors de la réinitialisation: {e}")
+            sys.exit(1)
+
 def main():
     parser = argparse.ArgumentParser(description="Outil de gestion de base de données import/export JSON et CSV.")
     subparsers = parser.add_subparsers(dest='command', help='Commandes disponibles')
@@ -742,7 +811,13 @@ def main():
     import_parser.add_argument('-f', '--file', required=True, help='Chemin du fichier/répertoire source (.json pour JSON, répertoire pour CSV)')
     import_parser.add_argument('--clean', action='store_true', help='Vider la base avant l\'importation')
     import_parser.add_argument('--casting-only', action='store_true', help='Importer uniquement les données de casting')
+
     import_parser.set_defaults(func=None)  # Will be determined based on file extension
+
+    # Reset Parser
+    reset_parser = subparsers.add_parser('reset', help='Réinitialiser la base de données (Danger)')
+    reset_parser.add_argument('--keep-email', required=True, help='Email de l\'utilisateur à conserver (Admin/Créateur)')
+    reset_parser.set_defaults(func=reset_db)
     
     args = parser.parse_args()
     
