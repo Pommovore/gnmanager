@@ -287,24 +287,24 @@ def transfer_files(target_dir, user, sudo_password=None, ssh=None):
     
     if ssh:
         sftp = ssh.open_sftp()
+        created_dirs = set()
         for f in files:
             local_path = f
             remote_path = os.path.join(gnmanager_path, f).replace("\\", "/") # Pour compat windaube si jamais
             remote_dir = os.path.dirname(remote_path)
             
             # Créer les dossiers parents s'ils n'existent pas
-            # Optimisation: on pourrait cacher les dirs créés
-            try:
-                # On essaie de stat le fichier pour voir s'il existe (non pertinent pour l'écriture mais pour le dossier)
-                # SFTP n'a pas mkdir -p, il faut itérer. 
-                # Simplification: on utilise une commande shell pour mkdir -p
-                pass
-            except:
-                pass
-
-            # Utiliser une commande shell pour créer le dossier parent
-            # C'est plus rapide et fiable que de récurser en SFTP
-            run_command(f"mkdir -p {remote_dir}", ssh=ssh) # Pas besoin de sudo car on a chown le dossier parent
+            # Optimisation: on traque les dossiers déjà créés pour éviter les appels répétés
+            if remote_dir not in created_dirs:
+                try:
+                    # On vérifie si le dossier existe déjà (plus propre que mkdir -p aveugle)
+                    # Mais mkdir -p est atomique et simple. On réduit juste le bruit.
+                    # On utilise run_command_remote silencieusement ou via ssh.exec_command
+                    cmd = f"mkdir -p {remote_dir}"
+                    ssh.exec_command(cmd)
+                    created_dirs.add(remote_dir)
+                except Exception as e:
+                    print(f"⚠️ Erreur création dossier {remote_dir}: {e}")
             
             try:
                 sftp.put(local_path, remote_path)

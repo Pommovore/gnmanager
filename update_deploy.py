@@ -49,6 +49,7 @@ def main():
     parser = argparse.ArgumentParser(description="Mise à jour rapide de GN Manager")
     parser.add_argument("--config", default="config/deploy_config.yaml", help="Fichier de configuration")
     parser.add_argument("--key", help="Chemin vers la clé SSH privée")
+    parser.add_argument("--systemd", action="store_true", help="Redémarrer le service systemd")
     args = parser.parse_args()
 
     # Charger la config
@@ -94,10 +95,13 @@ def main():
         print(f"❌ Échec connexion: {e}")
         sys.exit(1)
 
-    # 2. Arrêt du service
-    print("🛑 Arrêt du service gnmanager...")
-    if not run_remote(ssh, "systemctl stop gnmanager", sudo=True, password=password):
-        print("⚠️  Le service n'a pas pu être arrêté (peut-être pas démarré ?)")
+    # 2. Arrêt du service (Optionnel)
+    if args.systemd:
+        print("🛑 Arrêt du service gnmanager...")
+        if not run_remote(ssh, "systemctl stop gnmanager", sudo=True, password=password):
+            print("⚠️  Le service n'a pas pu être arrêté (peut-être pas démarré ?)")
+    else:
+        print("ℹ️  Option systemd désactivée: le service ne sera pas arrêté.")
 
     # 3. Création archive locale
     print("📦 Création de l'archive locale (git tracked only)...")
@@ -153,12 +157,15 @@ def main():
     # Nettoyage remote
     run_remote(ssh, f"rm {remote_tmp}")
 
-    # 6. Relance service
-    print("▶️  Redémarrage du service...")
-    if run_remote(ssh, "systemctl start gnmanager", sudo=True, password=password):
-        print("✅ Service redémarré avec succès !")
+    # 6. Relance service (Optionnel)
+    if args.systemd:
+        print("▶️  Redémarrage du service...")
+        if run_remote(ssh, "systemctl start gnmanager", sudo=True, password=password):
+            print("✅ Service redémarré avec succès !")
+        else:
+            print("❌ Erreur lors du redémarrage du service.")
     else:
-        print("❌ Erreur lors du redémarrage du service.")
+        print("ℹ️  Option systemd désactivée: le service ne sera pas redémarré.")
 
     # Nettoyage local
     os.remove(archive_name)

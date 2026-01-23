@@ -756,3 +756,90 @@ def update_casting_score(event_id):
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@event_bp.route('/event/<int:event_id>/casting/auto_assign', methods=['POST'])
+@login_required
+@organizer_required
+def auto_assign_casting(event_id):
+    """
+    Calcule et attribue automatiquement les rôles en fonction des scores pondérés.
+    
+    Algorithme (Global Greedy):
+    1. Collecte toutes les combinaisons possibles (Rôle, Participant) avec leur score moyen.
+    2. Trie toutes ces combinaisons par score moyen décroissant (de 10 à 0).
+    3. Parcourt la liste triée et attribue si le Rôle ET le Participant sont libres.
+    
+    Cela privilégie les "meilleurs matchs" globaux plutôt que de remplir les rôles un par un.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Vérifier que le casting n'est pas validé
+    if event.is_casting_validated:
+        return jsonify({'error': 'Le casting est déjà validé'}), 400
+    
+    # Récupérer tous les rôles de l'événement
+    roles = Role.query.filter_by(event_id=event_id).all()
+    
+    # Récupérer toutes les attributions avec scores
+    assignments = CastingAssignment.query.filter_by(event_id=event_id).all()
+    
+    # Construire un dictionnaire de scores: {role_id: {participant_id: [scores]}}
+    role_scores = {}
+    for assignment in assignments:
+        if assignment.participant_id and assignment.score is not None:
+            if assignment.role_id not in role_scores:
+                role_scores[assignment.role_id] = {}
+            
+            participant_id = assignment.participant_id
+            if participant_id not in role_scores[assignment.role_id]:
+                role_scores[assignment.role_id][participant_id] = []
+            
+            role_scores[assignment.role_id][participant_id].append(assignment.score)
+    
+    # Créer une liste de toutes les assignations possibles avec leur score moyen
+    # Format: (score_moyen, role, participant_id)
+    potential_assignments = []
+    
+    for role in roles:
+        if role.id in role_scores:
+            for participant_id, scores in role_scores[role.id].items():
+                avg_score = sum(scores) / len(scores) if scores else 0
+                potential_assignments.append({
+                    'score': avg_score,
+                    'role': role,
+                    'participant_id': participant_id
+                })
+    
+    # Trier par score décroissant
+    potential_assignments.sort(key=lambda x: x['score'], reverse=True)
+    
+    # Ensembles pour suivre les éléments déjà assignés
+    assigned_role_ids = set()
+    assigned_participant_ids = set()
+    assigned_count = 0
+    
+    # Réinitialiser les assignations actuelles des rôles (en mémoire) pour le calcul
+    for role in roles:
+        role.assigned_participant_id = None
+        
+    # Appliquer l'algorithme glouton global
+    for item in potential_assignments:
+        role = item['role']
+        participant_id = item['participant_id']
+        
+        if role.id not in assigned_role_ids and participant_id not in assigned_participant_ids:
+            # Assignation validée
+            role.assigned_participant_id = participant_id
+            assigned_role_ids.add(role.id)
+            assigned_participant_ids.add(participant_id)
+            assigned_count += 1
+            
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'assigned_count': assigned_count,
+        'total_roles': len(roles)
+    })
+
