@@ -5,6 +5,10 @@ import sys
 import logging
 from datetime import datetime
 import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env avant tout import d'app
+load_dotenv()
 
 os.environ.setdefault('FLASK_ENV', 'development')
 
@@ -18,6 +22,63 @@ if not logger.handlers:
 
 
 # Imports déplacés à l'intérieur des fonctions pour éviter les imports circulaires
+
+
+def fix_sequences_logic(db, app):
+    """
+    Réinitialise les séquences (compteurs d'ID auto-incrément) de la base de données.
+    Supporte SQLite et PostgreSQL.
+    """
+    from sqlalchemy import text
+    db_uri = app.config['SQLALCHEMY_DATABASE_URI']
+    logger.info("Vérification et réparation des séquences...")
+    
+    tables = [
+        'casting_proposal',
+        'casting_assignment',
+        'activity_log',
+        'user',
+        'event',
+        'role',
+        'participant',
+        'password_reset_token',
+        'account_validation_token'
+    ]
+    
+    try:
+        if 'postgresql' in db_uri:
+            for table in tables:
+                try:
+                    sql = text(f"SELECT setval(pg_get_serial_sequence('{table}', 'id'), coalesce(max(id),0) + 1, false) FROM {table};")
+                    db.session.execute(sql)
+                except Exception as e:
+                    logger.debug(f"Saut de la séquence pour '{table}': {e}")
+            db.session.commit()
+            logger.info("  - Séquences PostgreSQL synchronisées.")
+            
+        else:
+            # Mode SQLite
+            for table_name in tables:
+                try:
+                    result = db.session.execute(text(f"SELECT MAX(id) FROM {table_name}")).scalar()
+                    max_id = result if result is not None else 0
+                    
+                    exists = db.session.execute(text("SELECT 1 FROM sqlite_sequence WHERE name = :name"), {'name': table_name}).scalar()
+                    
+                    if exists:
+                        db.session.execute(text("UPDATE sqlite_sequence SET seq = :seq WHERE name = :name"), 
+                                         {'name': table_name, 'seq': max_id})
+                    else:
+                        db.session.execute(text("INSERT INTO sqlite_sequence (name, seq) VALUES (:name, :seq)"), 
+                                         {'name': table_name, 'seq': max_id})
+                except Exception as e:
+                    logger.debug(f"Erreur sequence pour '{table_name}': {e}")
+                    
+            db.session.commit()
+            logger.info("  - Séquences SQLite synchronisées.")
+    except Exception as e:
+        logger.error(f"Erreur lors de la synchronisation des séquences: {e}")
+        db.session.rollback()
 
 
 class DateTimeEncoder(json.JSONEncoder):
@@ -291,6 +352,9 @@ def import_data(args):
                 db.session.add(assignment)
         db.session.commit()
         logger.info("  - Attributions de casting importées.")
+        
+        # Réparer les séquences après l'import complet
+        fix_sequences_logic(db, app)
         
     logger.info("Import terminé avec succès.")
 
@@ -723,6 +787,9 @@ def import_data_csv(args):
                         db.session.add(assignment)
             db.session.commit()
             logger.info("  - Attributions de casting importées.")
+        
+        # Réparer les séquences après l'import complet
+        fix_sequences_logic(db, app)
     
     logger.info("Import CSV terminé avec succès.")
 

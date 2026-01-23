@@ -10,6 +10,9 @@
 </head>
 
 <script>
+    // Configuration globale pour le routage JS (support du sous-chemin /gnmanager)
+    const SCRIPT_ROOT = "{{ config.APPLICATION_ROOT or '' }}";
+
     // Appliquer le thème sauvegardé immédiatement pour éviter le flash
     (function () {
         const savedTheme = localStorage.getItem('gnmanager-theme') || 'light';

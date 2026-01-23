@@ -185,7 +185,7 @@ La fonction retourne `True` si l'envoi a réussi, `False` sinon.
 |--------|-------|
 | `fresh_deploy.py` | Premier déploiement complet |
 | `update_deploy.py` | Mise à jour rapide du code |
-| `manage_db.py` | Gestion de la base de données |
+| `manage_db.py` | Gestion de la base de données (import/export/reset) |
 
 ### Premier déploiement (fresh_deploy.py)
 ```bash
@@ -281,6 +281,9 @@ Pour tester l'envoi d'email en local :
 # Supprimer et réimporter depuis les CSV de test
 rm instance/gnmanager.db
 uv run python manage_db.py import -f config/ --clean
+
+# Ou réinitialiser la base en gardant un admin spécifique
+uv run python manage_db.py reset --keep-email ton-email@gmail.com
 
 # Ou avec seed_data.py pour générer de nouvelles données
 uv run python seed_data.py

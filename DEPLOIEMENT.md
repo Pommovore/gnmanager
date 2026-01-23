@@ -9,6 +9,7 @@ Ce document détaille les scripts de déploiement de l'application GN Manager.
 | `fresh_deploy.py` | Premier déploiement complet (clone, install, config) |
 | `update_deploy.py` | Mise à jour rapide du code (sans toucher à la BDD) |
 | `manage_db.py` | Export/Import de la base de données |
+| `fix_sequences.py`| Synchronise les compteurs d'ID (auto-incrément) |
 
 ---
 
@@ -140,6 +141,18 @@ uv run python manage_db.py import -f backup.json
 ```
 
 **Option `--clean`** : Supprime toutes les données existantes avant l'import.
+
+### 4.1 fix_sequences.py - Réparation des compteurs d'ID
+
+Si vous importez des données manuellement ou si vous rencontrez des erreurs de type "Unique Constraint" lors de la création d'objets dans l'interface (comme lors de l'ajout d'une proposition de casting), les compteurs d'ID (séquences) sont probablement désynchronisés.
+
+Ce script recalcule le prochain ID disponible pour chaque table.
+
+```bash
+ssh $GNMANAGER_USER@machine_cible
+cd /opt/gnmanager
+uv run python fix_sequences.py
+```
 
 ### Tables exportées/importées
 - `User` : Utilisateurs

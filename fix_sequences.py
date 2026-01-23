@@ -12,6 +12,14 @@ Pré-requis:
     - Environnement virtuel activé
 """
 import sys
+import os
+from dotenv import load_dotenv
+
+# Charger les variables d'environnement depuis .env avant tout import d'app
+load_dotenv()
+
+# Forcer le mode développement pour les scripts utilitaires afin d'éviter les erreurs de SECRET_KEY
+os.environ.setdefault('FLASK_ENV', 'development')
 
 from app import create_app
 from models import db, CastingProposal, CastingAssignment

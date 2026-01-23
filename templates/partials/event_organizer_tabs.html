@@ -292,6 +292,12 @@
                         <i class="bi bi-plus"></i> Ajouter une proposition
                     </button>
                 </div>
+                {% if not event.is_casting_validated %}
+                <button class="btn btn-success btn-sm" type="button" id="auto-assign-btn"
+                    title="Calculer les attributions en fonction des scores">
+                    <i class="bi bi-calculator"></i> Calculer les attributions
+                </button>
+                {% endif %}
             </div>
         </div>
         <div class="card-body">
@@ -356,7 +362,8 @@
 {# Casting JavaScript #}
 <script>
     document.addEventListener('DOMContentLoaded', function () {
-        const eventId = {{ event.id }};
+        const eventId = {{ event.id }
+    };
     const csrfToken = '{{ csrf_token() }}';
 
 
@@ -364,6 +371,7 @@
     let participantsByType = {};
     let proposals = [];
     let assignments = {};
+    let scores = {};
 
     // Load casting data on tab show
     const castingTab = document.getElementById('list-casting-list');
@@ -377,12 +385,13 @@
 
     async function loadCastingData() {
         try {
-            const response = await fetch(`/event/${eventId}/casting_data`);
+            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting_data`);
             const data = await response.json();
 
             participantsByType = data.participants_by_type;
             proposals = data.proposals;
             assignments = data.assignments;
+            scores = data.scores || {};
 
             // Build proposal columns
             rebuildProposalColumns();
@@ -429,12 +438,21 @@
                 td.className = 'assignment-cell dynamic-proposal';
                 td.dataset.proposalId = proposal.id;
                 td.innerHTML = `
-                    <select class="form-select form-select-sm casting-select" 
-                            data-role-id="${roleId}" 
-                            data-proposal-id="${proposal.id}"
-                            data-role-type="${roleType}">
-                        <option value="">-- Non attribué --</option>
-                    </select>
+                    <div class="d-flex gap-2 align-items-center">
+                        <select class="form-select form-select-sm casting-select flex-grow-1" 
+                                data-role-id="${roleId}" 
+                                data-proposal-id="${proposal.id}"
+                                data-role-type="${roleType}">
+                            <option value="">-- Non attribué --</option>
+                        </select>
+                        <select class="form-select form-select-sm score-select" 
+                                style="width: 70px;"
+                                data-role-id="${roleId}" 
+                                data-proposal-id="${proposal.id}"
+                                title="Score (0-10)">
+                            ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
+                        </select>
+                    </div>
                 `;
                 row.appendChild(td);
             });
@@ -490,6 +508,28 @@
             select.removeEventListener('change', handleAssignmentChange);
             select.addEventListener('change', handleAssignmentChange);
         });
+
+        // Populate and add change event listeners for scores
+        document.querySelectorAll('.score-select').forEach(scoreSelect => {
+            const roleId = scoreSelect.dataset.roleId;
+            const proposalId = scoreSelect.dataset.proposalId;
+
+            // Skip 'main' proposal as it doesn't have scores
+            if (proposalId === 'main') {
+                return;
+            }
+
+            // Get current score (default to 0, handling 0 as valid value)
+            let currentScore = 0;
+            if (scores[proposalId] && scores[proposalId][roleId] !== undefined) {
+                currentScore = scores[proposalId][roleId];
+            }
+            scoreSelect.value = currentScore;
+
+            // Add event listener for score changes
+            scoreSelect.removeEventListener('change', handleScoreChange);
+            scoreSelect.addEventListener('change', handleScoreChange);
+        });
     }
 
     function getAssignedParticipantIds(proposalId, excludeRoleId) {
@@ -514,7 +554,7 @@
         const participantId = select.value || null;
 
         try {
-            const response = await fetch(`/event/${eventId}/casting/assign`, {
+            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/assign`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -547,6 +587,43 @@
         }
     }
 
+    async function handleScoreChange(event) {
+        const scoreSelect = event.target;
+        const roleId = scoreSelect.dataset.roleId;
+        const proposalId = scoreSelect.dataset.proposalId;
+        const score = parseInt(scoreSelect.value);
+
+        try {
+            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/update_score`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({
+                    role_id: roleId,
+                    proposal_id: proposalId,
+                    score: score
+                })
+            });
+
+            if (response.ok) {
+                // Update local scores
+                if (!scores[proposalId]) {
+                    scores[proposalId] = {};
+                }
+                scores[proposalId][roleId] = score;
+            } else {
+                console.error('Failed to save score');
+                // Revert the change
+                loadCastingData();
+            }
+        } catch (error) {
+            console.error('Error saving score:', error);
+            loadCastingData();
+        }
+    }
+
     // Add proposal button
     const addProposalBtn = document.getElementById('add-proposal-btn');
     if (addProposalBtn) {
@@ -561,7 +638,7 @@
             nameInput.classList.remove('is-invalid');
 
             try {
-                const response = await fetch(`/event/${eventId}/casting/add_proposal`, {
+                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/add_proposal`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
@@ -590,7 +667,7 @@
         }
 
         try {
-            const response = await fetch(`/event/${eventId}/casting/delete_proposal`, {
+            const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/delete_proposal`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -609,6 +686,38 @@
         }
     }
 
+    // Auto-assign button
+    const autoAssignBtn = document.getElementById('auto-assign-btn');
+    if (autoAssignBtn) {
+        autoAssignBtn.addEventListener('click', async function () {
+            if (!confirm('Calculer les attributions automatiquement en fonction des scores ?\n\nCela écrasera les attributions actuelles dans la colonne "Attribution".')) {
+                return;
+            }
+
+            try {
+                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/auto_assign`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': csrfToken
+                    }
+                });
+
+                if (response.ok) {
+                    const result = await response.json();
+                    alert(`Attribution automatique terminée !\n${result.assigned_count} rôles attribués sur ${result.total_roles}.`);
+                    loadCastingData();
+                } else {
+                    const error = await response.json();
+                    alert(`Erreur : ${error.error || 'Erreur lors du calcul'}`);
+                }
+            } catch (error) {
+                console.error('Error auto-assigning:', error);
+                alert('Erreur lors du calcul automatique');
+            }
+        });
+    }
+
     // Casting validation switch
     const validationSwitch = document.getElementById('castingValidationSwitch');
     const validationLabel = document.getElementById('castingValidationLabel');
@@ -618,7 +727,7 @@
             const validated = this.checked;
 
             try {
-                const response = await fetch(`/event/${eventId}/casting/toggle_validation`, {
+                const response = await fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/toggle_validation`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
