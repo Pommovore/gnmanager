@@ -264,7 +264,7 @@
 </div>
 
 {# Casting Tab (Organizer only) #}
-<div class="tab-pane fade" id="list-casting" role="tabpanel" data-event-id="{{ event.id }}"
+<div class="tab-pane fade" id="casting-container" role="tabpanel" data-event-id="{{ event.id }}"
     data-csrf-token="{{ csrf_token() }}">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
@@ -360,8 +360,6 @@
     </div>
 </div>
 
-{# Casting JavaScript - Loaded from external file #}
-<script src="{{ url_for('static', filename='js/casting.js') }}"></script>
 
 {# Add Role Modal #}
 <div class="modal fade" id="addRoleModal" tabindex="-1" aria-labelledby="addRoleModalLabel" aria-hidden="true">
@@ -521,60 +519,11 @@
 </div>
 {% endfor %}
 
-{# JavaScript for dynamic group dropdown based on type #}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        // Groups configuration from server
-        const groupsConfig = {{ groups_config | tojson | safe
-    }};
 
-    // Handle all type selects (add form and edit modals)
-    document.querySelectorAll('.role-type-select').forEach(function (typeSelect) {
-        typeSelect.addEventListener('change', function () {
-            const target = this.dataset.target;
-            const groupSelect = document.getElementById(target + '-group-select');
-            const selectedType = this.value;
-            const currentGroup = groupSelect.dataset.current || '';
+{# Groups configuration data - passed as JSON for external JavaScript #}
+<script type="application/json" id="groups-config-data">{{ groups_config | tojson }}</script>
 
-            // Clear existing options
-            groupSelect.innerHTML = '<option value="">Aucun groupe</option>';
-
-            if (selectedType && groupsConfig[selectedType]) {
-                groupSelect.disabled = false;
-                groupsConfig[selectedType].forEach(function (grp) {
-                    const option = document.createElement('option');
-                    option.value = grp;
-                    option.textContent = grp;
-                    if (grp === currentGroup) {
-                        option.selected = true;
-                    }
-                    groupSelect.appendChild(option);
-                });
-            } else {
-                groupSelect.disabled = true;
-            }
-        });
-
-        // Trigger change on page load for edit modals with existing type
-        if (typeSelect.value) {
-            typeSelect.dispatchEvent(new Event('change'));
-        }
-    });
-
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
-    tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl);
-    });
-
-    // Activate tab from URL hash (for redirect after role creation/update)
-    const hash = window.location.hash;
-    if (hash) {
-        const tabTrigger = document.querySelector('[data-bs-toggle="list"][href="' + hash + '"]');
-        if (tabTrigger) {
-            const tab = new bootstrap.Tab(tabTrigger);
-            tab.show();
-        }
-    }
-});
-</script>
+{# Event Organizer JavaScript - Loaded from external file #}
+<script src="{{ url_for('static', filename='js/event_organizer.js') }}"></script>
+{# Casting JavaScript - Loaded from external file #}
+<script src="{{ url_for('static', filename='js/casting.js') }}"></script>
