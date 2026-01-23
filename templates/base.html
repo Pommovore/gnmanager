@@ -33,8 +33,17 @@
             </div>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav ms-auto align-items-center">
-                <span class="badge bg-secondary rounded-pill me-3">{{ current_user.prenom }} {{ current_user.nom|upper
+                <a href="{{ url_for('admin.profile_page') }}" class="text-decoration-none me-2" title="Préférences">
+                    <i class="bi bi-gear-fill text-light" style="font-size: 1.2rem;"></i>
+                </a>
+                <span class="badge bg-secondary rounded-pill">{{ current_user.prenom }} {{ current_user.nom|upper
                     }} ({{ current_user.email }})</span>
+                {% if current_user.role in ['createur', 'sysadmin'] %}
+                <a href="{{ url_for('admin.admin_page') }}" class="text-decoration-none ms-2 me-2"
+                    title="Administration">
+                    <i class="bi bi-award-fill text-warning" style="font-size: 1.3rem;"></i>
+                </a>
+                {% endif %}
                 <a class="nav-link" href="{{ url_for('auth.logout') }}">Déconnexion</a>
             </div>
             {% endif %}

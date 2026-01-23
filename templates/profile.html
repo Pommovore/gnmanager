@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Mon Profil
+    {% if user.role == 'createur' %}
+    <span class="badge bg-dark fs-6 align-middle ms-1">Créateur</span>
+    {% elif user.role == 'sysadmin' %}
+    <span class="badge bg-warning text-dark fs-6 align-middle ms-1">SysAdmin</span>
+    {% else %}
+    <span class="badge bg-success fs-6 align-middle ms-1">Actif</span>
+    {% endif %}
+</h3>
+<form method="POST" action="/profile" enctype="multipart/form-data">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+    <div class="mb-3">
+        <label class="form-label">Avatar (max 80x80)</label>
+        <input type="file" class="form-control" name="avatar">
+        {% if user.avatar_url %}
+        <img src="{{ user.avatar_url }}" class="mt-2" alt="Avatar">
+        {% endif %}
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Nom</label>
+        <input type="text" class="form-control" name="nom" value="{{ user.nom or '' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Prénom</label>
+        <input type="text" class="form-control" name="prenom" value="{{ user.prenom or '' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Age</label>
+        <input type="number" class="form-control" name="age" value="{{ user.age or '' }}">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Genre</label>
+        <select class="form-select" name="genre">
+            <option value="" {% if not user.genre %}selected{% endif %}>Choisir...</option>
+            <option value="H" {% if user.genre=='H' %}selected{% endif %}>Homme</option>
+            <option value="F" {% if user.genre=='F' %}selected{% endif %}>Femme</option>
+            <option value="X" {% if user.genre=='X' %}selected{% endif %}>Indéterminé</option>
+        </select>
+    </div>
+    <hr>
+    <h4>Changer le mot de passe</h4>
+    <div class="mb-3">
+        <label class="form-label">Nouveau mot de passe</label>
+        <input type="password" class="form-control" name="new_password">
+    </div>
+    <div class="mb-3">
+        <label class="form-label">Confirmer le mot de passe</label>
+        <input type="password" class="form-control" name="confirm_password">
+    </div>
+    <button type="submit" class="btn btn-primary">Mettre à jour</button>
+</form>
+{% endblock %}

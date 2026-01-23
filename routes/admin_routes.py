@@ -81,6 +81,48 @@ def dashboard():
                          admin_view=admin_view)
 
 
+@admin_bp.route('/admin', methods=['GET'])
+@login_required
+@admin_required
+def admin_page():
+    """
+    Affiche la page d'administration système.
+    
+    Returns:
+        Template admin avec gestion des utilisateurs
+    """
+    page = request.args.get('page', 1, type=int)
+    admin_view = request.args.get('admin_view', 'users')
+    users_pagination = User.query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
+    
+    breadcrumbs = [
+        ('Dashboard', url_for('admin.dashboard')),
+        ('Administration', '#')
+    ]
+    
+    return render_template('admin.html', 
+                         user=current_user,
+                         users_pagination=users_pagination,
+                         admin_view=admin_view,
+                         breadcrumbs=breadcrumbs)
+
+
+@admin_bp.route('/profile', methods=['GET'])
+@login_required
+def profile_page():
+    """
+    Affiche la page de profil utilisateur.
+    
+    Returns:
+        Template de profil avec les informations de l'utilisateur courant
+    """
+    breadcrumbs = [
+        ('Dashboard', url_for('admin.dashboard')),
+        ('Mon Profil', '#')
+    ]
+    return render_template('profile.html', user=current_user, breadcrumbs=breadcrumbs)
+
+
 @admin_bp.route('/profile', methods=['POST'])
 @login_required
 def update_profile():
@@ -124,11 +166,11 @@ def update_profile():
             flash('Mot de passe mis à jour.', 'success')
         else:
             flash('Les mots de passe ne correspondent pas.', 'danger')
-            return redirect(url_for('admin.dashboard'))
+            return redirect(url_for('admin.profile_page'))
 
     db.session.commit()
     flash('Profil mis à jour.', 'success')
-    return redirect(url_for('admin.dashboard'))
+    return redirect(url_for('admin.profile_page'))
 
 
 

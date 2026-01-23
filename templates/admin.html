@@ -1,0 +1,252 @@
+{% extends "base.html" %}
+{% block content %}
+<h3>Gestion des Utilisateurs</h3>
+<div class="row">
+    <!-- Sidebar Menu (20%) -->
+    <div class="col-md-2 border-end">
+        <div class="list-group list-group-flush">
+            <a href="{{ url_for('admin.admin_page', admin_view='users') }}"
+                class="list-group-item list-group-item-action {% if admin_view == 'users' or not admin_view %}active{% endif %}">
+                Utilisateurs
+            </a>
+            <a href="{{ url_for('admin.admin_page', admin_view='add') }}"
+                class="list-group-item list-group-item-action {% if admin_view == 'add' %}active{% endif %}">
+                Ajouter
+            </a>
+            <a href="{{ url_for('admin.admin_logs') }}" class="list-group-item list-group-item-action">
+                <i class="bi bi-journal-text"></i> Logs
+            </a>
+        </div>
+    </div>
+
+    <!-- Content Area (80%) -->
+    <div class="col-md-10 ps-4">
+        {% if admin_view == 'add' %}
+        <div class="card mb-3">
+            <div class="card-body">
+                <h5>Ajouter un nouvel utilisateur</h5>
+                <p class="text-muted">Veuillez saisir l'email du nouvel utilisateur. Si l'email n'existe
+                    pas, le compte sera créé et vous pourrez l'éditer.</p>
+                <form method="POST" action="/admin/user/add" class="row g-3">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                    <div class="col-md-8">
+                        <label class="form-label">Email</label>
+                        <input type="email" class="form-control" name="email" placeholder="email@example.com" required>
+                    </div>
+                    <div class="col-12 mt-3">
+                        <button type="submit" class="btn btn-primary">Vérifier et Ajouter</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        {% else %}
+        <!-- Users List -->
+        <table class="table">
+            <thead>
+                <tr>
+                    <th>Email</th>
+                    <th>Nom</th>
+                    <th>Prénom</th>
+                    <th>Statut</th>
+                    <th>Modification</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if users_pagination %}
+                {% for u in users_pagination.items %}
+                <tr>
+                    <td>
+                        <a href="{{ url_for('admin.user_events', user_id=u.id) }}" class="text-decoration-none">
+                            {{ u.email }}
+                        </a>
+                    </td>
+                    <td>{{ u.nom or '-' }}</td>
+                    <td>{{ u.prenom or '-' }}</td>
+                    <td>
+                        {% if u.role == 'createur' %}
+                        <span class="badge bg-dark">Créateur</span>
+                        {% elif u.role == 'sysadmin' %}
+                        <span class="badge bg-warning text-dark">SysAdmin</span>
+                        {% elif u.is_banned %}
+                        <span class="badge bg-danger">Banni</span>
+                        {% else %}
+                        <span class="badge bg-success">Actif</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                            data-bs-target="#editUserModal{{ u.id }}">
+                            <i class="bi bi-gear-fill"></i>
+                        </button>
+                    </td>
+                </tr>
+
+                <!-- Edit User Modal -->
+                <div class="modal fade" id="editUserModal{{ u.id }}" tabindex="-1"
+                    aria-labelledby="editUserModalLabel{{ u.id }}" aria-hidden="true">
+                    <div class="modal-dialog">
+                        <div class="modal-content">
+                            <div class="modal-header">
+                                <h5 class="modal-title">Modifier {{ u.email }}</h5>
+                                <button type="button" class="btn-close" data-bs-dismiss="modal"
+                                    aria-label="Close"></button>
+                            </div>
+                            <form action="/admin/user/{{ u.id }}/update_full" method="POST"
+                                id="updateUserForm{{ u.id }}">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                {% set is_readonly = (user.role != 'createur' and u.role == 'createur') %}
+                                <div class="modal-body">
+                                    {% if is_readonly %}
+                                    <div class="alert alert-warning">
+                                        Vous ne pouvez pas modifier un compte Créateur.
+                                    </div>
+                                    {% endif %}
+                                    <div class="mb-3">
+                                        <label class="form-label">Email</label>
+                                        <input type="email" class="form-control" name="email" value="{{ u.email }}"
+                                            required {% if is_readonly %}disabled{% endif %}>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Mot de passe (laisser vide pour ne pas
+                                            changer)</label>
+                                        <input type="password" class="form-control" name="password"
+                                            placeholder="Nouveau mot de passe" {% if is_readonly %}disabled{% endif %}>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Nom</label>
+                                        <input type="text" class="form-control" name="nom" value="{{ u.nom or '' }}" {%
+                                            if is_readonly %}disabled{% endif %}>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Prénom</label>
+                                        <input type="text" class="form-control" name="prenom"
+                                            value="{{ u.prenom or '' }}" {% if is_readonly %}disabled{% endif %}>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Statut Système</label>
+                                        <select class="form-select" name="status" {% if is_readonly %}disabled{% endif
+                                            %}>
+                                            <option value="user" {% if u.role=='user' and not u.is_banned %}selected{%
+                                                endif %}>Actif (Utilisateur)</option>
+                                            <option value="sysadmin" {% if u.role=='sysadmin' %}selected{% endif %}>
+                                                SysAdmin</option>
+                                            {% if user.role == 'createur' %}
+                                            <option value="createur" {% if u.role=='createur' %}selected{% endif %}>
+                                                Créateur</option>
+                                            {% endif %}
+                                            <option value="banni" {% if u.is_banned %}selected{% endif %}>Banni
+                                            </option>
+                                        </select>
+                                    </div>
+                                    <hr>
+                                    <div class="mb-3">
+                                        <label class="form-label">Age</label>
+                                        <input type="number" class="form-control" name="age" value="{{ u.age or '' }}"
+                                            {% if is_readonly %}disabled{% endif %}>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label class="form-label">Genre</label>
+                                        <select class="form-select" name="genre" {% if is_readonly %}disabled{% endif
+                                            %}>
+                                            <option value="" {% if not u.genre %}selected{% endif %}>Choisir...
+                                            </option>
+                                            <option value="H" {% if u.genre=='H' %}selected{% endif %}>Homme
+                                            </option>
+                                            <option value="F" {% if u.genre=='F' %}selected{% endif %}>Femme
+                                            </option>
+                                            <option value="X" {% if u.genre=='X' %}selected{% endif %}>
+                                                Indéterminé
+                                            </option>
+                                        </select>
+                                    </div>
+                                </div>
+                            </form>
+                            <div class="modal-footer">
+                                {% if not is_readonly and u.id != current_user.id %}
+                                <form action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" method="POST"
+                                    class="me-auto"
+                                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible et effacera toutes ses données.');">
+                                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                                </form>
+                                {% endif %}
+
+                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+
+                                {% if not is_readonly %}
+                                <button type="submit" form="updateUserForm{{ u.id }}"
+                                    class="btn btn-primary">Enregistrer</button>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </tbody>
+        </table>
+
+        <!-- Check if users_pagination exists to avoid errors -->
+        {% if users_pagination %}
+        <nav aria-label="Page navigation" class="mt-3">
+            <ul class="pagination justify-content-center">
+                {% if users_pagination.has_prev %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="{{ url_for('admin.admin_page', page=users_pagination.prev_num, admin_view=admin_view) }}">Précédent</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Précédent</span>
+                </li>
+                {% endif %}
+
+                {% for p in users_pagination.iter_pages(left_edge=1, right_edge=1, left_current=1,
+                right_current=2) %}
+                {% if p %}
+                {% if p == users_pagination.page %}
+                <li class="page-item active">
+                    <span class="page-link">{{ p }}</span>
+                </li>
+                {% else %}
+                <li class="page-item">
+                    <a class="page-link" href="{{ url_for('admin.admin_page', page=p, admin_view=admin_view) }}">{{ p
+                        }}</a>
+                </li>
+                {% endif %}
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">...</span>
+                </li>
+                {% endif %}
+                {% endfor %}
+
+                {% if users_pagination.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                        href="{{ url_for('admin.admin_page', page=users_pagination.next_num, admin_view=admin_view) }}">Suivant</a>
+                </li>
+                {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Suivant</span>
+                </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
+        {% endif %}
+    </div>
+</div>
+{% if request.args.get('open_edit') %}
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var modalId = 'editUserModal' + '{{ request.args.get("open_edit") }}';
+        var modalEl = document.getElementById(modalId);
+        if (modalEl) {
+            var modal = new bootstrap.Modal(modalEl);
+            modal.show();
+        }
+    });
+</script>
+{% endif %}
+{% endblock %}
