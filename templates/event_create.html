@@ -6,7 +6,7 @@
             <div class="card-header">Créer un événement</div>
             <div class="card-body">
                 <form method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
                         <label class="form-label">Nom de l'événement</label>
                         <input type="text" class="form-control" name="name" required>
@@ -46,7 +46,7 @@
                             placeholder="https://forms.gle/...">
                     </div>
                     <button type="submit" class="btn btn-primary">Créer</button>
-                    <a href="/dashboard" class="btn btn-secondary">Annuler</a>
+                    <a href="{{ url_for('admin.dashboard') }}" class="btn btn-secondary">Annuler</a>
                 </form>
             </div>
         </div>

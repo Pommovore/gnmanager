@@ -6,7 +6,7 @@
             <div class="card-header">Connexion</div>
             <div class="card-body">
                 <form method="POST">
-                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"/>
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                     <div class="mb-3">
                         <label for="email" class="form-label">Email</label>
                         <input type="email" class="form-control" id="email" name="email" required>
@@ -16,8 +16,8 @@
                         <input type="password" class="form-control" id="password" name="password" required>
                     </div>
                     <button type="submit" class="btn btn-primary">Se connecter</button>
-                    <a href="/register" class="btn btn-link">S'inscrire</a>
-                    <a href="/forgot_password" class="btn btn-link">Mot de passe oublié ?</a>
+                    <a href="{{ url_for('auth.register') }}" class="btn btn-link">S'inscrire</a>
+                    <a href="{{ url_for('auth.forgot_password') }}" class="btn btn-link">Mot de passe oublié ?</a>
                 </form>
             </div>
         </div>
