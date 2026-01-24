@@ -379,6 +379,8 @@ Voir le fichier [LICENSE](./LICENSE.md) pour le texte complet.
 
 ## 🤝 Contribution
 
+Les sources sont disponibles sur [GitHub](https://github.com/pommovore/gnmanager).
+
 Pour contribuer :
 1. Créez une branche depuis `main`
 2. Faites vos modifications

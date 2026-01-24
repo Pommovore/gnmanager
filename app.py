@@ -202,6 +202,12 @@ def create_app(test_config=None):
     app.register_blueprint(participant_bp)
     
     app.logger.info("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
+    
+    # Context processor pour rendre la version disponible dans tous les templates
+    @app.context_processor
+    def inject_version():
+        from version import __version__
+        return dict(app_version=__version__)
         
     with app.app_context():
         db.create_all()
