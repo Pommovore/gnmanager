@@ -33,9 +33,10 @@
             </div>
             {% if current_user.is_authenticated %}
             <div class="navbar-nav ms-auto align-items-center">
-                <a href="{{ url_for('admin.profile_page') }}" class="text-decoration-none me-2" title="Préférences">
+                <button type="button" class="btn btn-link text-decoration-none me-2 p-0" title="Préférences"
+                    data-bs-toggle="modal" data-bs-target="#profileModal">
                     <i class="bi bi-gear-fill text-light" style="font-size: 1.2rem;"></i>
-                </a>
+                </button>
                 <span class="badge bg-secondary rounded-pill">{{ current_user.prenom }} {{ current_user.nom|upper
                     }} ({{ current_user.email }})</span>
                 {% if current_user.role in ['createur', 'sysadmin'] %}
@@ -63,6 +64,91 @@
             </ol>
         </nav>
         {% endif %}
+
+        <!-- Modale de profil utilisateur -->
+        {% if current_user.is_authenticated %}
+        <div class="modal fade" id="profileModal" tabindex="-1" aria-labelledby="profileModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-lg">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="profileModalLabel">
+                            <i class="bi bi-person-circle me-2"></i>Mon Profil
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="profileForm" action="{{ url_for('admin.update_profile') }}" method="POST"
+                            enctype="multipart/form-data">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="nom" class="form-label">Nom</label>
+                                    <input type="text" class="form-control" id="nom" name="nom"
+                                        value="{{ current_user.nom }}" required>
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="prenom" class="form-label">Prénom</label>
+                                    <input type="text" class="form-control" id="prenom" name="prenom"
+                                        value="{{ current_user.prenom }}" required>
+                                </div>
+                            </div>
+
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="age" class="form-label">Âge</label>
+                                    <input type="number" class="form-control" id="age" name="age"
+                                        value="{{ current_user.age or '' }}">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="genre" class="form-label">Genre</label>
+                                    <select class="form-select" id="genre" name="genre">
+                                        <option value="">Non spécifié</option>
+                                        <option value="Homme" {% if current_user.genre=='Homme' %}selected{% endif %}>
+                                            Homme</option>
+                                        <option value="Femme" {% if current_user.genre=='Femme' %}selected{% endif %}>
+                                            Femme</option>
+                                        <option value="Autre" {% if current_user.genre=='Autre' %}selected{% endif %}>
+                                            Autre</option>
+                                    </select>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="avatar" class="form-label">Avatar</label>
+                                {% if current_user.avatar_path %}
+                                <div class="mb-2">
+                                    <img src="{{ url_for('static', filename=current_user.avatar_path) }}" alt="Avatar"
+                                        class="img-thumbnail" style="max-width: 150px;">
+                                </div>
+                                {% endif %}
+                                <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
+                            </div>
+
+                            <hr class="my-4">
+                            <h6 class="mb-3"><i class="bi bi-key me-2"></i>Changer le mot de passe</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="new_password" class="form-label">Nouveau mot de passe</label>
+                                    <input type="password" class="form-control" id="new_password" name="new_password"
+                                        placeholder="Laisser vide pour ne pas changer">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="confirm_password" class="form-label">Confirmer le mot de passe</label>
+                                    <input type="password" class="form-control" id="confirm_password"
+                                        name="confirm_password" placeholder="Confirmer le nouveau mot de passe">
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" form="profileForm" class="btn btn-primary">Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
         {% for category, message in messages %}

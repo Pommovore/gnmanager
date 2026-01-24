@@ -8,7 +8,7 @@ Ce module gère:
 - Journal d'activité (logs)
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from models import db, User, Event, Participant, ActivityLog
 from auth import generate_password, send_email
@@ -166,11 +166,14 @@ def update_profile():
             flash('Mot de passe mis à jour.', 'success')
         else:
             flash('Les mots de passe ne correspondent pas.', 'danger')
-            return redirect(url_for('admin.profile_page'))
+            return redirect(url_for('admin.dashboard'))
+
 
     db.session.commit()
     flash('Profil mis à jour.', 'success')
-    return redirect(url_for('admin.profile_page'))
+    return redirect(url_for('admin.dashboard'))
+
+
 
 
 
