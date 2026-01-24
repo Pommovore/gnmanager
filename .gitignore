@@ -88,3 +88,4 @@ dmypy.json
 config/client_secret_872660210492-a8bt5vi6lgvsch8964j0bcf8ceomb09b.apps.googleusercontent.com.json
 config/google_credentials.json
 run_local.sh
+start.sh

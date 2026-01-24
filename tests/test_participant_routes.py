@@ -174,47 +174,6 @@ class TestParticipantUpdate:
         assert participant.registration_status == 'Rejeté'
 
 
-class TestCastingInterface:
-    """Tests de l'interface de casting."""
-    
-    def test_casting_requires_organizer(self, auth_client, sample_event):
-        """Test que le casting nécessite d'être organisateur."""
-        response = auth_client.get(f'/event/{sample_event.id}/casting')
-        assert response.status_code in [302, 403]
-    
-    def test_casting_loads_for_organizer(self, client, sample_event, user_creator):
-        """Test que le casting se charge pour un organisateur."""
-        from tests.conftest import login
-        login(client, 'creator@test.com', 'creator123')
-        
-        response = client.get(f'/event/{sample_event.id}/casting')
-        assert response.status_code == 200
-        # Devrait afficher l'interface de casting
-        assert b'Casting' in response.data or b'casting' in response.data
-    
-    def test_casting_shows_roles_and_participants(self, client, sample_event, user_creator, sample_participant, db):
-        """Test que le casting affiche les rôles et participants."""
-        from tests.conftest import login
-        
-        # Créer un rôle
-        role = Role(
-            event_id=sample_event.id,
-            name='Guerrier Mystérieux',
-            genre='H',
-            group='Groupe A'
-        )
-        db.session.add(role)
-        db.session.commit()
-        
-        # Se connecter comme organisateur
-        login(client, 'creator@test.com', 'creator123')
-        
-        response = client.get(f'/event/{sample_event.id}/casting')
-        assert response.status_code == 200
-        # Devrait afficher le rôle et le participant
-        assert b'Guerrier' in response.data or b'participant' in response.data.lower()
-
-
 class TestParticipantPermissions:
     """Tests des permissions d'accès aux routes de participants."""
     

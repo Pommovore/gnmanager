@@ -193,28 +193,6 @@ def change_status(event_id, p_id):
     return redirect(url_for('participant.manage', event_id=event_id))
 
 
-@participant_bp.route('/event/<int:event_id>/casting')
-@login_required
-@organizer_required
-def casting(event_id):
-    """
-    Interface de casting pour assigner des rôles aux participants.
-    
-    Optimisé avec joinedload pour éviter les requêtes N+1.
-    """
-    event = Event.query.get_or_404(event_id)
-        
-    # Participants validés sans rôle (avec joinedload pour éviter N+1)
-    participants_no_role = Participant.query.filter_by(
-        event_id=event.id, 
-        role_id=None,
-        registration_status=RegistrationStatus.VALIDATED.value
-    ).options(joinedload(Participant.user)).all()
-
-    # Rôles de l'événement
-    roles = Role.query.filter_by(event_id=event.id).order_by(Role.group).all()
-    
-    return render_template('casting.html', event=event, participants=participants_no_role, roles=roles)
 
 
 @participant_bp.route('/api/casting/assign', methods=['POST'])

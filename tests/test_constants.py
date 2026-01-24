@@ -143,7 +143,7 @@ class TestActivityLogType:
     def test_all_log_types_defined(self):
         """Test que tous les types de logs sont définis."""
         types = list(ActivityLogType)
-        assert len(types) == 5
+        assert len(types) == 10  # Mise à jour: 10 types de logs sont maintenant définis
 
 
 class TestDefaultValues:
