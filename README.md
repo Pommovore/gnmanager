@@ -1,3 +1,4 @@
+![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)
 # GN Manager
 
 Application web de gestion pour les événements de Grandeur Nature (GN).
@@ -365,9 +366,16 @@ python main.py
 2. Testez la connexion manuellement : `ssh user@host`
 3. Vérifiez que l'utilisateur a les droits `sudo`
 
-## 📝 Licence
+## ⚖️ Licence
 
-Ce projet est développé pour la gestion interne des événements GN.
+Ce projet est sous licence **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+
+Cela signifie que :
+- ✅ **Vous pouvez** utiliser, modifier et distribuer ce logiciel.
+- 🔗 **Effet copyleft** : Si vous modifiez ce code et le distribuez (ou l'hébergez sur un serveur pour que d'autres l'utilisent), vous **devez** publier vos modifications sous la même licence AGPL.
+- 🔓 **Accès au code** : Les utilisateurs de votre version doivent pouvoir télécharger votre code source.
+
+Voir le fichier [LICENSE](./LICENSE.md) pour le texte complet.
 
 ## 🤝 Contribution
 
