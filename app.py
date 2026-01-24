@@ -14,7 +14,7 @@ Usage:
     app.run()
 """
 
-from flask import Flask
+from flask import Flask, render_template
 from models import db, User
 from flask_login import LoginManager
 from extensions import mail, migrate, csrf, limiter, oauth
@@ -208,6 +208,23 @@ def create_app(test_config=None):
     def inject_version():
         from version import __version__
         return dict(app_version=__version__)
+    
+    # Error handlers
+    @app.errorhandler(404)
+    def page_not_found(e):
+        """Handle 404 errors - Page not found."""
+        return render_template('errors/404.html'), 404
+    
+    @app.errorhandler(500)
+    def internal_server_error(e):
+        """Handle 500 errors - Internal server error."""
+        db.session.rollback()  # Rollback any failed database transactions
+        return render_template('errors/500.html'), 500
+    
+    @app.errorhandler(403)
+    def forbidden(e):
+        """Handle 403 errors - Forbidden access."""
+        return render_template('errors/403.html'), 403
         
     with app.app_context():
         db.create_all()
