@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Create score slider HTML
     function createScoreSlider(proposalId, roleId, selectedScore) {
-        const score = selectedScore !== null ? selectedScore : 0;
+        const score = (selectedScore !== null && selectedScore !== undefined) ? selectedScore : 10;
         const color = getScoreColor(score);
 
         return `
@@ -296,7 +296,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     data-proposal-id="${proposalId}"
                     data-role-id="${roleId}"
                     style="flex-grow: 1; margin-top: 0;">
-                <span class="badge score-badge" style="background-color: ${color}; min-width: 25px;">${selectedScore !== null ? score : '--'}</span>
+                <span class="badge score-badge" style="background-color: ${color}; min-width: 25px;">${score}</span>
             </div>
         `;
     }
