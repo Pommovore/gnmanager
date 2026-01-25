@@ -2,6 +2,7 @@
 
 ## 1. But de l'application
 **GN Manager** est une plateforme web conçue pour faciliter l'organisation et la gestion de jeux de rôles grandeur nature (GN). Elle permet de centraliser :
+
 - La gestion des événements (dates, lieux, descriptions).
 - L'inscription des participants (PJ, PNJ, Organisateurs).
 - Le casting et l'attribution des rôles.
@@ -29,6 +30,7 @@ Le parcours typique d'un utilisateur souhaitant participer à un événement se 
 Tout utilisateur connecté a accès aux menus suivants :
 
 ### A. Barre de Navigation (Haut de page)
+
 - **GN Manager (Logo)** : Retour à l'accueil / Tableau de bord.
 - **Switch Thème** (🌙/☀️) : Permet de basculer entre le mode clair et le mode sombre.
 - **Mon Profil** (via le nom/avatar) : Ouvre une fenêtre modale pour :
@@ -38,6 +40,7 @@ Tout utilisateur connecté a accès aux menus suivants :
 
 ### B. Tableau de Bord (Accueil)
 C'est la page principale après connexion. Elle affiche **"Mes Événements"**, regroupant tous les jeux auxquels l'utilisateur est inscrit ou intéressé. Chaque carte d'événement résume :
+
 - Le nom et les dates.
 - Le statut de l'inscription (badge couleur).
 - Le rôle attribué (si disponible).
@@ -47,6 +50,7 @@ C'est la page principale après connexion. Elle affiche **"Mes Événements"**, 
 Cette page est le cœur de l'information pour un jeu donné. Elle est divisée en onglets (certains ne sont visibles que pour les organisateurs) :
 
 #### Onglet "Informations" (Pour tous)
+
 - **En-tête** : Titre, dates, lieu, description générale.
 - **Statut** : État d'avancement (Inscriptions ouvertes, Casting en cours, etc.).
 - **Liens** : Liens externes (site web, Google Forms).
@@ -57,6 +61,7 @@ Cette page est le cœur de l'information pour un jeu donné. Elle est divisée e
 
 #### Onglets Organisateurs (Visible uniquement si Organisateur de l'événement)
 Si vous êtes désigné comme **Organisateur** sur cet événement, vous voyez des onglets supplémentaires :
+
 - **Infos Générales (modif)** : Pour éditer la description, les jauges, les liens, les dates et changer le statut de l'événement.
 - **Groupes** : Pour configurer les noms des groupes (factions) disponibles.
 - **Participants** : Liste complète des inscrits avec tableau de gestion (Validation, PAF, Repas). Permet d'exporter les données en CSV/Excel.
@@ -79,6 +84,7 @@ Page de résumé technique affichant :
 
 ### B. Gestion des Utilisateurs
 Permet de lister tous les comptes de la plateforme.
+
 - **Recherche** : Filtrer par nom ou email.
 - **Actions** :
     - **Promouvoir/Rétrograder** : Changer le rôle global (Utilisateur, Créateur, Sysadmin).

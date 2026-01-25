@@ -9,6 +9,39 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <style>
+        /* Styles pour le guide utilisateur (Markdown) */
+        #guideContent ul {
+            list-style-type: disc !important;
+            padding-left: 2rem !important;
+            margin-bottom: 1rem;
+        }
+
+        #guideContent ol {
+            list-style-type: decimal !important;
+            padding-left: 2rem !important;
+            margin-bottom: 1rem;
+        }
+
+        #guideContent li {
+            margin-bottom: 0.25rem;
+            display: list-item !important;
+            /* Force list-item handling */
+        }
+
+        #guideContent h2 {
+            margin-top: 1.5rem;
+            margin-bottom: 1rem;
+            border-bottom: 1px solid var(--bs-border-color);
+            padding-bottom: 0.5rem;
+        }
+
+        #guideContent h3 {
+            margin-top: 1.25rem;
+            margin-bottom: 0.75rem;
+            color: var(--bs-primary);
+        }
+    </style>
 </head>
 
 <script>

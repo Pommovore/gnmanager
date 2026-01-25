@@ -13,6 +13,40 @@
     [data-bs-theme="dark"] #event-info-card {
         background-image: url("{{ url_for('static', filename='fond_sombre.jpg') }}");
     }
+
+    [data-bs-theme="dark"] #event-info-card {
+        background-image: url("{{ url_for('static', filename='fond_sombre.jpg') }}");
+    }
+
+    /* Styles pour le guide utilisateur (Markdown) */
+    #guideContent ul {
+        list-style-type: disc;
+        padding-left: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    #guideContent ol {
+        list-style-type: decimal;
+        padding-left: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    #guideContent li {
+        margin-bottom: 0.25rem;
+    }
+
+    #guideContent h2 {
+        margin-top: 1.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid var(--bs-border-color);
+        padding-bottom: 0.5rem;
+    }
+
+    #guideContent h3 {
+        margin-top: 1.25rem;
+        margin-bottom: 0.75rem;
+        color: var(--bs-primary);
+    }
 </style>
 
 <div class="card mb-4" id="event-info-card">
