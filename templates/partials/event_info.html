@@ -2,20 +2,16 @@
 <style>
     #event-info-card {
         background-size: cover;
-        background-position: center;
+        background-position: top center;
         background-repeat: no-repeat;
     }
 
     [data-bs-theme="light"] #event-info-card {
-        background-image: url("{{ url_for('static', filename='fond_clair.jpg') }}");
+        background-image: url("{{ url_for('static', filename=event.background_image_light if event.background_image_light else 'fond_clair.jpg') }}");
     }
 
     [data-bs-theme="dark"] #event-info-card {
-        background-image: url("{{ url_for('static', filename='fond_sombre.jpg') }}");
-    }
-
-    [data-bs-theme="dark"] #event-info-card {
-        background-image: url("{{ url_for('static', filename='fond_sombre.jpg') }}");
+        background-image: url("{{ url_for('static', filename=event.background_image_dark if event.background_image_dark else 'fond_sombre.jpg') }}");
     }
 
     /* Styles pour le guide utilisateur (Markdown) */
@@ -50,10 +46,6 @@
 </style>
 
 <div class="card mb-4" id="event-info-card">
-    {% if event.background_image %}
-    <img src="{{ event.background_image }}" class="card-img-top" alt="Event Image"
-        style="height: 200px; object-fit: cover;">
-    {% endif %}
     <div class="card-body">
         {% if is_organizer %}
         <div class="alert alert-warning mb-2">Vous êtes organisateur de cet événement.</div>
@@ -83,11 +75,18 @@
         <p>Status actuel de l'événement : <span class="badge {{ status_badge_class }}">{{ event.statut }}</span></p>
 
         <div class="d-flex flex-wrap gap-2 mb-3">
+            {% for link in event.links_sorted %}
+            <a href="{{ link.url }}" target="_blank" class="btn btn-outline-secondary text-white">
+                <i class="bi bi-link-45deg"></i> {{ link.title }}
+            </a>
+            {% else %}
+            {# Fallback for potential legacy data if migration issue, though migration script should cover it #}
             {% if event.org_link_url %}
             <a href="{{ event.org_link_url }}" target="_blank" class="btn btn-outline-secondary text-white">
                 <i class="bi bi-link-45deg"></i> {{ event.org_link_title or 'Lien externe' }}
             </a>
             {% endif %}
+            {% endfor %}
         </div>
 
         {# 5. Statut Utilisateur / Boutons #}

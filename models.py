@@ -92,7 +92,9 @@ class Event(db.Model):
     date_start = db.Column(db.DateTime, nullable=False)
     date_end = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200))
-    background_image = db.Column(db.String(200))
+    # background_image = db.Column(db.String(200))  # Deprecated
+    background_image_light = db.Column(db.String(200))
+    background_image_dark = db.Column(db.String(200))
     visibility = db.Column(db.String(20), default='public')  # public, private
     organizer_structure = db.Column(db.String(100))
     org_link_url = db.Column(db.String(255))
@@ -117,8 +119,39 @@ class Event(db.Model):
     # Casting validation status
     is_casting_validated = db.Column(db.Boolean, default=False)
     
+    # Relations
+    links = db.relationship('EventLink', backref='event', cascade='all, delete-orphan')
+    
+    @property
+    def links_sorted(self):
+        """Retourne les liens triés par position."""
+        return sorted(self.links, key=lambda x: x.position)
+        
     def __repr__(self):
         return f'<Event {self.name}>'
+
+
+class EventLink(db.Model):
+    """
+    Lien externe associé à un événement.
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement associé
+        title: Titre du lien (ex: "Site officiel", "Règles", "Billeterie")
+        url: URL de destination
+        position: Position d'affichage pour le tri
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    title = db.Column(db.String(100), nullable=False)
+    url = db.Column(db.String(255), nullable=False)
+    position = db.Column(db.Integer, default=0)
+    
+    # Relation définie dans Event via backref 'links'
+    
+    def __repr__(self):
+        return f'<EventLink {self.title} - Event {self.event_id}>'
 
 
 class Role(db.Model):

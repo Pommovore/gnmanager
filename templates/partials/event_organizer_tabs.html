@@ -5,16 +5,49 @@
     <div class="card">
         <div class="card-header">Modifier les généralités</div>
         <div class="card-body">
-            <form method="POST" action="{{ url_for('event.update_general', event_id=event.id) }}">
-                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                <div class="mb-3">
-                    <label class="form-label">Titre de l'événement</label>
-                    <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
+            <form method="POST" action="{{ url_for('event.update_general', event_id=event.id) }}"
+                enctype="multipart/form-data">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                <h5 class="mb-3">Informations Principales</h5>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Nom de l'événement</label>
+                        <input type="text" class="form-control" name="name" value="{{ event.name }}" required>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label class="form-label">Lieu</label>
+                        <input type="text" class="form-control" name="location" value="{{ event.location }}" required>
+                    </div>
                 </div>
+
                 <div class="mb-3">
-                    <label class="form-label">Lieu</label>
-                    <input type="text" class="form-control" name="location" value="{{ event.location }}">
+                    <label class="form-label">Image de fond (Thème Clair)</label>
+                    <input type="file" class="form-control" name="background_image_light"
+                        accept=".jpg,.jpeg,.png,.webp">
+                    <div class="form-text">Image pour le mode clair. Formats: JPG, PNG, WEBP.</div>
+                    {% if event.background_image_light %}
+                    <div class="mt-2">
+                        <small>Image actuelle (Clair) : <a
+                                href="{{ url_for('static', filename=event.background_image_light) }}"
+                                target="_blank">Voir</a></small>
+                    </div>
+                    {% endif %}
                 </div>
+
+                <div class="mb-3">
+                    <label class="form-label">Image de fond (Thème Sombre)</label>
+                    <input type="file" class="form-control" name="background_image_dark" accept=".jpg,.jpeg,.png,.webp">
+                    <div class="form-text">Image pour le mode sombre. Formats: JPG, PNG, WEBP.</div>
+                    {% if event.background_image_dark %}
+                    <div class="mt-2">
+                        <small>Image actuelle (Sombre) : <a
+                                href="{{ url_for('static', filename=event.background_image_dark) }}"
+                                target="_blank">Voir</a></small>
+                    </div>
+                    {% endif %}
+                </div>
+
                 <div class="row">
                     <div class="col-md-6 mb-3">
                         <label class="form-label">Date de début</label>
@@ -35,9 +68,11 @@
                         <option value="En préparation" {% if event.statut=='En préparation' %}selected{% endif %}>En
                             préparation</option>
                         <option value="Inscriptions ouvertes" {% if event.statut=='Inscriptions ouvertes' %}selected{%
-                            endif %}>Inscriptions ouvertes</option>
+                            endif %}>
+                            Inscriptions ouvertes</option>
                         <option value="Inscriptions fermées" {% if event.statut=='Inscriptions fermées' %}selected{%
-                            endif %}>Inscriptions fermées</option>
+                            endif %}>
+                            Inscriptions fermées</option>
                         <option value="Casting en cours" {% if event.statut=='Casting en cours' %}selected{% endif %}>
                             Casting en cours</option>
                         <option value="Casting terminé" {% if event.statut=='Casting terminé' %}selected{% endif %}>
@@ -51,7 +86,9 @@
                             event.statut=='Rôles envoyés, préparatifs de l\' événement' %}selected{% endif %}>Rôles
                             envoyés, préparatifs de l'événement</option>
                         <option value="Événement en cours" {% if event.statut=='Événement en cours' %}selected{% endif
-                            %}>Événement en cours</option>
+                            %}>
+                            Événement
+                            en cours</option>
                         <option value="Terminé" {% if event.statut=='Terminé' %}selected{% endif %}>Terminé</option>
                         <option value="Annulé" {% if event.statut=='Annulé' %}selected{% endif %}>Annulé</option>
                         <option value="Reporté" {% if event.statut=='Reporté' %}selected{% endif %}>Reporté</option>
@@ -107,18 +144,46 @@
                 </div>
                 <hr>
                 <h6>Liens Externes</h6>
-                <div class="row">
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Lien externe (URL)</label>
-                        <input type="text" class="form-control" name="org_link_url"
-                            value="{{ event.org_link_url or '' }}">
+                <div id="links-container">
+                    {% for link in event.links_sorted %}
+                    <div class="row mb-2 link-row">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control form-control-sm" name="link_urls[]"
+                                placeholder="URL (https://...)" value="{{ link.url }}" required>
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" class="form-control form-control-sm" name="link_titles[]"
+                                placeholder="Titre (ex: Site Web)" value="{{ link.title }}" required>
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-link-btn"><i
+                                    class="bi bi-trash"></i></button>
+                        </div>
                     </div>
-                    <div class="col-md-6 mb-3">
-                        <label class="form-label">Titre du lien</label>
-                        <input type="text" class="form-control" name="org_link_title"
-                            value="{{ event.org_link_title or '' }}">
+                    {% else %}
+                    <!-- Show one empty row by default if no links but checking event.org_link_url for migration fallback legacy display is tricky here since backend uses event.links. We rely on migration script having run. -->
+                    <div class="row mb-2 link-row">
+                        <div class="col-md-5">
+                            <input type="text" class="form-control form-control-sm" name="link_urls[]"
+                                placeholder="URL (https://...)" value="">
+                        </div>
+                        <div class="col-md-5">
+                            <input type="text" class="form-control form-control-sm" name="link_titles[]"
+                                placeholder="Titre (ex: Site Web)" value="">
+                        </div>
+                        <div class="col-md-2">
+                            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-link-btn"><i
+                                    class="bi bi-trash"></i></button>
+                        </div>
                     </div>
+                    {% endfor %}
                 </div>
+                <div class="mb-3">
+                    <button type="button" class="btn btn-sm btn-outline-secondary" id="add-link-btn"><i
+                            class="bi bi-plus"></i>
+                        Ajouter un lien</button>
+                </div>
+
                 <hr>
                 <h6>Formulaire Google</h6>
                 <div class="mb-3">
@@ -140,6 +205,44 @@
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const container = document.getElementById('links-container');
+        const addBtn = document.getElementById('add-link-btn');
+
+        // Add new link row
+        addBtn.addEventListener('click', function () {
+            const row = document.createElement('div');
+            row.className = 'row mb-2 link-row';
+            row.innerHTML = `
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm" name="link_urls[]" placeholder="URL (https://...)" value="">
+            </div>
+            <div class="col-md-5">
+                <input type="text" class="form-control form-control-sm" name="link_titles[]" placeholder="Titre (ex: Site Web)" value="">
+            </div>
+            <div class="col-md-2">
+                <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-link-btn"><i class="bi bi-trash"></i></button>
+            </div>
+        `;
+            container.appendChild(row);
+            attachRemoveListeners();
+        });
+
+        function attachRemoveListeners() {
+            document.querySelectorAll('.remove-link-btn').forEach(btn => {
+                btn.onclick = function () {
+                    // remove row but keep at least one if we want? No, allowing empty is fine, but maybe validation implies at least one?
+                    // The backend filters out empty strings, so removing all is fine.
+                    this.closest('.link-row').remove();
+                };
+            });
+        }
+
+        attachRemoveListeners();
+    });
+</script>
 
 {# Groups Configuration Tab (Organizer only) #}
 <div class="tab-pane fade" id="list-groups" role="tabpanel">

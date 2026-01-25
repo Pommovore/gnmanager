@@ -12,7 +12,7 @@ Ce module gère :
 - Inscription à un événement
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from markupsafe import Markup
 from flask_login import login_required, current_user
 from models import db, Event, Participant, ActivityLog, Role, CastingProposal, CastingAssignment
@@ -202,9 +202,59 @@ def update_general(event_id):
             event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
             
         if description is not None: event.description = description
-        if org_link_url is not None: event.org_link_url = org_link_url
-        if org_link_title is not None: event.org_link_title = org_link_title
         if google_form_url is not None: event.google_form_url = google_form_url
+        
+        # Gestion de l'image de fond
+        # Gestion des images de fond (sombre/clair)
+        def save_event_image(file, suffix):
+            if file and file.filename:
+                from werkzeug.utils import secure_filename
+                import os
+                
+                allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
+                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
+                
+                if ext in allowed_extensions:
+                    filename = secure_filename(f"{event.id}_{suffix}.{ext}")
+                    # Chemin relatif pour stockage
+                    upload_folder = 'static/uploads/events'
+                    # Chemin absolu pour sauvegarde
+                    save_path = os.path.join(current_app.root_path, upload_folder)
+                    os.makedirs(save_path, exist_ok=True)
+                    
+                    file.save(os.path.join(save_path, filename))
+                    return f"uploads/events/{filename}"
+                else:
+                    flash(f'Format d\'image non supporté pour {suffix} (PNG, JPG, WEBP uniquement)', 'warning')
+            return None
+
+        if 'background_image_light' in request.files:
+            path = save_event_image(request.files['background_image_light'], 'light')
+            if path: event.background_image_light = path
+
+        if 'background_image_dark' in request.files:
+            path = save_event_image(request.files['background_image_dark'], 'dark')
+            if path: event.background_image_dark = path
+
+        # Gestion des liens multiples
+        # 1. Nettoyer les anciens liens
+        from models import EventLink
+        for link in event.links:
+            db.session.delete(link)
+            
+        # 2. Ajouter les nouveaux liens
+        link_titles = request.form.getlist('link_titles[]')
+        link_urls = request.form.getlist('link_urls[]')
+        
+        for i, (title, url) in enumerate(zip(link_titles, link_urls)):
+            if title.strip() and url.strip():
+                new_link = EventLink(
+                    event_id=event.id,
+                    title=title.strip(),
+                    url=url.strip(),
+                    position=i
+                )
+                db.session.add(new_link)
         
         # Mise à jour des jauges
         if request.form.get('max_pjs'):
@@ -224,7 +274,7 @@ def update_general(event_id):
             action_type=ActivityLogType.EVENT_UPDATE.value,
             user_id=current_user.id,
             event_id=event.id,
-            details=json.dumps({'updated_fields': 'General Info (Name, Date, Limits, etc.)', 'event_name': event.name})
+            details=json.dumps({'updated_fields': 'General Info (Name, Date, Limits, Links, Image)', 'event_name': event.name})
         )
         db.session.add(log)
         db.session.commit()
