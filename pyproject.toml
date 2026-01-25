@@ -27,4 +27,5 @@ dependencies = [
     "google-api-python-client>=2.0.0",
     "scipy>=1.15.0",
     "numpy>=2.2.0",
+    "markdown>=3.10.1",
 ]

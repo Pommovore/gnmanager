@@ -18,7 +18,9 @@ from flask import session
 from constants import ActivityLogType, DefaultValues
 import uuid
 import json
+import json
 import os
+import markdown
 
 auth_bp = Blueprint('auth', __name__)
 
@@ -287,3 +289,26 @@ def authorize_google():
     except Exception as e:
         flash(f'Erreur d\'authentification Google : {str(e)}', 'danger')
         return redirect(url_for('auth.login'))
+
+
+@auth_bp.route('/guide')
+def guide():
+    """Charge et affiche le guide utilisateur."""
+    try:
+        # Chemin vers le fichier à la racine du projet
+        # On remonte d'un niveau par rapport au dossier routes/
+        guide_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'GUIDE_UTILISATEUR.md')
+        
+        if not os.path.exists(guide_path):
+             return "<div class='alert alert-warning'>Le guide utilisateur est introuvable.</div>"
+
+        with open(guide_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+            
+        # Conversion du Markdown en HTML
+        # extensions=['extra'] active les tableaux, listes etc.
+        html_content = markdown.markdown(content, extensions=['extra'])
+        
+        return html_content
+    except Exception as e:
+        return f"<div class='alert alert-danger'>Erreur lors du chargement du guide: {str(e)}</div>", 500
