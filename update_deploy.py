@@ -107,16 +107,27 @@ def main():
     print("📦 Création de l'archive locale (git tracked only)...")
     
     # 3.1 Générer fichier version temporaire
-    version_str = "UNKNOWN"
+    # 3.1 Générer fichier version temporaire
+    version_str = "dev"
     try:
-        ts = subprocess.check_output("date +%Y%m%d_%H%M%S", shell=True, text=True).strip()
+        # 1. Get last commit date formatted
+        ts = subprocess.check_output(
+            ["git", "log", "-1", "--format=%cd", "--date=format:%Y%m%d_%H%M%S"], 
+            text=True
+        ).strip()
+        
+        # 2. Get latest tag
         try:
-            tag = subprocess.check_output("git describe --tags --exact-match 2>/dev/null", shell=True, text=True).strip()
+            tag = subprocess.check_output(
+                ["git", "describe", "--tags", "--abbrev=0"], 
+                text=True, 
+                stderr=subprocess.DEVNULL
+            ).strip()
         except subprocess.CalledProcessError:
             try:
-                tag = subprocess.check_output("git rev-parse --short HEAD", shell=True, text=True).strip()
+                tag = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
             except:
-                tag = "no-git"
+                tag = "dev"
         version_str = f"{tag}_{ts}"
     except Exception as e:
         print(f"⚠️ Erreur version: {e}")

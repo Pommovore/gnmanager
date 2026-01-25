@@ -370,43 +370,41 @@ def install_dependencies(target_dir, user, sudo_password=None, ssh=None):
 
 
 def create_version_file(target_dir, user, sudo_password=None, ssh=None):
-    """Génère le fichier .deploy-version avec le tag git et la date."""
+    """Génère le fichier .deploy-version avec le tag git et la date du dernier commit."""
     gnmanager_path = os.path.join(target_dir, 'gnmanager')
     print("🔖 Génération du fichier de version...")
     
-    # Commande pour obtenir la version: Tag + Date ou Date uniquement
-    # On essaie d'obtenir le tag exact, sinon le short hash
-    # Format: YYYYMMDD_HHMMSS
+    # Commande pour obtenir la version: Tag + Date du commit
+    # Format attendu: TAG-YYYYMMDD_HHMMSS (ex: V0.4-20260125_154000)
     
-    # 1. Get timestamp: YYYYMMDD_HHMMSS
-    # 2. Get tag (or short hash if no tag)
-    
-    # On exécute ça dans le dossier git cloné/transféré
-    # Attention: si c'est un transfert de fichiers sans dossier .git (via transfer_files), 
-    # git ne marchera pas SUR la cible.
-    # MAIS fresh_deploy clone ou transfère. Si transfer_files est utilisé, le .git n'est pas forcément là 
-    # si on a filtré. 
-    # D'après transfer_files: `git ls-files` est utilisé localement, mais on ne copie pas forcément .git.
-    # IL EST PLUS SÛR de générer la version LOCALEMENT et de l'envoyer.
-    
-    version_str = "UNKNOWN"
+    version_str = "dev"
     try:
-        # Get date
-        ts = subprocess.check_output("date +%Y%m%d_%H%M%S", shell=True, text=True).strip()
+        # 1. Get last commit date formatted
+        ts = subprocess.check_output(
+            ["git", "log", "-1", "--format=%cd", "--date=format:%Y%m%d_%H%M%S"], 
+            text=True
+        ).strip()
         
-        # Get git info (localement)
+        # 2. Get latest tag
         try:
-            tag = subprocess.check_output("git describe --tags --exact-match 2>/dev/null", shell=True, text=True).strip()
+            # Essayer d'avoir le tag exact sur le commit courant
+            tag = subprocess.check_output(
+                ["git", "describe", "--tags", "--abbrev=0"], 
+                text=True, 
+                stderr=subprocess.DEVNULL
+            ).strip()
         except subprocess.CalledProcessError:
+            # Fallback si pas de tag, on met 'dev' ou le short hash
             try:
-                tag = subprocess.check_output("git rev-parse --short HEAD", shell=True, text=True).strip()
+                tag = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
             except:
-                tag = "no-git"
+                tag = "dev"
                 
         version_str = f"{tag}_{ts}"
     except Exception as e:
         print(f"⚠️ Impossible de déterminer la version git locale: {e}")
-        version_str = f"deploy_{int(time.time())}"
+        # Fallback date courante
+        version_str = f"dev_{int(time.time())}"
         
     print(f"ℹ️  Version détectée: {version_str}")
     

@@ -413,29 +413,7 @@ def delete_role(event_id, role_id):
     flash(f'Rôle "{role.name}" supprimé.', 'success')
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
 
-@event_bp.route('/debug/role_inspection/<int:event_id>')
-def debug_role_inspection(event_id):
-    """Temporary debug route."""
-    roles = Role.query.filter_by(event_id=event_id).all()
-    data = []
-    for r in roles:
-        role_data = {
-            'id': r.id,
-            'name': r.name,
-            'assignments': []
-        }
-        for ca in r.casting_assignments:
-            ca_data = {
-                'id': ca.id,
-                'participant_id': ca.participant_id,
-                'has_participant': False
-            }
-            if ca.participant:
-                ca_data['has_participant'] = True
-                ca_data['user'] = f"{ca.participant.user.prenom} {ca.participant.user.nom}"
-            role_data['assignments'].append(ca_data)
-        data.append(role_data)
-    return jsonify(data)
+
 
 
 
