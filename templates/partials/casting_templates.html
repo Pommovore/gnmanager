@@ -1,0 +1,101 @@
+{# Template for the casting content (Tabs + Tables) #}
+<template id="casting-content-template">
+    <ul class="nav nav-tabs mb-3" id="castingTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active" id="roles-tab" data-bs-toggle="tab" data-bs-target="#roles-view"
+                type="button" role="tab" aria-controls="roles-view" aria-selected="true">Rôles</button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link" id="participants-tab" data-bs-toggle="tab" data-bs-target="#participants-view"
+                type="button" role="tab" aria-controls="participants-view" aria-selected="false">Participants</button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="castingTabsContent">
+        <div class="tab-pane fade show active" id="roles-view" role="tabpanel" aria-labelledby="roles-tab">
+            {# Toolbar: Filters + Buttons #}
+            <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md-auto me-3">
+                    <div class="form-check form-switch mb-2">
+                        <input class="form-check-input" type="checkbox" role="switch" id="castingValidationSwitch">
+                        <label class="form-check-label small" for="castingValidationSwitch" id="castingValidationLabel">
+                            <span class="badge bg-secondary">Non-validé</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1 text-muted">Type</label>
+                    <select class="form-select form-select-sm" id="filter-type">
+                        <option value="">Peu importe</option>
+                        <option value="Organisateur">Organisateur</option>
+                        <option value="PJ">PJ</option>
+                        <option value="PNJ">PNJ</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1 text-muted">Groupe</label>
+                    <select class="form-select form-select-sm" id="filter-group">
+                        <option value="">Peu importe</option>
+                    </select>
+                </div>
+                <div class="col-md-1">
+                    <label class="form-label small mb-1 text-muted">Genre</label>
+                    <select class="form-select form-select-sm" id="filter-genre">
+                        <option value="">Tous</option>
+                        <option value="Homme">H</option>
+                        <option value="Femme">F</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
+                <div class="col-md-auto ms-auto">
+                    <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-primary btn-sm" id="add-proposal-btn">
+                            <i class="bi bi-plus-circle"></i> Ajouter une proposition
+                        </button>
+                        <button type="button" class="btn btn-success btn-sm" id="auto-assign-btn"
+                            title="Calculer les attributions en fonction des scores">
+                            <i class="bi bi-calculator"></i> Casting pondéré
+                        </button>
+                    </div>
+                </div>
+            </div>
+            <!-- Roles Table Container -->
+            <div id="roles-table-container"></div>
+        </div>
+        <div class="tab-pane fade" id="participants-view" role="tabpanel" aria-labelledby="participants-tab">
+            <!-- Participants Table Container -->
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover" id="participants-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="min-width: 200px;">Participant</th>
+                            <th style="min-width: 200px;">Attribution principale</th>
+                            {# Proposal columns will be added dynamically #}
+                        </tr>
+                    </thead>
+                    <tbody id="participants-tbody">
+                        {# Rows will be added dynamically #}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</template>
+
+{# Template for the roles table (rendered inside the tab) #}
+<template id="roles-table-template">
+    <div class="table-responsive">
+        <table class="table table-bordered table-hover" id="casting-table">
+            <thead class="table-dark">
+                <tr>
+                    <th style="min-width: 200px;">Rôle</th>
+                    <th style="min-width: 200px;">Attribution principale</th>
+                    {# Proposal columns will be added dynamically #}
+                </tr>
+            </thead>
+            <tbody id="casting-tbody">
+                {# Rows will be added dynamically #}
+            </tbody>
+        </table>
+    </div>
+</template>

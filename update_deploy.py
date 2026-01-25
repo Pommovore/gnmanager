@@ -105,14 +105,61 @@ def main():
 
     # 3. Création archive locale
     print("📦 Création de l'archive locale (git tracked only)...")
+    
+    # 3.1 Générer fichier version temporaire
+    version_str = "UNKNOWN"
+    try:
+        ts = subprocess.check_output("date +%Y%m%d_%H%M%S", shell=True, text=True).strip()
+        try:
+            tag = subprocess.check_output("git describe --tags --exact-match 2>/dev/null", shell=True, text=True).strip()
+        except subprocess.CalledProcessError:
+            try:
+                tag = subprocess.check_output("git rev-parse --short HEAD", shell=True, text=True).strip()
+            except:
+                tag = "no-git"
+        version_str = f"{tag}_{ts}"
+    except Exception as e:
+        print(f"⚠️ Erreur version: {e}")
+        version_str = f"update_{int(time.time())}"
+        
+    print(f"🔖 Version: {version_str}")
+    
+    # Écrire .deploy-version
+    with open(".deploy-version", "w") as f:
+        f.write(version_str)
+        
     archive_name = "gnmanager_update.tar.gz"
     try:
+        # On archive HEAD + le fichier .deploy-version manuellement
+        # git archive ne prend que ce qui est commité.
+        # Astuce: on utilise tar pour combiner le résultat de git archive + le fichier version
+        
+        # 1. Archive git
         subprocess.run(
-            f"git archive --format=tar.gz --output={archive_name} HEAD",
+            f"git archive --format=tar --output=git_content.tar HEAD",
             shell=True, check=True
         )
+        
+        # 2. Ajouter le fichier version (append)
+        subprocess.run(
+            f"tar -rf git_content.tar .deploy-version",
+            shell=True, check=True
+        )
+        
+        # 3. Gzip
+        subprocess.run(
+            f"gzip -c git_content.tar > {archive_name}",
+            shell=True, check=True
+        )
+        
+        # Clean temp tar and version file
+        os.remove("git_content.tar")
+        os.remove(".deploy-version")
+        
     except subprocess.CalledProcessError:
-        print("❌ Erreur lors de la création de l'archive git.")
+        print("❌ Erreur lors de la création de l'archive.")
+        if os.path.exists(".deploy-version"): os.remove(".deploy-version")
+        if os.path.exists("git_content.tar"): os.remove("git_content.tar")
         ssh.close()
         sys.exit(1)
 

@@ -126,7 +126,8 @@ def create_app(test_config=None):
     app.config['SECRET_KEY'] = secret_key
     
     # Configuration de la base de données
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gnmanager.db'
+    if 'SQLALCHEMY_DATABASE_URI' not in app.config:
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gnmanager.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     
     # Email Configuration
@@ -206,8 +207,20 @@ def create_app(test_config=None):
     # Context processor pour rendre la version disponible dans tous les templates
     @app.context_processor
     def inject_version():
-        from version import __version__
-        return dict(app_version=__version__)
+        version = "dev"
+        try:
+            # En production, on lit la version depuis le fichier généré au déploiement
+            if os.path.exists('.deploy-version'):
+                with open('.deploy-version', 'r') as f:
+                    version = f.read().strip()
+            else:
+                # Fallback: essaye de lire version.py s'il existe
+                from version import __version__
+                version = __version__
+        except Exception:
+             pass
+             
+        return dict(app_version=version)
     
     # Error handlers
     @app.errorhandler(404)

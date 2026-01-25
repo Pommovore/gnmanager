@@ -1,27 +1,12 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="row mb-3">
-    <div class="col-12 d-flex justify-content-between align-items-center">
-        <div>
+<div class="row mb-4">
+    <div class="col-12">
+        <div class="d-flex justify-content-between align-items-center">
             <h2>Casting - {{ event.name }}</h2>
-            <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary">Retour à
-                l'événement</a>
-        </div>
-
-        {# Casting Validation Switch #}
-        <div class="d-flex align-items-center">
-            <span class="me-2 fw-bold">Casting :</span>
-            <div class="form-check form-switch form-switch-lg">
-                <input class="form-check-input" type="checkbox" role="switch" id="castingValidationSwitch"
-                    data-event-id="{{ event.id }}" {% if event.is_casting_validated %}checked{% endif %}>
-                <label class="form-check-label" for="castingValidationSwitch" id="castingValidationLabel">
-                    {% if event.is_casting_validated %}
-                    <span class="badge bg-success">Validé</span>
-                    {% else %}
-                    <span class="badge bg-secondary">Non-validé</span>
-                    {% endif %}
-                </label>
-            </div>
+            <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Retour à l'événement
+            </a>
         </div>
     </div>
 </div>
@@ -36,288 +21,7 @@
     </div>
 </div>
 
-{# Template for the casting table (rendered by JS) #}
-<template id="casting-table-template">
-    <div class="table-responsive">
-        <table class="table table-bordered table-hover" id="casting-table">
-            <thead class="table-dark">
-                <tr>
-                    <th style="min-width: 200px;">Rôle</th>
-                    <th style="min-width: 200px;">Attribution principale</th>
-                    {# Proposal columns will be added dynamically #}
-                </tr>
-            </thead>
-            <tbody id="casting-tbody">
-                {# Rows will be added dynamically #}
-            </tbody>
-        </table>
-    </div>
-    <button type="button" class="btn btn-primary mt-3" id="add-proposal-btn">
-        <i class="bi bi-plus-circle"></i> Ajouter une proposition
-    </button>
-</template>
 
-<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        const eventId = document.getElementById('casting-container').dataset.eventId;
-        let castingData = null;
-        let roles = {{ roles | tojson | safe
-    }};
-
-    // Load casting data
-    function loadCastingData() {
-        fetch(`${SCRIPT_ROOT}/event/${eventId}/casting_data`)
-            .then(response => response.json())
-            .then(data => {
-                castingData = data;
-                renderCastingTable();
-            })
-            .catch(error => {
-                console.error('Error loading casting data:', error);
-                document.getElementById('casting-container').innerHTML =
-                    '<div class="alert alert-danger">Erreur lors du chargement des données.</div>';
-            });
-    }
-
-    // Render the casting table
-    function renderCastingTable() {
-        const container = document.getElementById('casting-container');
-        const template = document.getElementById('casting-table-template');
-        const clone = template.content.cloneNode(true);
-
-        // Add proposal columns to header
-        const headerRow = clone.querySelector('thead tr');
-        castingData.proposals.forEach(proposal => {
-            const th = document.createElement('th');
-            th.style.minWidth = '250px';
-            th.innerHTML = `
-                ${proposal.name}
-                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" data-proposal-id="${proposal.id}">
-                    <i class="bi bi-trash"></i>
-                </button>
-            `;
-            headerRow.appendChild(th);
-        });
-
-        // Add role rows
-        const tbody = clone.querySelector('#casting-tbody');
-        roles.forEach(role => {
-            const tr = document.createElement('tr');
-
-            // Role info cell
-            const roleCell = document.createElement('td');
-            roleCell.innerHTML = `
-                <strong>${role.name}</strong><br>
-                <small class="text-muted">${role.type || 'Tous'} - ${role.genre || 'Tous'}</small>
-            `;
-            tr.appendChild(roleCell);
-
-            // Main assignment cell
-            const mainCell = document.createElement('td');
-            mainCell.innerHTML = createAssignmentDropdown('main', role.id, castingData.assignments['main'][role.id]);
-            tr.appendChild(mainCell);
-
-            // Proposal cells
-            castingData.proposals.forEach(proposal => {
-                const cell = document.createElement('td');
-                const proposalId = proposal.id.toString();
-                const participantId = castingData.assignments[proposalId]?.[role.id];
-                const score = castingData.scores[proposalId]?.[role.id];
-
-                cell.innerHTML = `
-                    <div class="d-flex flex-column gap-2">
-                        ${createAssignmentDropdown(proposalId, role.id, participantId)}
-                        ${createScoreDropdown(proposalId, role.id, score)}
-                    </div>
-                `;
-                tr.appendChild(cell);
-            });
-
-            tbody.appendChild(tr);
-        });
-
-        container.innerHTML = '';
-        container.appendChild(clone);
-
-        // Attach event listeners
-        attachEventListeners();
-    }
-
-    // Create assignment dropdown HTML
-    function createAssignmentDropdown(proposalId, roleId, selectedParticipantId) {
-        let options = '<option value="">-- Non attribué --</option>';
-
-        // Add participants grouped by type
-        for (const [type, participants] of Object.entries(castingData.participants_by_type)) {
-            options += `<optgroup label="${type}">`;
-            participants.forEach(p => {
-                const selected = p.id === selectedParticipantId ? 'selected' : '';
-                options += `<option value="${p.id}" ${selected}>${p.nom} ${p.prenom}</option>`;
-            });
-            options += '</optgroup>';
-        }
-
-        return `
-            <select class="form-select form-select-sm assignment-select" 
-                data-proposal-id="${proposalId}" 
-                data-role-id="${roleId}">
-                ${options}
-            </select>
-        `;
-    }
-
-    // Create score dropdown HTML
-    function createScoreDropdown(proposalId, roleId, selectedScore) {
-        let options = '<option value="">--</option>';
-        for (let i = 0; i <= 10; i++) {
-            const selected = i === selectedScore ? 'selected' : '';
-            options += `<option value="${i}" ${selected}>${i}</option>`;
-        }
-
-        return `
-            <div class="d-flex align-items-center">
-                <small class="text-muted me-1">Score:</small>
-                <select class="form-select form-select-sm score-select" style="width: 60px;"
-                    data-proposal-id="${proposalId}"
-                    data-role-id="${roleId}">
-                    ${options}
-                </select>
-            </div>
-        `;
-    }
-
-    // Attach event listeners
-    function attachEventListeners() {
-        // Assignment dropdowns
-        document.querySelectorAll('.assignment-select').forEach(select => {
-            select.addEventListener('change', function () {
-                const proposalId = this.dataset.proposalId;
-                const roleId = this.dataset.roleId;
-                const participantId = this.value || null;
-
-                fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/assign`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        proposal_id: proposalId === 'main' ? 'main' : parseInt(proposalId),
-                        role_id: parseInt(roleId),
-                        participant_id: participantId ? parseInt(participantId) : null
-                    })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.success) {
-                            alert('Erreur lors de l\'attribution');
-                        }
-                    });
-            });
-        });
-
-        // Score dropdowns
-        document.querySelectorAll('.score-select').forEach(select => {
-            select.addEventListener('change', function () {
-                const proposalId = this.dataset.proposalId;
-                const roleId = this.dataset.roleId;
-                const score = this.value;
-
-                fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/update_score`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        proposal_id: parseInt(proposalId),
-                        role_id: parseInt(roleId),
-                        score: score !== '' ? parseInt(score) : null
-                    })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (!data.success) {
-                            alert('Erreur lors de la mise à jour du score');
-                        }
-                    });
-            });
-        });
-
-        // Add proposal button
-        document.getElementById('add-proposal-btn')?.addEventListener('click', function () {
-            const name = prompt('Nom de la proposition:');
-            if (name) {
-                fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/add_proposal`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ name: name })
-                })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.id) {
-                            loadCastingData(); // Reload
-                        } else {
-                            alert(data.error || 'Erreur');
-                        }
-                    });
-            }
-        });
-
-        // Delete proposal buttons
-        document.querySelectorAll('.delete-proposal-btn').forEach(btn => {
-            btn.addEventListener('click', function () {
-                const proposalId = this.dataset.proposalId;
-                if (confirm('Supprimer cette proposition ?')) {
-                    fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/delete_proposal`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ proposal_id: parseInt(proposalId) })
-                    })
-                        .then(response => response.json())
-                        .then(data => {
-                            if (data.success) {
-                                loadCastingData(); // Reload
-                            } else {
-                                alert(data.error || 'Erreur');
-                            }
-                        });
-                }
-            });
-        });
-    }
-
-    // Casting validation switch
-    const validationSwitch = document.getElementById('castingValidationSwitch');
-    const validationLabel = document.getElementById('castingValidationLabel');
-
-    validationSwitch?.addEventListener('change', function () {
-        const validated = this.checked;
-
-        fetch(`${SCRIPT_ROOT}/event/${eventId}/casting/toggle_validation`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ validated: validated })
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    if (data.is_casting_validated) {
-                        validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
-                    } else {
-                        validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
-                    }
-                } else {
-                    // Revert
-                    this.checked = !this.checked;
-                    alert('Erreur lors de la mise à jour');
-                }
-            })
-            .catch(() => {
-                this.checked = !this.checked;
-                alert('Erreur lors de la mise à jour');
-            });
-    });
-
-    // Initial load
-    loadCastingData();
-});
-</script>
 
 <style>
     .form-switch.form-switch-lg .form-check-input {
@@ -325,4 +29,12 @@
         height: 1.5em;
     }
 </style>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+{% endblock %}
+
+{% block scripts %}
+{% block scripts %}
+{% include "partials/casting_templates.html" %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
+<script src="{{ url_for('static', filename='js/casting.js') }}"></script>
 {% endblock %}

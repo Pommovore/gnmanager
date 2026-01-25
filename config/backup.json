@@ -1,14 +1,14 @@
 {
-  "timestamp": "2026-01-23T23:29:34.112083",
+  "timestamp": "2026-01-25T11:52:42.803881",
   "users": [
     {
       "id": 1,
       "email": "jchodorowski@gmail.com",
-      "password_hash": "scrypt:32768:8:1$F29W8XgIRVghF61Y$19bcab6a841cc47911b415b58e8caf680ddf12047d5489f1f5df9d183d95fc2129c8f498e603bea87508f057adc91b04e27aec80f9565d36902bc42e0f013236",
+      "password_hash": "scrypt:32768:8:1$0QGom3jPpZ3f7mzg$177dbbbde1b3119bfb618183c1a95a485ae7b502e457f9d5feeec721feb7c2a85e452b82503d0c7221fb2f3cb0853da17f88f8df7d1ec9c7001497679728f7ef",
       "nom": "Chodorowski",
       "prenom": "Jacques",
-      "age": 40,
-      "genre": null,
+      "age": 55,
+      "genre": "Homme",
       "avatar_url": null,
       "role": "createur",
       "is_banned": false,
@@ -216,7 +216,7 @@
       "nom": "David",
       "prenom": "Maxime",
       "age": 40,
-      "genre": null,
+      "genre": "",
       "avatar_url": null,
       "role": "user",
       "is_banned": false,
@@ -609,25 +609,25 @@
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
-      "is_casting_validated": false
+      "is_casting_validated": true
     },
     {
       "id": 2,
       "name": "Cthulhu - ça me gratte dans la tentacule",
       "description": "Une enquête horrifique.",
-      "date_start": "2026-09-30T09:00:00",
-      "date_end": "2026-09-30T23:00:00",
+      "date_start": "2026-09-30T00:00:00",
+      "date_end": "2026-09-30T00:00:00",
       "location": "Arkham",
       "background_image": null,
       "visibility": "public",
       "organizer_structure": "Miskatonic U",
-      "org_link_url": null,
-      "org_link_title": null,
-      "google_form_url": null,
+      "org_link_url": "",
+      "org_link_title": "",
+      "google_form_url": "",
       "google_form_active": false,
-      "discord_webhook_url": null,
+      "discord_webhook_url": "",
       "external_link": null,
-      "statut": "En préparation",
+      "statut": "Inscriptions ouvertes",
       "groups_config": "{\"PJ\": [\"Peu importe\", \"Investigateurs\", \"Cultistes\"], \"PNJ\": [\"Peu importe\", \"Cr\\u00e9atures\", \"Complices\"], \"Organisateur\": [\"g\\u00e9n\\u00e9ral\", \"coordinateur\", \"sc\\u00e9nariste\", \"logisticien\", \"crafteur\", \"en charge des PNJ\"]}",
       "max_pjs": 50,
       "max_pnjs": 10,
@@ -775,18 +775,18 @@
     {
       "id": 9,
       "name": "Berlin 1936 (2ème édition)",
-      "description": null,
+      "description": "soirée enquête de 3h environ ",
       "date_start": "2026-02-15T00:00:00",
       "date_end": "2026-02-15T00:00:00",
       "location": "Ploumiliau",
       "background_image": null,
       "visibility": "public",
       "organizer_structure": null,
-      "org_link_url": null,
-      "org_link_title": null,
-      "google_form_url": null,
+      "org_link_url": "",
+      "org_link_title": "",
+      "google_form_url": "",
       "google_form_active": false,
-      "discord_webhook_url": null,
+      "discord_webhook_url": "",
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
@@ -864,7 +864,7 @@
       "type": null,
       "genre": null,
       "group": "Contrebandiers",
-      "assigned_participant_id": null,
+      "assigned_participant_id": 26,
       "comment": "Rôle important pour l'intrigue principale.",
       "google_doc_url": "https://docs.google.com/document/d/role_1_5",
       "pdf_url": null
@@ -2424,7 +2424,7 @@
       "type": "PJ",
       "genre": "Homme",
       "group": "Peu importe",
-      "assigned_participant_id": 21,
+      "assigned_participant_id": 22,
       "comment": null,
       "google_doc_url": null,
       "pdf_url": "https://drive.google.com/file/d/1DRvgXY9wVgeQYDWCDJ1CbNP_xwxvp9Ip/view?usp=drive_link"
@@ -2436,7 +2436,7 @@
       "type": "PJ",
       "genre": "Homme",
       "group": "Peu importe",
-      "assigned_participant_id": 22,
+      "assigned_participant_id": 21,
       "comment": null,
       "google_doc_url": null,
       "pdf_url": "https://drive.google.com/file/d/1JW8XOh-cr6QYpqHQaZkkMkTHjTQ5GjaE/view?usp=drive_link"
@@ -2448,7 +2448,7 @@
       "type": "PJ",
       "genre": "Femme",
       "group": "Peu importe",
-      "assigned_participant_id": 20,
+      "assigned_participant_id": 23,
       "comment": null,
       "google_doc_url": null,
       "pdf_url": "https://drive.google.com/file/d/1IjE6ZZqQBOvG6yUpKMfDaRRxxP3Bkup8/view?usp=drive_link"
@@ -2460,7 +2460,7 @@
       "type": "PJ",
       "genre": "Femme",
       "group": "Peu importe",
-      "assigned_participant_id": 23,
+      "assigned_participant_id": 20,
       "comment": null,
       "google_doc_url": null,
       "pdf_url": "https://drive.google.com/file/d/1ZZym1NKzipCUr_PxYh-5--LWtsaDicYr/view?usp=drive_link"
@@ -2856,10 +2856,10 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
-      "payment_method": null,
+      "payment_method": "aucun",
       "payment_amount": 0.0,
       "payment_comment": null,
-      "comment": null,
+      "comment": "",
       "custom_image": null
     },
     {
@@ -2945,6 +2945,40 @@
       "payment_amount": 0.0,
       "payment_comment": null,
       "comment": "",
+      "custom_image": null
+    },
+    {
+      "id": 25,
+      "event_id": 2,
+      "user_id": 1,
+      "type": "PJ",
+      "group": null,
+      "role_id": null,
+      "role_communicated": false,
+      "role_received": false,
+      "registration_status": "Validé",
+      "paf_status": "non versée",
+      "payment_method": null,
+      "payment_amount": 0.0,
+      "payment_comment": null,
+      "comment": "",
+      "custom_image": null
+    },
+    {
+      "id": 26,
+      "event_id": 1,
+      "user_id": 2,
+      "type": "PJ",
+      "group": null,
+      "role_id": null,
+      "role_communicated": false,
+      "role_received": false,
+      "registration_status": "Validé",
+      "paf_status": "non versée",
+      "payment_method": null,
+      "payment_amount": 0.0,
+      "payment_comment": null,
+      "comment": "moaaaa !!!",
       "custom_image": null
     }
   ],
@@ -3120,7 +3154,97 @@
       "event_id": 8,
       "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, etc.)\", \"event_name\": \"Berlin 1936 (1\\u00e8re \\u00e9dition)\"}",
       "is_viewed": false,
-      "created_at": "2026-01-23T22:01:04.738117"
+      "created_at": "2026-01-23T17:35:22.627224"
+    },
+    {
+      "id": 20,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 8,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, etc.)\", \"event_name\": \"Berlin 1936 (1\\u00e8re \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T17:37:28.542588"
+    },
+    {
+      "id": 21,
+      "action_type": "Mise à jour événement",
+      "user_id": 2,
+      "event_id": 2,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, etc.)\", \"event_name\": \"Cthulhu - \\u00e7a me gratte dans la tentacule\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T22:24:54.769995"
+    },
+    {
+      "id": 22,
+      "action_type": "event_participation",
+      "user_id": 1,
+      "event_id": 2,
+      "details": "{\"type\": \"PJ\", \"status\": \"\\u00c0 valider\", \"comment\": \"\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T22:25:40.006994"
+    },
+    {
+      "id": 23,
+      "action_type": "Modification statut",
+      "user_id": 2,
+      "event_id": null,
+      "details": "{\"participant\": \"jchodorowski@gmail.com\", \"name\": \"Jacques Chodorowski\", \"new_status\": \"Valid\\u00e9\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T22:25:58.656650"
+    },
+    {
+      "id": 24,
+      "action_type": "event_participation",
+      "user_id": 2,
+      "event_id": 1,
+      "details": "{\"type\": \"PJ\", \"status\": \"\\u00c0 valider\", \"comment\": \"moaaaa !!!\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T22:26:42.011794"
+    },
+    {
+      "id": 25,
+      "action_type": "Modification statut",
+      "user_id": 1,
+      "event_id": null,
+      "details": "{\"participant\": \"gwengm@gmail.com\", \"name\": \"Gwena\\u00eblle GARRIOUX-MORIEN\", \"new_status\": \"Valid\\u00e9\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-23T22:27:12.746440"
+    },
+    {
+      "id": 26,
+      "action_type": "Mise à jour participant",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"participant_id\": 19, \"update_type\": \"single_update\", \"new_type\": \"organisateur\", \"new_group\": \"Peu importe\", \"paf_status\": \"dispens\\u00e9(e)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-24T09:53:21.944502"
+    },
+    {
+      "id": 27,
+      "action_type": "Mise à jour utilisateur",
+      "user_id": 1,
+      "event_id": null,
+      "details": "{\"target_user_id\": 17, \"target_email\": \"maxime.david@email.fr\", \"updated_fields\": \"Admin Full Update\", \"new_role\": \"user\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-24T14:28:26.724768"
+    },
+    {
+      "id": 28,
+      "action_type": "Mise à jour utilisateur",
+      "user_id": 1,
+      "event_id": null,
+      "details": "{\"target_user_id\": 17, \"target_email\": \"maxime.david@email.fr\", \"updated_fields\": \"Admin Full Update\", \"new_role\": \"user\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-24T14:29:45.591954"
+    },
+    {
+      "id": 29,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, etc.)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-24T15:50:40.398784"
     }
   ],
   "casting_proposals": [
@@ -3151,13 +3275,6 @@
       "name": "Jojo",
       "position": 2,
       "created_at": "2026-01-23T11:59:10.561310"
-    },
-    {
-      "id": 5,
-      "event_id": 8,
-      "name": "Toto",
-      "position": 3,
-      "created_at": "2026-01-23T22:01:50.306797"
     }
   ],
   "casting_assignments": [
@@ -3274,52 +3391,12 @@
       "score": 6
     },
     {
-      "id": 21,
-      "proposal_id": 5,
-      "role_id": 135,
-      "participant_id": 21,
-      "event_id": 8,
-      "score": 5
-    },
-    {
-      "id": 22,
-      "proposal_id": 5,
-      "role_id": 137,
-      "participant_id": 22,
-      "event_id": 8,
-      "score": 5
-    },
-    {
-      "id": 23,
-      "proposal_id": 5,
-      "role_id": 145,
-      "participant_id": 18,
-      "event_id": 8,
-      "score": null
-    },
-    {
-      "id": 24,
-      "proposal_id": 5,
-      "role_id": 136,
-      "participant_id": 24,
-      "event_id": 8,
-      "score": 10
-    },
-    {
-      "id": 25,
-      "proposal_id": 5,
-      "role_id": 138,
-      "participant_id": 20,
-      "event_id": 8,
-      "score": 5
-    },
-    {
-      "id": 26,
-      "proposal_id": 5,
-      "role_id": 139,
-      "participant_id": 23,
-      "event_id": 8,
-      "score": null
+      "id": 20,
+      "proposal_id": 1,
+      "role_id": 6,
+      "participant_id": 26,
+      "event_id": 1,
+      "score": 9
     }
   ]
 }

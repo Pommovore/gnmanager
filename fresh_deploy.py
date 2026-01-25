@@ -365,10 +365,79 @@ def install_dependencies(target_dir, user, sudo_password=None, ssh=None):
     # Prefix command to ensuring uv is in PATH
     uv_cmd = "export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv sync"
     
-    # Note: On ne passe PAS 'user' pour éviter d'utiliser sudo, car on possède déjà le dossier
-    # et sudo réinitialiserait le PATH, rendant 'uv' introuvable.
     run_command(uv_cmd, cwd=gnmanager_path, ssh=ssh)
     print("✅ Dépendances installées")
+
+
+def create_version_file(target_dir, user, sudo_password=None, ssh=None):
+    """Génère le fichier .deploy-version avec le tag git et la date."""
+    gnmanager_path = os.path.join(target_dir, 'gnmanager')
+    print("🔖 Génération du fichier de version...")
+    
+    # Commande pour obtenir la version: Tag + Date ou Date uniquement
+    # On essaie d'obtenir le tag exact, sinon le short hash
+    # Format: YYYYMMDD_HHMMSS
+    
+    # 1. Get timestamp: YYYYMMDD_HHMMSS
+    # 2. Get tag (or short hash if no tag)
+    
+    # On exécute ça dans le dossier git cloné/transféré
+    # Attention: si c'est un transfert de fichiers sans dossier .git (via transfer_files), 
+    # git ne marchera pas SUR la cible.
+    # MAIS fresh_deploy clone ou transfère. Si transfer_files est utilisé, le .git n'est pas forcément là 
+    # si on a filtré. 
+    # D'après transfer_files: `git ls-files` est utilisé localement, mais on ne copie pas forcément .git.
+    # IL EST PLUS SÛR de générer la version LOCALEMENT et de l'envoyer.
+    
+    version_str = "UNKNOWN"
+    try:
+        # Get date
+        ts = subprocess.check_output("date +%Y%m%d_%H%M%S", shell=True, text=True).strip()
+        
+        # Get git info (localement)
+        try:
+            tag = subprocess.check_output("git describe --tags --exact-match 2>/dev/null", shell=True, text=True).strip()
+        except subprocess.CalledProcessError:
+            try:
+                tag = subprocess.check_output("git rev-parse --short HEAD", shell=True, text=True).strip()
+            except:
+                tag = "no-git"
+                
+        version_str = f"{tag}_{ts}"
+    except Exception as e:
+        print(f"⚠️ Impossible de déterminer la version git locale: {e}")
+        version_str = f"deploy_{int(time.time())}"
+        
+    print(f"ℹ️  Version détectée: {version_str}")
+    
+    version_file = ".deploy-version"
+    
+    # Écrire le fichier sur la cible
+    if ssh:
+        # Écrire fichier temporaire
+        with open('temp_version', 'w') as f:
+            f.write(version_str)
+        
+        # Envoyer
+        try:
+            sftp = ssh.open_sftp()
+            remote_path = os.path.join(gnmanager_path, version_file)
+            sftp.put('temp_version', remote_path)
+            sftp.close()
+            os.remove('temp_version')
+            
+            # S'assurer des permissions
+            run_command(f"chown {user}:{user} {remote_path}" if user else f"chmod 644 {remote_path}", 
+                       sudo_password=sudo_password, ssh=ssh)
+        except Exception as e:
+             print(f"❌ Erreur envoi fichier version: {e}")
+    else:
+        # Local
+        target_file = os.path.join(gnmanager_path, version_file)
+        with open(target_file, 'w') as f:
+            f.write(version_str)
+            
+    print("✅ Fichier .deploy-version créé")
 
 
 
@@ -687,6 +756,10 @@ Exemples:
         # user=None car on ne veut PAS utiliser sudo (le dossier nous appartient et on veut garder le PATH)
         install_dependencies(args.target_dir, None, sudo_password, ssh)
         
+        # 6.5 Création fichier version
+        # On passe 'user' pour les permissions remote si besoin, sinon None en local user-owned
+        create_version_file(args.target_dir, user if not args.local else None, sudo_password, ssh)
+
         # 7. Création du fichier .env
         create_env_file(args.target_dir, config, None, sudo_password, ssh, force_local=args.local)
         

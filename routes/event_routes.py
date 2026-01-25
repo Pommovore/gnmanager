@@ -527,6 +527,24 @@ def delete_event(event_id):
 # Casting Routes
 # ============================================================================
 
+@event_bp.route('/event/<int:event_id>/casting')
+@login_required
+@organizer_required
+def casting_interface(event_id):
+    """
+    Interface de gestion du casting.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    breadcrumbs = [
+        ('GN Manager', url_for('admin.dashboard')),
+        (event.name, url_for('event.detail', event_id=event.id)),
+        ('Casting', '#')
+    ]
+    
+    return render_template('casting.html', event=event, breadcrumbs=breadcrumbs)
+
+
 @event_bp.route('/event/<int:event_id>/casting_data')
 @login_required
 @organizer_required
@@ -546,6 +564,10 @@ def casting_data(event_id):
     
     participants_by_type = {}
     for p in participants:
+        # Defensive check for missing user
+        if not p.user:
+            continue
+            
         p_type = p.type or 'Autre'
         if p_type not in participants_by_type:
             participants_by_type[p_type] = []
@@ -577,18 +599,23 @@ def casting_data(event_id):
         assignments[str(proposal.id)] = {}
         scores[str(proposal.id)] = {}
         # Access assignments from eager loaded relationship instead of query
-        for assignment in proposal.assignments:
-            if assignment.participant_id:
-                assignments[str(proposal.id)][str(assignment.role_id)] = assignment.participant_id
-            if assignment.score is not None:
-                scores[str(proposal.id)][str(assignment.role_id)] = assignment.score
+        try:
+            for assignment in proposal.assignments:
+                if assignment.participant_id:
+                    assignments[str(proposal.id)][str(assignment.role_id)] = assignment.participant_id
+                if assignment.score is not None:
+                    scores[str(proposal.id)][str(assignment.role_id)] = assignment.score
+        except Exception:
+            pass
     
     return jsonify({
         'participants_by_type': participants_by_type,
         'proposals': proposals_data,
         'assignments': assignments,
         'scores': scores,
-        'is_casting_validated': event.is_casting_validated or False
+        'is_casting_validated': event.is_casting_validated or False,
+        'groups_config': json.loads(event.groups_config) if event.groups_config else {},
+        'roles': [{'id': r.id, 'name': r.name, 'type': getattr(r, 'type', None), 'genre': getattr(r, 'genre', None), 'group': getattr(r, 'group', None)} for r in roles]
     })
 
 

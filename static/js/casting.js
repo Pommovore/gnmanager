@@ -1,404 +1,605 @@
-// casting.js - Gestion du casting pour GN Manager
-// Ce fichier gère toute la logique de l'onglet Casting
-
 document.addEventListener('DOMContentLoaded', function () {
-    // Récupérer les variables depuis les data attributes du DOM
     const castingContainer = document.getElementById('casting-container');
     if (!castingContainer) return;
 
     const eventId = castingContainer.dataset.eventId;
-    const csrfToken = castingContainer.dataset.csrfToken;
-
-    // Handle root path correctly to avoid double slashes when SCRIPT_ROOT is '/'
+    // Handle root path correctly
     const baseUrl = (typeof SCRIPT_ROOT !== 'undefined' && SCRIPT_ROOT === '/') ? '' : (SCRIPT_ROOT || '');
 
-    // Participants data grouped by type
-    let participantsByType = {};
-    let proposals = [];
-    let assignments = {};
-    let scores = {};
+    let castingData = null;
+    let roles = []; // Original roles list
+    let groupsConfig = {}; // For dynamic filtering
 
-    // Load casting data on tab show
-    const castingTab = document.querySelector('a[href="#casting-container"]');
-    if (castingTab) {
-        castingTab.addEventListener('shown.bs.tab', loadCastingData);
-        // Also load if already active
-        if (castingTab.classList.contains('active')) {
-            loadCastingData();
-        }
+    // Filter state
+    let filters = {
+        type: '',
+        group: '',
+        genre: ''
+    };
+
+    // Get CSRF token from meta tag
+    function getCsrfToken() {
+        return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
     }
 
-    async function loadCastingData() {
+    // Load casting data
+    function loadCastingData() {
+        const spinner = '<div class="text-center py-4"><div class="spinner-border text-primary" role="status"></div><p class="mt-2">Chargement...</p></div>';
+
+        // Only show spinner if first load (container has no content or just spinner)
+        if (!document.getElementById('castingTabs')) {
+            castingContainer.innerHTML = spinner;
+        }
+
+        fetch(`${baseUrl}/event/${eventId}/casting_data`)
+            .then(response => {
+                if (!response.ok) {
+                    return response.text().then(text => {
+                        throw new Error(`Server error: ${response.status} ${text}`);
+                    });
+                }
+                return response.json();
+            })
+            .then(data => {
+                castingData = data;
+                roles = data.roles || []; // Get roles from API
+                groupsConfig = data.groups_config || {};
+                renderCastingTable();
+            })
+            .catch(error => {
+                console.error('Error loading casting data:', error);
+                castingContainer.innerHTML = '<div class="alert alert-danger">Erreur lors du chargement des données.</div>';
+            });
+    }
+
+    // Render the casting interface
+    function renderCastingTable() {
         try {
-            const url = `${baseUrl}/event/${eventId}/casting_data`;
-            const response = await fetch(url);
-            const data = await response.json();
+            // Render basic structure if not exists
+            if (!document.getElementById('castingTabs')) {
+                const template = document.getElementById('casting-content-template');
+                if (!template) {
+                    throw new Error('Template HTML introuvable (casting-content-template)');
+                }
+                castingContainer.innerHTML = '';
+                castingContainer.appendChild(template.content.cloneNode(true));
+            }
 
-            participantsByType = data.participants_by_type;
-            proposals = data.proposals;
-            assignments = data.assignments;
-            scores = data.scores || {};
-
-            // Build proposal columns
-            rebuildProposalColumns();
-
-            // Populate all dropdowns
-            populateAllDropdowns();
-
+            renderRolesView();
+            renderParticipantsView();
+            attachFilterListeners();
+            attachEventListeners();
+            updateValidationSwitchState();
         } catch (error) {
-            console.error('Error loading casting data:', error);
+            console.error('Error rendering casting table:', error);
+            castingContainer.innerHTML = `<div class="alert alert-danger">
+                Erreur d'affichage des données: ${error.message}
+            </div>`;
         }
     }
 
-    function rebuildProposalColumns() {
-        const headerRow = document.querySelector('#casting-table thead tr');
-        const bodyRows = document.querySelectorAll('#casting-table tbody tr');
-
-        // Remove existing dynamic proposal columns (keep first 3: Rôle, Type, Attribution)
-        headerRow.querySelectorAll('th.dynamic-proposal').forEach(th => th.remove());
-        bodyRows.forEach(row => {
-            row.querySelectorAll('td.dynamic-proposal').forEach(td => td.remove());
+    // Render Roles Table (Tab 1)
+    function renderRolesView() {
+        // Apply filters
+        const filteredRoles = roles.filter(role => {
+            const matchesType = !filters.type || role.type === filters.type;
+            const matchesGroup = !filters.group || role.group === filters.group;
+            const matchesGenre = !filters.genre || role.genre === filters.genre;
+            return matchesType && matchesGroup && matchesGenre;
         });
 
-        // Add proposal columns
-        proposals.forEach(proposal => {
-            // Header
+        const container = document.getElementById('roles-table-container');
+        const template = document.getElementById('roles-table-template');
+        container.innerHTML = '';
+
+        const clone = template.content.cloneNode(true);
+
+        // Add proposal columns to header
+        const headerRow = clone.querySelector('thead tr');
+        castingData.proposals.forEach(proposal => {
             const th = document.createElement('th');
-            th.style.minWidth = '200px';
-            th.className = 'proposal-column dynamic-proposal';
-            th.dataset.proposalId = proposal.id;
+            th.style.minWidth = '250px';
             th.innerHTML = `
                 ${proposal.name}
-                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" 
-                        data-proposal-id="${proposal.id}" title="Supprimer cette proposition">
-                    <i class="bi bi-x"></i>
+                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" data-proposal-id="${proposal.id}">
+                    <i class="bi bi-trash"></i>
                 </button>
             `;
             headerRow.appendChild(th);
+        });
 
-            // Body cells
-            bodyRows.forEach(row => {
-                const roleId = row.dataset.roleId;
-                const roleType = row.dataset.roleType;
-                const td = document.createElement('td');
-                td.className = 'assignment-cell dynamic-proposal';
-                td.dataset.proposalId = proposal.id;
-                td.innerHTML = `
-                    <div class="d-flex gap-2 align-items-center">
-                        <select class="form-select form-select-sm casting-select flex-grow-1" 
-                                data-role-id="${roleId}" 
-                                data-proposal-id="${proposal.id}"
-                                data-role-type="${roleType}">
-                            <option value="">-- Non attribué --</option>
-                        </select>
-                        <select class="form-select form-select-sm score-select" 
-                                style="width: 70px;"
-                                data-role-id="${roleId}" 
-                                data-proposal-id="${proposal.id}"
-                                title="Score (0-10)">
-                            ${[...Array(11).keys()].map(i => `<option value="${i}">${i}</option>`).join('')}
-                        </select>
+        // Add role rows
+        const tbody = clone.querySelector('#casting-tbody');
+        filteredRoles.forEach(role => {
+            const tr = document.createElement('tr');
+
+            // Role info cell
+            const roleCell = document.createElement('td');
+            roleCell.innerHTML = `
+                <strong>${role.name}</strong><br>
+                <small class="text-muted">${role.type || 'Tous'} - ${role.genre || 'Tous'}</small>
+            `;
+            tr.appendChild(roleCell);
+
+            // Main assignment cell
+            const mainCell = document.createElement('td');
+            mainCell.innerHTML = createAssignmentDropdown('main', role.id, castingData.assignments['main'][role.id]);
+            tr.appendChild(mainCell);
+
+            // Proposal cells
+            castingData.proposals.forEach(proposal => {
+                const cell = document.createElement('td');
+                const proposalId = proposal.id.toString();
+                const participantId = castingData.assignments[proposalId]?.[role.id];
+                const score = castingData.scores[proposalId]?.[role.id];
+
+                cell.innerHTML = `
+                    <div class="d-flex flex-column gap-2">
+                        ${createAssignmentDropdown(proposalId, role.id, participantId)}
+                        ${createScoreDropdown(proposalId, role.id, score)}
                     </div>
                 `;
-                row.appendChild(td);
+                tr.appendChild(cell);
             });
+
+            tbody.appendChild(tr);
         });
 
-        // Add event listeners to new delete buttons
-        document.querySelectorAll('.delete-proposal-btn').forEach(btn => {
-            btn.addEventListener('click', deleteProposal);
-        });
+        container.appendChild(clone);
     }
 
-    function populateAllDropdowns() {
-        document.querySelectorAll('.casting-select').forEach(select => {
-            const roleId = select.dataset.roleId;
-            const proposalId = select.dataset.proposalId;
+    // Render Participants Table (Tab 2)
+    function renderParticipantsView() {
+        const participantsTable = document.getElementById('participants-table');
+        if (!participantsTable) return;
 
-            // Get already assigned participant IDs for this proposal (excluding current role)
-            const assignedIds = getAssignedParticipantIds(proposalId, roleId);
+        const headerRow = participantsTable.querySelector('thead tr');
+        const tbody = participantsTable.querySelector('#participants-tbody');
 
-            // Clear and repopulate with ALL participants grouped by type
-            select.innerHTML = '<option value="">-- Non attribué --</option>';
+        // Reset header (keep first 2 columns: Participant, Main Assignment)
+        while (headerRow.children.length > 2) {
+            headerRow.removeChild(headerRow.lastChild);
+        }
 
-            // Add all participants grouped by their type
-            for (const [type, participants] of Object.entries(participantsByType)) {
-                const optgroup = document.createElement('optgroup');
-                optgroup.label = type;
+        // Add proposal columns
+        castingData.proposals.forEach(proposal => {
+            const th = document.createElement('th');
+            th.style.minWidth = '250px';
+            th.textContent = proposal.name;
+            headerRow.appendChild(th);
+        });
 
-                participants.forEach(p => {
-                    // Skip if already assigned to another role in this proposal
-                    if (assignedIds.includes(p.id)) return;
+        // Flatten participants list
+        let allParticipants = [];
+        for (const [type, participants] of Object.entries(castingData.participants_by_type)) {
+            allParticipants = allParticipants.concat(participants);
+        }
+        // Sort by name
+        allParticipants.sort((a, b) => a.nom.localeCompare(b.nom));
 
-                    const option = document.createElement('option');
-                    option.value = p.id;
-                    option.textContent = `${p.nom} ${p.prenom}`;
-                    optgroup.appendChild(option);
-                });
+        tbody.innerHTML = '';
 
-                // Only add optgroup if it has options
-                if (optgroup.childElementCount > 0) {
-                    select.appendChild(optgroup);
+        allParticipants.forEach(p => {
+            const tr = document.createElement('tr');
+
+            // Participant name
+            const nameCell = document.createElement('td');
+            nameCell.innerHTML = `<strong>${p.nom} ${p.prenom}</strong>`;
+            tr.appendChild(nameCell);
+
+            // Find assignments for this participant
+            // Main assignment
+            let mainRoleId = null;
+            for (const [roleId, assignedPId] of Object.entries(castingData.assignments['main'])) {
+                if (assignedPId === p.id) {
+                    mainRoleId = roleId;
+                    break;
                 }
             }
 
-            // Set current value if assigned
-            const currentAssignment = getAssignment(proposalId, roleId);
-            if (currentAssignment) {
-                select.value = currentAssignment;
-            }
-        });
+            const mainCell = document.createElement('td');
+            mainCell.innerHTML = createRoleDropdown('main', p.id, mainRoleId);
+            tr.appendChild(mainCell);
 
-        // Add change event listeners
-        document.querySelectorAll('.casting-select').forEach(select => {
-            select.removeEventListener('change', handleAssignmentChange);
-            select.addEventListener('change', handleAssignmentChange);
-        });
+            // Proposals
+            castingData.proposals.forEach(proposal => {
+                const proposalId = proposal.id.toString();
+                let assignedRoleId = null;
+                const proposalAssignments = castingData.assignments[proposalId] || {};
 
-        // Populate and add change event listeners for scores
-        document.querySelectorAll('.score-select').forEach(scoreSelect => {
-            const roleId = scoreSelect.dataset.roleId;
-            const proposalId = scoreSelect.dataset.proposalId;
-
-            // Skip 'main' proposal as it doesn't have scores
-            if (proposalId === 'main') {
-                return;
-            }
-
-            // Get current score (default to 0, handling 0 as valid value)
-            let currentScore = 0;
-            if (scores[proposalId] && scores[proposalId][roleId] !== undefined) {
-                currentScore = scores[proposalId][roleId];
-            }
-            scoreSelect.value = currentScore;
-
-            // Add event listener for score changes
-            scoreSelect.removeEventListener('change', handleScoreChange);
-            scoreSelect.addEventListener('change', handleScoreChange);
-        });
-    }
-
-    function getAssignedParticipantIds(proposalId, excludeRoleId) {
-        const assigned = [];
-        const proposalAssignments = assignments[proposalId] || {};
-        for (const [roleId, participantId] of Object.entries(proposalAssignments)) {
-            if (roleId !== excludeRoleId && participantId) {
-                assigned.push(parseInt(participantId));
-            }
-        }
-        return assigned;
-    }
-
-    function getAssignment(proposalId, roleId) {
-        return assignments[proposalId]?.[roleId] || null;
-    }
-
-    async function handleAssignmentChange(event) {
-        const select = event.target;
-        const roleId = select.dataset.roleId;
-        const proposalId = select.dataset.proposalId;
-        const participantId = select.value || null;
-
-        try {
-            const response = await fetch(`${baseUrl}/event/${eventId}/casting/assign`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    role_id: roleId,
-                    proposal_id: proposalId,
-                    participant_id: participantId
-                })
-            });
-
-            if (response.ok) {
-                // Update local assignments
-                if (!assignments[proposalId]) {
-                    assignments[proposalId] = {};
-                }
-                assignments[proposalId][roleId] = participantId;
-
-                // Refresh all dropdowns for this proposal to update available options
-                populateAllDropdowns();
-            } else {
-                console.error('Failed to save assignment');
-                // Revert the change
-                loadCastingData();
-            }
-        } catch (error) {
-            console.error('Error saving assignment:', error);
-            loadCastingData();
-        }
-    }
-
-    async function handleScoreChange(event) {
-        const scoreSelect = event.target;
-        const roleId = scoreSelect.dataset.roleId;
-        const proposalId = scoreSelect.dataset.proposalId;
-        const score = parseInt(scoreSelect.value);
-
-        try {
-            const response = await fetch(`${baseUrl}/event/${eventId}/casting/update_score`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({
-                    role_id: roleId,
-                    proposal_id: proposalId,
-                    score: score
-                })
-            });
-
-            if (response.ok) {
-                // Update local scores
-                if (!scores[proposalId]) {
-                    scores[proposalId] = {};
-                }
-                scores[proposalId][roleId] = score;
-            } else {
-                console.error('Failed to save score');
-                // Revert the change
-                loadCastingData();
-            }
-        } catch (error) {
-            console.error('Error saving score:', error);
-            loadCastingData();
-        }
-    }
-
-    // Add proposal button
-    const addProposalBtn = document.getElementById('add-proposal-btn');
-    if (addProposalBtn) {
-        addProposalBtn.addEventListener('click', async function () {
-            const nameInput = document.getElementById('new-proposal-name');
-            const name = nameInput.value.trim();
-
-            if (!name) {
-                nameInput.classList.add('is-invalid');
-                return;
-            }
-            nameInput.classList.remove('is-invalid');
-
-            try {
-                const response = await fetch(`${baseUrl}/event/${eventId}/casting/add_proposal`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
-                    },
-                    body: JSON.stringify({ name: name })
-                });
-
-                if (response.ok) {
-                    nameInput.value = '';
-                    loadCastingData();
-                } else {
-                    alert('Erreur lors de la création de la proposition');
-                }
-            } catch (error) {
-                console.error('Error adding proposal:', error);
-            }
-        });
-    }
-
-    async function deleteProposal(event) {
-        const proposalId = event.currentTarget.dataset.proposalId;
-
-        if (!confirm('Supprimer cette proposition et toutes ses attributions ?')) {
-            return;
-        }
-
-        try {
-            const response = await fetch(`${baseUrl}/event/${eventId}/casting/delete_proposal`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ proposal_id: proposalId })
-            });
-
-            if (response.ok) {
-                loadCastingData();
-            } else {
-                alert('Erreur lors de la suppression');
-            }
-        } catch (error) {
-            console.error('Error deleting proposal:', error);
-        }
-    }
-
-    // Auto-assign button
-    const autoAssignBtn = document.getElementById('auto-assign-btn');
-    if (autoAssignBtn) {
-        autoAssignBtn.addEventListener('click', async function () {
-            if (!confirm('Calculer les attributions automatiquement en fonction des scores ?\\n\\nCela écrasera les attributions actuelles dans la colonne "Attribution".')) {
-                return;
-            }
-
-            try {
-                const response = await fetch(`${baseUrl}/event/${eventId}/casting/auto_assign`, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
+                for (const [roleId, assignedPId] of Object.entries(proposalAssignments)) {
+                    if (assignedPId === p.id) {
+                        assignedRoleId = roleId;
+                        break;
                     }
-                });
-
-                if (response.ok) {
-                    const result = await response.json();
-                    alert(`Attribution automatique terminée !\\n${result.assigned_count} rôles attribués sur ${result.total_roles}.`);
-                    loadCastingData();
-                } else {
-                    const error = await response.json();
-                    alert(`Erreur : ${error.error || 'Erreur lors du calcul'}`);
                 }
-            } catch (error) {
-                console.error('Error auto-assigning:', error);
-                alert('Erreur lors du calcul automatique');
-            }
+
+                const cell = document.createElement('td');
+                cell.innerHTML = createRoleDropdown(proposalId, p.id, assignedRoleId);
+                tr.appendChild(cell);
+            });
+
+            tbody.appendChild(tr);
         });
     }
 
-    // Casting validation switch
-    const validationSwitch = document.getElementById('castingValidationSwitch');
-    const validationLabel = document.getElementById('castingValidationLabel');
+    // Create ROLE dropdown (for Participants tab)
+    function createRoleDropdown(proposalId, participantId, selectedRoleId) {
+        let options = '<option value="">-- Aucun rôle --</option>';
 
-    if (validationSwitch) {
-        validationSwitch.addEventListener('change', async function () {
-            const validated = this.checked;
+        // Create map of assigned roles in this proposal to exclude them
+        const assignedRoles = new Set();
+        const assignments = castingData.assignments[proposalId] || {};
+        for (const [rId, pId] of Object.entries(assignments)) {
+            // If role is assigned AND it is NOT assigned to CURRENT participant
+            // (Wait: we want to only hide roles assigned to OTHERS)
+            // If pId matches current participantId, it IS the current assignment, so we keep it available (implicitly handled by logic below)
+            if (pId && parseInt(pId) !== parseInt(participantId)) {
+                assignedRoles.add(parseInt(rId));
+            }
+        }
 
-            try {
-                const response = await fetch(`${baseUrl}/event/${eventId}/casting/toggle_validation`, {
+        roles.forEach(role => {
+            // Only show if unassigned OR assigned to this participant
+            if (!assignedRoles.has(role.id)) {
+                // Determine if this is the selected role
+                // Note: role.id is int, selectedRoleId might be string from keys
+                const isSelected = selectedRoleId && (parseInt(role.id) === parseInt(selectedRoleId));
+                const selectedAttr = isSelected ? 'selected' : '';
+                options += `<option value="${role.id}" ${selectedAttr}>${role.name}</option>`;
+            }
+        });
+
+        return `
+            <select class="form-select form-select-sm role-select" 
+                data-proposal-id="${proposalId}" 
+                data-participant-id="${participantId}">
+                ${options}
+            </select>
+        `;
+    }
+
+    // Create assignment dropdown HTML (for Roles tab)
+    function createAssignmentDropdown(proposalId, roleId, selectedParticipantId) {
+        let options = '<option value="">-- Non attribué --</option>';
+
+        // Add participants grouped by type
+        for (const [type, participants] of Object.entries(castingData.participants_by_type)) {
+            options += `<optgroup label="${type}">`;
+            participants.forEach(p => {
+                const selected = p.id === selectedParticipantId ? 'selected' : '';
+                options += `<option value="${p.id}" ${selected}>${p.nom} ${p.prenom}</option>`;
+            });
+            options += '</optgroup>';
+        }
+
+        return `
+            <select class="form-select form-select-sm assignment-select" 
+                data-proposal-id="${proposalId}" 
+                data-role-id="${roleId}">
+                ${options}
+            </select>
+        `;
+    }
+
+    // Create score dropdown HTML
+    function createScoreDropdown(proposalId, roleId, selectedScore) {
+        let options = '<option value="">--</option>';
+        for (let i = 0; i <= 10; i++) {
+            const selected = i === selectedScore ? 'selected' : '';
+            options += `<option value="${i}" ${selected}>${i}</option>`;
+        }
+
+        return `
+            <div class="d-flex align-items-center">
+                <small class="text-muted me-1">Score:</small>
+                <select class="form-select form-select-sm score-select" style="width: 60px;"
+                    data-proposal-id="${proposalId}"
+                    data-role-id="${roleId}">
+                    ${options}
+                </select>
+            </div>
+        `;
+    }
+
+    // Shared update function
+    function updateAssignment(proposalId, roleId, participantId) {
+        // Handle unassignment from Participants tab (roleId is empty)
+        if (!roleId && participantId) {
+            // We need to find which role this participant currently has in this proposal to unassign it
+            // Actually, we can just look up the assignment by searching assignments map.
+            // But the backend endpoint expects role_id.
+
+            // Search in local data
+            const assignments = castingData.assignments[proposalId] || {};
+            for (const [rId, pId] of Object.entries(assignments)) {
+                if (parseInt(pId) === parseInt(participantId)) {
+                    roleId = rId;
+                    break;
+                }
+            }
+
+            if (!roleId) return; // Nothing to unassign
+            participantId = null; // Explicitly nullify
+        }
+
+        fetch(`${baseUrl}/event/${eventId}/casting/assign`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': getCsrfToken()
+            },
+            body: JSON.stringify({
+                proposal_id: proposalId === 'main' ? 'main' : parseInt(proposalId),
+                role_id: parseInt(roleId),
+                participant_id: participantId ? parseInt(participantId) : null
+            })
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    loadCastingData();
+                } else {
+                    alert('Erreur lors de l\'attribution');
+                }
+            });
+    }
+
+    // Attach event listeners
+    function attachEventListeners() {
+        // Assignment dropdowns (Roles Tab)
+        // Use event delegation or re-attach
+        // Here we clear container so re-attaching is fine
+
+        document.querySelectorAll('.assignment-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const proposalId = this.dataset.proposalId;
+                const roleId = this.dataset.roleId;
+                const participantId = this.value || null;
+
+                updateAssignment(proposalId, roleId, participantId);
+            });
+        });
+
+        // Role dropdowns (Participants Tab)
+        document.querySelectorAll('.role-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const proposalId = this.dataset.proposalId;
+                const participantId = this.dataset.participantId;
+                const roleId = this.value || null;
+
+                updateAssignment(proposalId, roleId, participantId);
+            });
+        });
+
+        // Score dropdowns
+        document.querySelectorAll('.score-select').forEach(select => {
+            select.addEventListener('change', function () {
+                const proposalId = this.dataset.proposalId;
+                const roleId = this.dataset.roleId;
+                const score = this.value;
+
+                fetch(`${baseUrl}/event/${eventId}/casting/update_score`, {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRFToken': csrfToken
+                        'X-CSRFToken': getCsrfToken()
+                    },
+                    body: JSON.stringify({
+                        proposal_id: parseInt(proposalId),
+                        role_id: parseInt(roleId),
+                        score: score !== '' ? parseInt(score) : null
+                    })
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success) {
+                            alert('Erreur lors de la mise à jour du score');
+                        }
+                    });
+            });
+        });
+
+        // Add proposal button
+        const addBtn = document.getElementById('add-proposal-btn');
+        if (addBtn) {
+            const newAddBtn = addBtn.cloneNode(true);
+            addBtn.parentNode.replaceChild(newAddBtn, addBtn);
+
+            newAddBtn.addEventListener('click', function () {
+                const name = prompt('Nom de la proposition:');
+                if (name) {
+                    fetch(`${baseUrl}/event/${eventId}/casting/add_proposal`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({ name: name })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.id) {
+                                loadCastingData();
+                            } else {
+                                alert(data.error || 'Erreur');
+                            }
+                        });
+                }
+            });
+        }
+
+        // Delete proposal buttons (delegation or direct)
+        document.querySelectorAll('.delete-proposal-btn').forEach(btn => {
+            btn.addEventListener('click', function () {
+                const proposalId = this.dataset.proposalId;
+                if (confirm('Supprimer cette proposition ?')) {
+                    fetch(`${baseUrl}/event/${eventId}/casting/delete_proposal`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        },
+                        body: JSON.stringify({ proposal_id: parseInt(proposalId) })
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                loadCastingData();
+                            } else {
+                                alert(data.error || 'Erreur');
+                            }
+                        });
+                }
+            });
+        });
+
+        // Auto-Assign (Hungarian Algorithm) Button
+        const autoAssignBtn = document.getElementById('auto-assign-btn');
+        if (autoAssignBtn) {
+            const newAutoBtn = autoAssignBtn.cloneNode(true);
+            autoAssignBtn.parentNode.replaceChild(newAutoBtn, autoAssignBtn);
+
+            newAutoBtn.addEventListener('click', function () {
+                if (confirm('Voulez-vous lancer l\'attribution automatique optimale (Algorithme Hongrois) ?\nCela remplacera les attributions actuelles de la colonne principale basee sur les scores.')) {
+                    const btnHtml = this.innerHTML;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calcul...';
+                    this.disabled = true;
+
+                    fetch(`${baseUrl}/event/${eventId}/casting/auto_assign`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            this.innerHTML = btnHtml;
+                            this.disabled = false;
+
+                            if (data.success) {
+                                alert(`Attribution terminée !\n${data.assigned_count}/${data.total_roles} rôles attribués.`);
+                                loadCastingData();
+                            } else {
+                                alert(data.error || 'Erreur lors du calcul');
+                            }
+                        })
+                        .catch(err => {
+                            console.error('Error:', err);
+                            this.innerHTML = btnHtml;
+                            this.disabled = false;
+                            alert('Erreur serveur lors du calcul.');
+                        });
+                }
+            });
+        }
+
+        const validationSwitch = document.getElementById('castingValidationSwitch');
+        const validationLabel = document.getElementById('castingValidationLabel');
+        if (validationSwitch) {
+            // Clone to remove old listeners just in case
+            const newSwitch = validationSwitch.cloneNode(true);
+            validationSwitch.parentNode.replaceChild(newSwitch, validationSwitch);
+
+            newSwitch.addEventListener('change', function () {
+                const validated = this.checked;
+
+                fetch(`${baseUrl}/event/${eventId}/casting/toggle_validation`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCsrfToken()
                     },
                     body: JSON.stringify({ validated: validated })
-                });
-
-                const data = await response.json();
-                if (data.success) {
-                    if (data.is_casting_validated) {
-                        validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
-                    } else {
-                        validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
-                    }
-                } else {
-                    // Revert
-                    this.checked = !this.checked;
-                    alert('Erreur lors de la mise à jour');
-                }
-            } catch (error) {
-                console.error('Error toggling validation:', error);
-                this.checked = !this.checked;
-                alert('Erreur lors de la mise à jour');
-            }
-        });
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            if (data.is_casting_validated) {
+                                validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
+                            } else {
+                                validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
+                            }
+                        } else {
+                            this.checked = !this.checked;
+                            alert('Erreur lors de la mise à jour');
+                        }
+                    })
+                    .catch(() => {
+                        this.checked = !this.checked;
+                        alert('Erreur lors de la mise à jour');
+                    });
+            });
+        }
     }
+
+    // Filter Listeners
+    function attachFilterListeners() {
+        const filterType = document.getElementById('filter-type');
+        const filterGroup = document.getElementById('filter-group');
+        const filterGenre = document.getElementById('filter-genre');
+
+        if (filterType) {
+            // Set current values
+            filterType.value = filters.type;
+            filterType.addEventListener('change', function () {
+                filters.type = this.value;
+                filters.group = ''; // Reset group when type changes
+                updateGroupOptions();
+                renderCastingTable();
+            });
+        }
+
+        if (filterGroup) {
+            updateGroupOptions();
+            filterGroup.value = filters.group;
+            filterGroup.addEventListener('change', function () {
+                filters.group = this.value;
+                renderCastingTable();
+            });
+        }
+
+        if (filterGenre) {
+            filterGenre.value = filters.genre;
+            filterGenre.addEventListener('change', function () {
+                filters.genre = this.value;
+                renderCastingTable();
+            });
+        }
+    }
+
+    function updateGroupOptions() {
+        const filterGroup = document.getElementById('filter-group');
+        if (!filterGroup) return;
+
+        const currentGroup = filters.group;
+        filterGroup.innerHTML = '<option value="">Peu importe</option>';
+        if (filters.type && groupsConfig[filters.type]) {
+            groupsConfig[filters.type].forEach(group => {
+                const option = document.createElement('option');
+                option.value = group;
+                option.textContent = group;
+                if (group === currentGroup) option.selected = true;
+                filterGroup.appendChild(option);
+            });
+        }
+    }
+
+
+    function updateValidationSwitchState() {
+        const validationSwitch = document.getElementById('castingValidationSwitch');
+        const validationLabel = document.getElementById('castingValidationLabel');
+        if (validationSwitch && castingData) {
+            validationSwitch.checked = !!castingData.is_casting_validated;
+            if (castingData.is_casting_validated) {
+                validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
+            } else {
+                validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
+            }
+        }
+    }
+
+    // Initial load
+    loadCastingData();
 });

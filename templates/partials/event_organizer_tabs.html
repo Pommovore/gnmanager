@@ -293,12 +293,7 @@
                         <i class="bi bi-plus"></i> Ajouter une proposition
                     </button>
                 </div>
-                {% if not event.is_casting_validated %}
-                <button class="btn btn-success btn-sm" type="button" id="auto-assign-btn"
-                    title="Calculer les attributions en fonction des scores">
-                    <i class="bi bi-calculator"></i> Calculer les attributions
-                </button>
-                {% endif %}
+
             </div>
         </div>
         <div class="card-body">
@@ -527,3 +522,4 @@
 <script src="{{ url_for('static', filename='js/event_organizer.js') }}"></script>
 {# Casting JavaScript - Loaded from external file #}
 <script src="{{ url_for('static', filename='js/casting.js') }}"></script>
+{% include "partials/casting_templates.html" %}
