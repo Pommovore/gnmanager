@@ -15,7 +15,7 @@
     </div>
 </div>
 
-<div class="list-group">
+<div class="d-flex flex-column gap-2">
     {% for e in events %}
     {% set participation = my_roles.get(e.id) %}
     {% set row_class = "" %}
@@ -60,7 +60,7 @@
     {% endif %}
 
     <a href="{{ url_for('event.detail', event_id=e.id) }}"
-        class="list-group-item list-group-item-action {{ row_class }}">
+        class="list-group-item list-group-item-action border rounded shadow-sm p-2 {{ row_class }}">
         <div class="d-flex w-100 justify-content-between">
             <h5 class="mb-1">
                 {{ e.name }}

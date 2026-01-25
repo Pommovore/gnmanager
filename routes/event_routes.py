@@ -20,7 +20,7 @@ from datetime import datetime
 from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
 from decorators import organizer_required
 from exceptions import DatabaseError
-from exceptions import DatabaseError
+from sqlalchemy.orm import joinedload
 import json
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -177,15 +177,25 @@ def update_general(event_id):
     statut = request.form.get('statut')
     
     try:
+        # Validation des dates AVANT toute modification
+        if date_start_str and date_end_str:
+            start = datetime.strptime(date_start_str, '%Y-%m-%d')
+            end = datetime.strptime(date_end_str, '%Y-%m-%d')
+            if end < start:
+                flash("La date de fin ne peut pas être antérieure à la date de début.", "danger")
+                return redirect(url_for('event.detail', event_id=event_id))
+        
+        # Application des modifications si validation OK
         if name: event.name = name
         if location: event.location = location
         if statut: event.statut = statut
-        # On sauvegarde le webhook tel quel, même si vide
         event.discord_webhook_url = discord_webhook_url
+        
         if date_start_str: 
             event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
         if date_end_str: 
             event.date_end = datetime.strptime(date_end_str, '%Y-%m-%d')
+            
         if description is not None: event.description = description
         if org_link_url is not None: event.org_link_url = org_link_url
         if org_link_title is not None: event.org_link_title = org_link_title
@@ -201,9 +211,7 @@ def update_general(event_id):
         
         # Checkbox handling: presence means True
         event.google_form_active = 'google_form_active' in request.form
-            
-        event.google_form_active = 'google_form_active' in request.form
-            
+             
         db.session.commit()
         
         # Log update
@@ -534,7 +542,7 @@ def casting_data(event_id):
     participants = Participant.query.filter_by(
         event_id=event_id,
         registration_status=RegistrationStatus.VALIDATED.value
-    ).all()
+    ).options(joinedload(Participant.user)).all()
     
     participants_by_type = {}
     for p in participants:
@@ -547,8 +555,10 @@ def casting_data(event_id):
             'prenom': p.user.prenom or ''
         })
     
-    # Get proposals
-    proposals = CastingProposal.query.filter_by(event_id=event_id).order_by(CastingProposal.position).all()
+    # Get proposals with assignments to avoid N+1
+    proposals = CastingProposal.query.filter_by(event_id=event_id)\
+        .options(joinedload(CastingProposal.assignments))\
+        .order_by(CastingProposal.position).all()
     proposals_data = [{'id': p.id, 'name': p.name} for p in proposals]
     
     # Get assignments: {proposal_id: {role_id: {participant_id, score}}}
@@ -566,6 +576,7 @@ def casting_data(event_id):
     for proposal in proposals:
         assignments[str(proposal.id)] = {}
         scores[str(proposal.id)] = {}
+        # Access assignments from eager loaded relationship instead of query
         for assignment in proposal.assignments:
             if assignment.participant_id:
                 assignments[str(proposal.id)][str(assignment.role_id)] = assignment.participant_id

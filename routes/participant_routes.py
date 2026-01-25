@@ -67,9 +67,18 @@ def bulk_update(event_id):
         
     p_ids = request.form.getlist('participant_ids')
     
+    # Optimisation N+1: Récupérer tous les participants en une seule requête
+    participants = Participant.query.filter(
+        Participant.id.in_(p_ids),
+        Participant.event_id == event.id
+    ).all()
+    participants_map = {str(p.id): p for p in participants}
+    
     for p_id in p_ids:
-        p = Participant.query.get(p_id)
-        if p and p.event_id == event.id:
+        # Utiliser le dictionnaire au lieu de faire une requête SQL à chaque itération
+        p = participants_map.get(str(p_id))
+        
+        if p:
             # Mise à jour des champs
             p.type = request.form.get(f'type_{p_id}', p.type)
             p.group = request.form.get(f'group_{p_id}', p.group)
