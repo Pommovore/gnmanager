@@ -109,7 +109,12 @@ class Event(db.Model):
     # "Casting en cours", "Casting terminé", "Rôles en cours de préparation",
     # "Rôles en cours d'envois", "Rôles envoyés, préparatifs de l'evènement",
     # "Évènement en cours", "Terminé", "Annulé", "Reporté"
+    # "Évènement en cours", "Terminé", "Annulé", "Reporté"
     groups_config = db.Column(db.Text, default='{"PJ": ["Peu importe"], "PNJ": ["Peu importe"], "Organisateur": ["Peu importe"]}')
+    
+    # Configuration PAF (JSON)
+    # Format: [{"name": "PJ Standard", "amount": 50}, {"name": "PJ Réduit", "amount": 30}]
+    paf_config = db.Column(db.Text, default='[]')
     
     # Nombre maximum de participants
     max_pjs = db.Column(db.Integer, default=50)
@@ -222,7 +227,9 @@ class Participant(db.Model):
     registration_status = db.Column(db.String(50), default='À valider')
     
     # Statut PAF (Participation Aux Frais)
+    # Statut PAF (Participation Aux Frais)
     paf_status = db.Column(db.String(20), default='non versée')  # non versée, partielle, versée, erreur
+    paf_type = db.Column(db.String(50))  # Ex: "PJ Standard", "Tarif Réduit"
     
     payment_method = db.Column(db.String(50))
     payment_amount = db.Column(db.Float, default=0.0)
@@ -364,7 +371,7 @@ class CastingAssignment(db.Model):
     role_id = db.Column(db.Integer, db.ForeignKey('role.id'), nullable=False)
     participant_id = db.Column(db.Integer, db.ForeignKey('participant.id'), nullable=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
-    score = db.Column(db.Integer, nullable=True)  # Score 0-10 for casting preference
+    score = db.Column(db.Integer, nullable=True, default=0)  # Score 0-10 for casting preference
     
     # Database indexes for performance
     __table_args__ = (

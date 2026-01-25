@@ -15,13 +15,14 @@ Ce module gère :
 from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from markupsafe import Markup
 from flask_login import login_required, current_user
-from models import db, Event, Participant, ActivityLog, Role, CastingProposal, CastingAssignment
+from models import db, Event, Participant, Role, CastingProposal, CastingAssignment, ActivityLog, User
+import json
+import logging
 from datetime import datetime
-from constants import ParticipantType, EventStatus, ActivityLogType, RegistrationStatus
+from constants import ParticipantType, EventStatus, RegistrationStatus, ActivityLogType
 from decorators import organizer_required
 from exceptions import DatabaseError
 from sqlalchemy.orm import joinedload
-import json
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 
@@ -146,13 +147,22 @@ def detail(event_id):
             assigned_participant_id=participant.id
         ).first()
     
+    # PAF Config
+    try:
+        paf_config = json.loads(event.paf_config or '[]')
+    except json.JSONDecodeError:
+        paf_config = []
+    
+    paf_map = {item['name']: item['amount'] for item in paf_config if 'name' in item and 'amount' in item}
+
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
         (event.name, '#')  # Page actuelle
     ]
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
-                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role)
+                          count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role,
+                          paf_config=paf_config, paf_map=paf_map)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
@@ -263,6 +273,18 @@ def update_general(event_id):
             event.max_pnjs = int(request.form.get('max_pnjs'))
         if request.form.get('max_organizers'):
             event.max_organizers = int(request.form.get('max_organizers'))
+            
+        # Configuration PAF
+        paf_names = request.form.getlist('paf_names[]')
+        paf_amounts = request.form.getlist('paf_amounts[]')
+        paf_config = []
+        for name, amount in zip(paf_names, paf_amounts):
+            if name.strip():
+                try:
+                    paf_config.append({'name': name.strip(), 'amount': float(amount) if amount else 0})
+                except ValueError:
+                    pass
+        event.paf_config = json.dumps(paf_config)
         
         # Checkbox handling: presence means True
         event.google_form_active = 'google_form_active' in request.form

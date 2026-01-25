@@ -284,7 +284,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Create score slider HTML
     function createScoreSlider(proposalId, roleId, selectedScore) {
-        const score = (selectedScore !== null && selectedScore !== undefined) ? selectedScore : 10;
+        const score = (selectedScore !== null && selectedScore !== undefined) ? selectedScore : 0;
         const color = getScoreColor(score);
 
         return `

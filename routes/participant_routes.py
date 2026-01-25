@@ -151,6 +151,39 @@ def update(event_id, p_id):
     return redirect(url_for('participant.manage', event_id=event_id))
 
 
+@participant_bp.route('/event/<int:event_id>/participant/<int:p_id>/update_paf', methods=['POST'])
+@login_required
+@organizer_required
+def update_paf(event_id, p_id):
+    """
+    Met à jour le type de PAF d'un participant.
+    """
+    event = Event.query.get_or_404(event_id)
+    p = Participant.query.get_or_404(p_id)
+    
+    if p.event_id != event_id:
+        flash('Participant invalide.', 'danger')
+        return redirect(url_for('event.detail', event_id=event_id) + '#list-paf')
+        
+    p.paf_type = request.form.get('paf_type')
+    
+    log = ActivityLog(
+        user_id=current_user.id,
+        action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+        event_id=event.id,
+        details=json.dumps({
+            'participant_id': p.id,
+            'update_type': 'paf_type_update',
+            'new_paf_type': p.paf_type
+        })
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    flash(f'Type de PAF mis à jour pour {p.user.email}.', 'success')
+    return redirect(url_for('event.detail', event_id=event_id) + '#list-paf')
+
+
 @participant_bp.route('/event/<int:event_id>/participant/<int:p_id>/change-status', methods=['POST'])
 @login_required
 @organizer_required
