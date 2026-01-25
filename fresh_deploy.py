@@ -379,6 +379,9 @@ def create_version_file(target_dir, user, sudo_password=None, ssh=None):
     
     version_str = "dev"
     try:
+        # 0. Fetch tags to ensure we have the latest
+        subprocess.run(["git", "fetch", "--tags"], check=False, stderr=subprocess.DEVNULL)
+
         # 1. Get last commit date formatted
         ts = subprocess.check_output(
             ["git", "log", "-1", "--format=%cd", "--date=format:%Y%m%d_%H%M%S"], 
@@ -387,14 +390,13 @@ def create_version_file(target_dir, user, sudo_password=None, ssh=None):
         
         # 2. Get latest tag
         try:
-            # Essayer d'avoir le tag exact sur le commit courant
-            tag = subprocess.check_output(
-                ["git", "describe", "--tags", "--abbrev=0"], 
-                text=True, 
-                stderr=subprocess.DEVNULL
-            ).strip()
-        except subprocess.CalledProcessError:
-            # Fallback si pas de tag, on met 'dev' ou le short hash
+            # Utilisation de la méthode triée par date de création pour avoir le VRAI dernier tag
+            # même si on n'est pas sur le commit du tag
+            tag_cmd = "git tag --sort=-creatordate | head -n 1"
+            tag = subprocess.check_output(tag_cmd, shell=True, text=True).strip()
+            if not tag:
+                tag = "dev"
+        except Exception:
             try:
                 tag = subprocess.check_output(["git", "rev-parse", "--short", "HEAD"], text=True).strip()
             except:
