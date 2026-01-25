@@ -160,22 +160,6 @@
                                     class="bi bi-trash"></i></button>
                         </div>
                     </div>
-                    {% else %}
-                    <!-- Show one empty row by default if no links but checking event.org_link_url for migration fallback legacy display is tricky here since backend uses event.links. We rely on migration script having run. -->
-                    <div class="row mb-2 link-row">
-                        <div class="col-md-5">
-                            <input type="text" class="form-control form-control-sm" name="link_urls[]"
-                                placeholder="URL (https://...)" value="">
-                        </div>
-                        <div class="col-md-5">
-                            <input type="text" class="form-control form-control-sm" name="link_titles[]"
-                                placeholder="Titre (ex: Site Web)" value="">
-                        </div>
-                        <div class="col-md-2">
-                            <button type="button" class="btn btn-sm btn-outline-danger w-100 remove-link-btn"><i
-                                    class="bi bi-trash"></i></button>
-                        </div>
-                    </div>
                     {% endfor %}
                 </div>
                 <div class="mb-3">
