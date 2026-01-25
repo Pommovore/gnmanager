@@ -134,9 +134,9 @@ document.addEventListener('DOMContentLoaded', function () {
                 const score = castingData.scores[proposalId]?.[role.id];
 
                 cell.innerHTML = `
-                    <div class="d-flex flex-column gap-2">
+                    <div class="d-flex flex-column gap-1">
                         ${createAssignmentDropdown(proposalId, role.id, participantId)}
-                        ${createScoreDropdown(proposalId, role.id, score)}
+                        ${createScoreSlider(proposalId, role.id, score)}
                     </div>
                 `;
                 tr.appendChild(cell);
@@ -282,24 +282,30 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
     }
 
-    // Create score dropdown HTML
-    function createScoreDropdown(proposalId, roleId, selectedScore) {
-        let options = '<option value="">--</option>';
-        for (let i = 0; i <= 10; i++) {
-            const selected = i === selectedScore ? 'selected' : '';
-            options += `<option value="${i}" ${selected}>${i}</option>`;
-        }
+    // Create score slider HTML
+    function createScoreSlider(proposalId, roleId, selectedScore) {
+        const score = selectedScore !== null ? selectedScore : 0;
+        const color = getScoreColor(score);
 
         return `
-            <div class="d-flex align-items-center">
-                <small class="text-muted me-1">Score:</small>
-                <select class="form-select form-select-sm score-select" style="width: 60px;"
+            <div class="score-slider-container mt-1 pt-2 border-top d-flex align-items-center gap-2">
+                <small class="text-muted fw-bold" style="font-size: 0.7rem;">Score</small>
+                <input type="range" class="form-range score-slider" 
+                    min="0" max="10" step="1" 
+                    value="${score}"
                     data-proposal-id="${proposalId}"
-                    data-role-id="${roleId}">
-                    ${options}
-                </select>
+                    data-role-id="${roleId}"
+                    style="flex-grow: 1; margin-top: 0;">
+                <span class="badge score-badge" style="background-color: ${color}; min-width: 25px;">${selectedScore !== null ? score : '--'}</span>
             </div>
         `;
+    }
+
+    function getScoreColor(score) {
+        if (score === null || score === undefined) return '#6c757d';
+        // HSL: 0 is red, 120 is green
+        const hue = score * 12;
+        return `hsl(${hue}, 70%, 45%)`;
     }
 
     // Shared update function
@@ -372,9 +378,18 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
 
-        // Score dropdowns
-        document.querySelectorAll('.score-select').forEach(select => {
-            select.addEventListener('change', function () {
+        // Score sliders
+        document.querySelectorAll('.score-slider').forEach(slider => {
+            slider.addEventListener('input', function () {
+                // Visual feedback during sliding
+                const score = this.value;
+                const container = this.closest('.score-slider-container');
+                const badge = container.querySelector('.score-badge');
+                badge.textContent = score;
+                badge.style.backgroundColor = getScoreColor(parseInt(score));
+            });
+
+            slider.addEventListener('change', function () {
                 const proposalId = this.dataset.proposalId;
                 const roleId = this.dataset.roleId;
                 const score = this.value;
@@ -388,7 +403,7 @@ document.addEventListener('DOMContentLoaded', function () {
                     body: JSON.stringify({
                         proposal_id: parseInt(proposalId),
                         role_id: parseInt(roleId),
-                        score: score !== '' ? parseInt(score) : null
+                        score: parseInt(score)
                     })
                 })
                     .then(response => response.json())

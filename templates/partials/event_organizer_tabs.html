@@ -242,9 +242,14 @@
                                 {% endif %}
                             </td>
                             <td class="text-center">
-                                <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
-                                    data-bs-target="#editRoleModal{{ role.id }}" title="Modifier ce rôle">
+                                <button type="button" class="btn btn-sm btn-outline-secondary me-1"
+                                    data-bs-toggle="modal" data-bs-target="#editRoleModal{{ role.id }}"
+                                    title="Modifier ce rôle">
                                     <i class="bi bi-gear"></i>
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
+                                    data-bs-target="#deleteRoleModal{{ role.id }}" title="Supprimer ce rôle">
+                                    <i class="bi bi-trash"></i>
                                 </button>
                             </td>
                         </tr>
@@ -509,6 +514,72 @@
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+</div>
+
+{# Delete Role Modal #}
+<div class="modal fade" id="deleteRoleModal{{ role.id }}" tabindex="-1"
+    aria-labelledby="deleteRoleModalLabel{{ role.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteRoleModalLabel{{ role.id }}">
+                    <i class="bi bi-exclamation-triangle"></i> Supprimer le rôle ?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le rôle <strong>{{ role.name }}</strong> ?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+
+                {% set assigned_p = role.assigned_participant %}
+                {# DEBUG: Count = {{ role.casting_assignments|length }} #}
+                {# Filter casting assignments that have a participant #}
+                {% set proposed_assignments = [] %}
+                {% for ca in role.casting_assignments %}
+                {% if ca.participant_id or ca.score %}
+                {% do proposed_assignments.append(ca) %}
+                {% endif %}
+                {% endfor %}
+
+                {% if assigned_p or proposed_assignments|length > 0 %}
+                <div class="alert alert-warning d-flex align-items-start mt-3">
+                    <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>
+                    <div>
+                        <strong>Attention :</strong><br>
+
+                        {% if assigned_p %}
+                        Ce rôle est attribué à <strong>{{ assigned_p.user.prenom }} {{ assigned_p.user.nom }}</strong>
+                        (Principal).<br>
+                        {% endif %}
+
+                        {% for assignment in proposed_assignments %}
+                        {% if assignment.participant_id %}
+                        Ce rôle est proposé à <strong>{{ assignment.participant.user.prenom }} {{
+                            assignment.participant.user.nom }}</strong>
+                        (Proposition : {{ assignment.proposal.name }}).<br>
+                        {% elif assignment.score %}
+                        Ce rôle a un score de <strong>{{ assignment.score }}</strong>
+                        (Proposition : {{ assignment.proposal.name }}).<br>
+                        {% endif %}
+                        {% endfor %}
+
+                        <div class="mt-2 text-dark small">La suppression annulera ces attributions.</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('event.delete_role', event_id=event.id, role_id=role.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Confirmer la suppression
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 </div>

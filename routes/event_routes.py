@@ -129,8 +129,13 @@ def detail(event_id):
     count_pnjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PNJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     count_orgs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.ORGANISATEUR.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
     
-    # Récupérer les rôles de l'événement
-    roles = Role.query.filter_by(event_id=event.id).order_by(Role.name).all()
+    # Récupérer les rôles de l'événement avec eager loading des assignments pour la modale de suppression
+    roles = Role.query.filter_by(event_id=event.id)\
+        .options(
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.proposal),
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.participant).joinedload(Participant.user)
+        )\
+        .order_by(Role.name).all()
     
     # Récupérer le rôle assigné au participant courant (si casting validé)
     assigned_role = None
@@ -377,6 +382,61 @@ def update_role(event_id, role_id):
     
     flash(f'Rôle "{name}" mis à jour.', 'success')
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
+
+
+@event_bp.route('/event/<int:event_id>/role/<int:role_id>/delete', methods=['POST'])
+@login_required
+@organizer_required
+def delete_role(event_id, role_id):
+    """
+    Suppression d'un rôle.
+    
+    Accès réservé aux organisateurs.
+    """
+    event = Event.query.get_or_404(event_id)
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first_or_404()
+    
+    # Unassign participants associated with this role
+    participants = Participant.query.filter_by(role_id=role.id).all()
+    for p in participants:
+        p.role_id = None
+        p.role_communicated = False
+        p.role_received = False
+        
+    # Delete associated casting assignments explicitly to avoid IntegrityError
+    # (casting_assignment.role_id cannot be null)
+    CastingAssignment.query.filter_by(role_id=role.id).delete()
+    
+    db.session.delete(role)
+    db.session.commit()
+    
+    flash(f'Rôle "{role.name}" supprimé.', 'success')
+    return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
+
+@event_bp.route('/debug/role_inspection/<int:event_id>')
+def debug_role_inspection(event_id):
+    """Temporary debug route."""
+    roles = Role.query.filter_by(event_id=event_id).all()
+    data = []
+    for r in roles:
+        role_data = {
+            'id': r.id,
+            'name': r.name,
+            'assignments': []
+        }
+        for ca in r.casting_assignments:
+            ca_data = {
+                'id': ca.id,
+                'participant_id': ca.participant_id,
+                'has_participant': False
+            }
+            if ca.participant:
+                ca_data['has_participant'] = True
+                ca_data['user'] = f"{ca.participant.user.prenom} {ca.participant.user.nom}"
+            role_data['assignments'].append(ca_data)
+        data.append(role_data)
+    return jsonify(data)
+
 
 
 @event_bp.route('/event/<int:event_id>/join', methods=['POST'])

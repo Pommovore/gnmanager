@@ -146,6 +146,7 @@ def create_app(test_config=None):
     app.config['RATELIMIT_ENABLED'] = not app.config.get('TESTING', False)
     
     # Initialisation des extensions
+    app.jinja_env.add_extension('jinja2.ext.do')
     db.init_app(app)
     mail.init_app(app)
     migrate.init_app(app, db)
