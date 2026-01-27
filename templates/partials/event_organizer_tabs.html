@@ -218,6 +218,19 @@
                 <hr>
                 <h6>Formulaire Google</h6>
                 <div class="mb-3">
+                    <label class="form-label">Configuration Webhook</label>
+                    <div class="alert alert-secondary p-2">
+                        <strong>API_SECRET : </strong> <code
+                            class="user-select-all">{{ event.webhook_secret or 'Non généré' }}</code>
+                        <div class="mt-1">
+                            <a href="{{ url_for('static', filename='GOOGLE_APPS_SCRIPT.js') }}" target="_blank"
+                                class="small">
+                                <i class="bi bi-file-earmark-code"></i> code à mettre dans GFORMS
+                            </a>
+                        </div>
+                    </div>
+                </div>
+                <div class="mb-3">
                     <label class="form-label">URL Google Form</label>
                     <input type="text" class="form-control" name="google_form_url"
                         value="{{ event.google_form_url or '' }}">

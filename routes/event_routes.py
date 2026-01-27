@@ -62,10 +62,14 @@ def create_event():
             location=location, 
             visibility=visibility, 
             statut=EventStatus.PREPARATION.value,  # 'En préparation'
-            org_link_url=request.form.get('org_link_url', ''),
             org_link_title=request.form.get('org_link_title', ''),
             google_form_url=request.form.get('google_form_url', '')
         )
+        
+        # Generate generic webhook secret
+        import secrets
+        new_event.webhook_secret = secrets.token_hex(16).upper()
+        
         db.session.add(new_event)
         db.session.commit()
         

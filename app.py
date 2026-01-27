@@ -20,6 +20,7 @@ from flask_login import LoginManager
 from extensions import mail, migrate, csrf, limiter, oauth
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
+from logging_config import configure_logging
 
 
 
@@ -178,6 +179,13 @@ def create_app(test_config=None):
     login_manager.login_view = 'auth.login'  # Mis à jour pour utiliser le nouveau blueprint
     login_manager.init_app(app)
     
+    # Configure structured logging early
+    configure_logging(app)
+    
+    # Initialize enhanced error handlers
+    from error_handler import init_error_handlers
+    init_error_handlers(app)
+    
     @login_manager.user_loader
     def load_user(user_id):
         """
@@ -196,12 +204,15 @@ def create_app(test_config=None):
     
     # Enregistrement des blueprints modulaires
     # Note: Architecture modulaire complète - tous les blueprints sont maintenant séparés
-    from routes import auth_bp, admin_bp, event_bp, participant_bp
+    from routes import auth_bp, admin_bp, event_bp, participant_bp, webhook_bp
+    from routes.health_routes import health_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
     app.register_blueprint(event_bp)
     app.register_blueprint(participant_bp)
+    app.register_blueprint(webhook_bp)
+    app.register_blueprint(health_bp)
     
     app.logger.info("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
     

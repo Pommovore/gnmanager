@@ -101,6 +101,8 @@ class Event(db.Model):
     org_link_title = db.Column(db.String(100))
     google_form_url = db.Column(db.String(255))
     google_form_active = db.Column(db.Boolean, default=False)
+    # Secret unique pour le webhook Google Forms de cet événement
+    webhook_secret = db.Column(db.String(32), unique=True, nullable=True)
     # Discord Webhook URL for notifications
     discord_webhook_url = db.Column(db.String(255), nullable=True)
     external_link = db.Column(db.String(255))
@@ -388,3 +390,29 @@ class CastingAssignment(db.Model):
     
     def __repr__(self):
         return f'<CastingAssignment Proposal:{self.proposal_id} Role:{self.role_id} Participant:{self.participant_id}>'
+
+
+class FormResponse(db.Model):
+    """
+    Stockage brut des réponses reçues via le Webhook Google Forms.
+    
+    Attributes:
+        id: Identifiant unique
+        form_id: ID du formulaire Google
+        response_id: ID persistent de la réponse (fourni par Google Forms)
+        respondent_email: Email du répondant (si collecté)
+        answers: Charge utile JSON complète des réponses
+        created_at: Date de création
+        updated_at: Date de dernière mise à jour
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=True)
+    form_id = db.Column(db.String(100))
+    response_id = db.Column(db.String(100), unique=True, nullable=False)
+    respondent_email = db.Column(db.String(120))
+    answers = db.Column(db.Text)  # JSON
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    updated_at = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    def __repr__(self):
+        return f'<FormResponse {self.response_id} from {self.respondent_email}>'

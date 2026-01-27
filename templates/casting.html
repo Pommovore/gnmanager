@@ -21,36 +21,7 @@
     </div>
 </div>
 
-
-
-<style>
-    .form-switch.form-switch-lg .form-check-input {
-        width: 3em;
-        height: 1.5em;
-    }
-
-    .score-slider {
-        height: 6px !important;
-        background: linear-gradient(to right, #ff4d4d 0%, #ffcc00 50%, #00cc66 100%) !important;
-        border-radius: 5px !important;
-        margin-top: 5px;
-    }
-
-    .score-slider::-webkit-slider-thumb {
-        background: #fff !important;
-        border: 2px solid #333 !important;
-        width: 16px !important;
-        height: 16px !important;
-        margin-top: -5px !important;
-    }
-
-    .score-slider::-moz-range-thumb {
-        background: #fff !important;
-        border: 2px solid #333 !important;
-        width: 16px !important;
-        height: 16px !important;
-    }
-</style>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/casting.css') }}">
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@latest/Sortable.min.js"></script>
 {% endblock %}
 

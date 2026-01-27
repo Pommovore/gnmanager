@@ -1,0 +1,22 @@
+/* Participant Management Page Styles */
+
+/* Gap utility for action button groups */
+.gap-1 {
+    gap: 0.25rem !important;
+}
+
+/* Small text size */
+.small {
+    font-size: 0.875rem;
+}
+
+/* Badge sizes */
+.badge {
+    font-size: 0.75rem;
+}
+
+/* Ensure action buttons don't wrap */
+.btn-group-sm>.btn,
+.btn-sm {
+    white-space: nowrap;
+}

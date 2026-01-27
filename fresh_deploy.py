@@ -508,6 +508,7 @@ def create_env_file(target_dir, config, user, sudo_password=None, ssh=None, forc
     # Générer une SECRET_KEY
     import secrets
     secret_key = secrets.token_hex(32)
+    api_secret = secrets.token_hex(16) # Secret pour le webhook Google Forms
     
     host = deploy_config.get('machine_name', '0.0.0.0')
     port = deploy_config.get('port', 5000)
@@ -529,7 +530,9 @@ MAIL_DEFAULT_SENDER={email_config.get('default_sender', '')}
 FLASK_HOST={flask_host}
 FLASK_PORT={port}
 APP_PUBLIC_HOST={host}:{port}
+APP_PUBLIC_HOST={host}:{port}
 SECRET_KEY={secret_key}
+API_SECRET={api_secret}
 PYTHONUNBUFFERED=1
 """
     # Si un préfixe est configuré ET qu'on n'est pas en force_local
