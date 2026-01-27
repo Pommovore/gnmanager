@@ -81,13 +81,14 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
      prenom: "Prenom"
    ```
 
-### Déploiement Local
+### Déploiement Local (Développement)
 
+Pour le développement local, il n'est pas nécessaire d'utiliser `fresh_deploy.py`.
+Utilisez simplement :
 ```bash
-# Premier déploiement complet (installation depuis GitHub)
-uv run python fresh_deploy.py
+uv sync
+uv run python main.py
 ```
-
 L'application sera accessible sur `http://localhost:5000`
 
 ### Déploiement Distant (via SSH et systemd)

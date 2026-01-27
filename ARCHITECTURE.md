@@ -17,7 +17,7 @@ GN Manager est une application Flask pour la gestion d'événements de Grandeur 
 
 ### Scripts utilitaires
 
-- **`fresh_deploy.py`** : Premier déploiement complet (local ou distant via SSH)
+- **`fresh_deploy.py`** : Premier déploiement complet (remote via SSH uniquement)
 - **`update_deploy.py`** : Mise à jour rapide du code (sans toucher à la BDD)
 - **`manage_db.py`** : Import/Export de données (JSON et CSV)
 - **`seed_data.py`** : Génération de données de test complet avec export CSV auto
@@ -196,6 +196,10 @@ export GNMANAGER_USER=utilisateur
 export GNMANAGER_PWD=motdepasse
 uv run python fresh_deploy.py
 ```
+
+Nouvelles options :
+- `--copy-db` : Synchronise la base de données locale vers le distant
+- `--systemd` : Gère le service systemd
 
 ### Mise à jour du code (update_deploy.py)
 ```bash

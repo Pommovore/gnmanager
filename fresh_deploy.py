@@ -85,6 +85,59 @@ def run_command_local(cmd, user=None, cwd=None, capture_output=False, sudo_passw
         sys.exit(1)
 
 
+def sync_database(target_dir, user, sudo_password=None, ssh=None):
+    """Synchronise la base de données locale vers le distant."""
+    gnmanager_path = os.path.join(target_dir, 'gnmanager')
+    print("🔄 Synchronisation de la base de données...")
+    
+    # 1. Export local
+    local_export_file = "deploy_temp.json"
+    print(f"  - Export local vers {local_export_file}...")
+    try:
+        # On utilise uv run pour s'assurer d'avoir les dépendances
+        export_cmd = f"uv run python manage_db.py export --file {local_export_file}"
+        run_command_local(export_cmd, capture_output=True)
+    except Exception as e:
+        print(f"❌ Erreur export local: {e}")
+        sys.exit(1)
+        
+    # 2. Transfert
+    print(f"  - Transfert vers le serveur...")
+    remote_export_file = os.path.join(gnmanager_path, local_export_file)
+    try:
+        sftp = ssh.open_sftp()
+        sftp.put(local_export_file, remote_export_file)
+        sftp.close()
+    except Exception as e:
+        print(f"❌ Erreur transfert fichier: {e}")
+        try:
+            os.remove(local_export_file)
+        except:
+            pass
+        sys.exit(1)
+        
+    # 3. Import distant
+    print(f"  - Import sur le serveur (avec nettoyage)...")
+    try:
+        # Commande d'import sur le serveur
+        import_cmd = f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python manage_db.py import --file {local_export_file} --clean"
+        run_command_remote(ssh, import_cmd, cwd=gnmanager_path)
+    except Exception as e:
+         print(f"❌ Erreur import distant: {e}")
+         sys.exit(1)
+    finally:
+        # 4. Nettoyage
+        print("  - Nettoyage des fichiers temporaires...")
+        try:
+            os.remove(local_export_file)  # Local
+            run_command_remote(ssh, f"rm {remote_export_file}") # Distant
+        except:
+            pass
+            
+    print("✅ Base de données synchronisée")
+
+
+
 def run_command_remote(ssh, cmd, user=None, cwd=None, capture_output=False, sudo_password=None):
     """Exécute une commande sur le serveur distant via SSH."""
     if user:
@@ -659,16 +712,17 @@ Exemples:
         help='Importer les données de test après installation'
     )
     parser.add_argument(
+        '--copy-db',
+        action='store_true',
+        help='Copier la base de données locale vers le serveur distant (écrase la base distante)'
+    )
+    parser.add_argument(
         '--config',
         default='./config/deploy_config.yaml',
         help='Chemin vers deploy_config.yaml (défaut: ./config/deploy_config.yaml)'
     )
     
-    parser.add_argument(
-        '--local',
-        action='store_true',
-        help='Forcer le déploiement local (ignore la configuration de machine distante)'
-    )
+    # Legacy arguments removed: --local
     
     args = parser.parse_args()
     
@@ -677,53 +731,44 @@ Exemples:
     
     # Déterminer si local ou distant
     deploy_config = config.get('deploy', {})
-    machine_name = deploy_config.get('machine_name', 'localhost')
+    machine_name = deploy_config.get('machine_name')
     port = deploy_config.get('port', 5000)
     
-    is_remote = machine_name not in ['localhost', '127.0.0.1', '0.0.0.0']
+    # Validation obligatoire pour le mode distant
+    if not machine_name or machine_name in ['localhost', '127.0.0.1', '0.0.0.0']:
+        print("❌ Erreur: Ce script est conçu pour le déploiement distant uniquement.")
+        print("   Veuillez configurer 'machine_name' dans deploy_config.yaml.")
+        sys.exit(1)
+        
+    is_remote = True
+
     
-    if args.local:
-        print("ℹ️  Mode LOCAL (DEV) forcé par argument")
-        print("   -> Exécution 'sur place' sans copie de fichiers")
-        is_remote = False
-        machine_name = 'localhost'
-        # Pour simuler la structure attedue (target/gnmanager), on pointe target vers le parent du dossier courant
-        # Hypothèse: le script est dans la racine du projet
-        current_dir = os.path.dirname(os.path.abspath(__file__))
-        args.target_dir = os.path.dirname(current_dir)
-        print(f"   -> Répertoire de travail: {current_dir}")
-    
-    # Vérifier les variables d'environnement
     user = os.environ.get('GNMANAGER_USER')
     if not user:
-        if args.local:
-            # En local dev, on peut déduire l'user courant si non défini
-            import getpass
-            user = getpass.getuser()
-            print(f"ℹ️  GNMANAGER_USER non défini, utilisation de l'utilisateur courant: {user}")
-        else:
-            print("❌ Variable d'environnement GNMANAGER_USER non définie")
-            sys.exit(1)
+        print("❌ Variable d'environnement GNMANAGER_USER non définie")
+        sys.exit(1)
     
     sudo_password = os.environ.get('GNMANAGER_PWD')
     if not sudo_password:
-        if args.local:
-             print("ℹ️  GNMANAGER_PWD non défini. Les commandes sudo demanderont le mot de passe interactif.")
-        else:
-            print("⚠️  Variable d'environnement GNMANAGER_PWD non définie")
-            print("   Mode interactif pour sudo")
+        print("⚠️  Variable d'environnement GNMANAGER_PWD non définie")
+        print("   Mode interactif pour sudo")
+
     
     ssh = None
-    if is_remote:
-        if not sudo_password:
-            print("❌ Pour le déploiement distant, GNMANAGER_PWD est obligatoire (connexion SSH).")
-            sys.exit(1)
-        ssh = connect_ssh(machine_name, user, sudo_password)
+    if not sudo_password:
+        print("❌ Pour le déploiement distant, GNMANAGER_PWD est obligatoire (connexion SSH).")
+        sys.exit(1)
+    ssh = connect_ssh(machine_name, user, sudo_password)
+
     
     print("=" * 70)
     print("🚀 DÉPLOIEMENT PRODUCTION GN MANAGER")
     print("=" * 70)
-    print(f"🎯 Mode: {'REMOTE (' + machine_name + ')' if is_remote else 'LOCAL (DEV)'}")
+    print("=" * 70)
+    print("🚀 DÉPLOIEMENT PRODUCTION GN MANAGER")
+    print("=" * 70)
+    print(f"🎯 Mode: REMOTE ({machine_name})")
+
     print(f"📁 Répertoire cible: {os.path.join(args.target_dir, 'gnmanager')}")
     print(f"👤 Utilisateur: {user}")
     print("=" * 70)
@@ -736,39 +781,41 @@ Exemples:
         if args.kill:
             kill_port_processes(port, sudo_password, ssh)
         
-        # Steps 2, 3, 4, 5 sont sautés en mode local dev
-        if not args.local:
-            # 2. Backup de l'ancien déploiement
-            rename_old_deployment(args.target_dir, ssh, sudo_password)
-            
-            # 3. Transfert des fichiers
-            transfer_files(args.target_dir, user, sudo_password, ssh)
-            
-            # 4. Configuration de la propriété
-            setup_ownership(args.target_dir, user, sudo_password, ssh)
-            
-            # 5. Copie de la configuration
-            copy_config(args.config, args.target_dir, ssh)
-        else:
-            print("⏩ [Local] Skipped: Backup, Transfert, Propriété, Config Copy")
+        # 2. Backup de l'ancien déploiement
+        rename_old_deployment(args.target_dir, ssh, sudo_password)
+        
+        # 3. Transfert des fichiers
+        transfer_files(args.target_dir, user, sudo_password, ssh)
+        
+        # 4. Configuration de la propriété
+        setup_ownership(args.target_dir, user, sudo_password, ssh)
+        
+        # 5. Copie de la configuration
+        copy_config(args.config, args.target_dir, ssh)
         
         # 6. Installation des dépendances
         # user=None car on ne veut PAS utiliser sudo (le dossier nous appartient et on veut garder le PATH)
         install_dependencies(args.target_dir, None, sudo_password, ssh)
+
         
         # 6.5 Création fichier version
-        # On passe 'user' pour les permissions remote si besoin, sinon None en local user-owned
-        create_version_file(args.target_dir, user if not args.local else None, sudo_password, ssh)
+        create_version_file(args.target_dir, user, sudo_password, ssh)
 
         # 7. Création du fichier .env
-        create_env_file(args.target_dir, config, None, sudo_password, ssh, force_local=args.local)
+        create_env_file(args.target_dir, config, None, sudo_password, ssh)
         
         # 8. Création du compte admin
         create_admin_user(args.target_dir, config, None, sudo_password, ssh)
         
-        # 9. Import des données de test (optionnel)
+        # 9. Sync DB (Optionnel)
+        if args.copy_db:
+             sync_database(args.target_dir, user, sudo_password, ssh)
+        
+        # 10. Import des données de test (optionnel - seulement si pas de copy_db pour éviter conflits ?)
+        # On autorise les deux, l'utilisateur gère.
         if args.create_test_db:
             import_test_data(args.target_dir, None, sudo_password, ssh)
+
         
         # 10. Démarrage du service (optionnel)
         if args.systemd:

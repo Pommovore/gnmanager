@@ -1,5 +1,5 @@
 {
-  "timestamp": "2026-01-25T22:07:04.437933",
+  "timestamp": "2026-01-26T00:16:44.574436",
   "users": [
     {
       "id": 1,
@@ -620,6 +620,7 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\", \"Rebelles\", \"Empire\", \"Contrebandiers\"], \"PNJ\": [\"Peu importe\", \"Aliens\", \"Stormtroopers\"], \"Organisateur\": [\"g\\u00e9n\\u00e9ral\", \"coordinateur\", \"sc\\u00e9nariste\", \"logisticien\", \"crafteur\", \"en charge des PNJ\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -644,6 +645,7 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\", \"Investigateurs\", \"Cultistes\"], \"PNJ\": [\"Peu importe\", \"Cr\\u00e9atures\", \"Complices\"], \"Organisateur\": [\"g\\u00e9n\\u00e9ral\", \"coordinateur\", \"sc\\u00e9nariste\", \"logisticien\", \"crafteur\", \"en charge des PNJ\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -668,6 +670,7 @@
       "external_link": null,
       "statut": "Terminé",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -692,6 +695,7 @@
       "external_link": null,
       "statut": "Terminé",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -716,6 +720,7 @@
       "external_link": null,
       "statut": "Événement en cours",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -740,6 +745,7 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -764,6 +770,7 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -788,6 +795,7 @@
       "external_link": null,
       "statut": "Terminé",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 5,
       "max_pnjs": 0,
       "max_organizers": 1,
@@ -812,6 +820,7 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[{\"name\": \"PJ\", \"amount\": 50.0}, {\"name\": \"PNJ\", \"amount\": 10.0}, {\"name\": \"Orga\", \"amount\": 0.0}]",
       "max_pjs": 5,
       "max_pnjs": 10,
       "max_organizers": 5,
@@ -836,10 +845,27 @@
       "external_link": null,
       "statut": "En préparation",
       "groups_config": "{\"PJ\": [\"Peu importe\"], \"PNJ\": [\"Peu importe\"], \"Organisateur\": [\"Peu importe\"]}",
+      "paf_config": "[]",
       "max_pjs": 50,
       "max_pnjs": 10,
       "max_organizers": 5,
       "is_casting_validated": false
+    }
+  ],
+  "event_links": [
+    {
+      "id": 20,
+      "event_id": 9,
+      "title": "Présentation et règles",
+      "url": "https://drive.google.com/file/d/1bpuMyhPdU-TiN08C5-n9CelcbxHqwR8I/view?usp=drive_link",
+      "position": 0
+    },
+    {
+      "id": 21,
+      "event_id": 9,
+      "title": "Vidéo-présentation d'une soirée enquête (noob friendly)",
+      "url": "https://www.youtube.com/watch?v=Q72fcle6p4A",
+      "position": 1
     }
   ],
   "roles": [
@@ -2582,6 +2608,18 @@
       "comment": null,
       "google_doc_url": null,
       "pdf_url": null
+    },
+    {
+      "id": 146,
+      "event_id": 9,
+      "name": "Hans Jäger",
+      "type": "Organisateur",
+      "genre": "Homme",
+      "group": null,
+      "assigned_participant_id": 19,
+      "comment": null,
+      "google_doc_url": null,
+      "pdf_url": null
     }
   ],
   "participants": [
@@ -2596,6 +2634,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2613,6 +2652,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2630,6 +2670,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2647,6 +2688,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2664,6 +2706,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2681,6 +2724,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2698,6 +2742,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2715,6 +2760,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2732,6 +2778,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2749,6 +2796,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2766,6 +2814,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2783,6 +2832,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2800,6 +2850,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2817,6 +2868,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2834,6 +2886,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2851,6 +2904,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2868,6 +2922,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2885,6 +2940,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2902,6 +2958,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": "Orga",
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2919,6 +2976,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2936,6 +2994,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2953,6 +3012,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2970,6 +3030,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -2987,6 +3048,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "dispensé(e)",
+      "paf_type": null,
       "payment_method": "",
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -3004,6 +3066,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -3021,6 +3084,7 @@
       "role_received": false,
       "registration_status": "Validé",
       "paf_status": "non versée",
+      "paf_type": null,
       "payment_method": null,
       "payment_amount": 0.0,
       "payment_comment": null,
@@ -3354,6 +3418,69 @@
       "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, Links, Image)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
       "is_viewed": false,
       "created_at": "2026-01-25T20:55:08.353927"
+    },
+    {
+      "id": 37,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, Links, Image)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T21:36:06.141497"
+    },
+    {
+      "id": 38,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, Links, Image)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:47:29.561066"
+    },
+    {
+      "id": 39,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, Links, Image)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:47:50.184437"
+    },
+    {
+      "id": 40,
+      "action_type": "Mise à jour participant",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"participant_id\": 19, \"update_type\": \"paf_type_update\", \"new_paf_type\": \"Orga\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:47:58.620006"
+    },
+    {
+      "id": 41,
+      "action_type": "Mise à jour participant",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"participant_id\": 19, \"update_type\": \"paf_type_update\", \"new_paf_type\": \"PNJ\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:48:22.491585"
+    },
+    {
+      "id": 42,
+      "action_type": "Mise à jour participant",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"participant_id\": 19, \"update_type\": \"paf_type_update\", \"new_paf_type\": \"Orga\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:48:25.273677"
+    },
+    {
+      "id": 43,
+      "action_type": "Mise à jour événement",
+      "user_id": 1,
+      "event_id": 9,
+      "details": "{\"updated_fields\": \"General Info (Name, Date, Limits, Links, Image)\", \"event_name\": \"Berlin 1936 (2\\u00e8me \\u00e9dition)\"}",
+      "is_viewed": false,
+      "created_at": "2026-01-25T22:50:43.143005"
     }
   ],
   "casting_proposals": [
@@ -3372,13 +3499,6 @@
       "created_at": "2026-01-20T21:20:00.019306"
     },
     {
-      "id": 3,
-      "event_id": 9,
-      "name": "Jack",
-      "position": 1,
-      "created_at": "2026-01-23T11:55:33.514931"
-    },
-    {
       "id": 4,
       "event_id": 8,
       "name": "Jojo",
@@ -3391,6 +3511,13 @@
       "name": "Toto",
       "position": 3,
       "created_at": "2026-01-23T22:01:50.306797"
+    },
+    {
+      "id": 6,
+      "event_id": 9,
+      "name": "Jack",
+      "position": 1,
+      "created_at": "2026-01-25T22:51:10.239339"
     }
   ],
   "casting_assignments": [
@@ -3569,6 +3696,14 @@
       "participant_id": null,
       "event_id": 1,
       "score": 2
+    },
+    {
+      "id": 28,
+      "proposal_id": 6,
+      "role_id": 146,
+      "participant_id": 19,
+      "event_id": 9,
+      "score": 10
     }
   ]
 }

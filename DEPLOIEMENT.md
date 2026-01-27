@@ -18,24 +18,16 @@ Ce document détaille les scripts de déploiement de l'application GN Manager.
 ### Configuration
 Assurez-vous que le fichier `config/deploy_config.yaml` est correct.
 
-Pour un déploiement **DISTANT** (Production) :
+Pour le déploiement **DISTANT** (Production) :
 ```yaml
-location: remote
-
 deploy:
   machine_name: "minimoi.mynetgear.com"  # Adresse du serveur
   port: 8880                             # Port d'écoute Flask
   target_directory: "/opt/gnmanager"
 ```
 
-Pour un déploiement **LOCAL** (Test) :
-```yaml
-location: local
-
-deploy:
-  machine_name: "localhost"
-  port: 5000
-```
+> [!NOTE]
+> Le déploiement local via `fresh_deploy.py` n'est plus supporté pour garantir une iso-prod. Pour le développement local, utilisez simplement `uv sync` et `python main.py`.
 
 ### Variables d'Environnement
 Les scripts nécessitent des variables pour l'authentification SSH.
@@ -72,19 +64,23 @@ uv run python fresh_deploy.py [OPTIONS]
 
 **Options :**
 - `--config PATH` : Chemin vers le fichier de config (défaut : `config/deploy_config.yaml`)
+- `--copy-db` : Copie la base de données locale vers le serveur distant (utile pour initialiser la prod avec des données de dev).
+- `--create-test-db` : Importe les données de test standard.
+- `--systemd` : Configure et démarre le service systemd.
 
 ### Exemples
 
-**Déploiement Production :**
+**Déploiement Production Standard :**
 ```bash
 export GNMANAGER_USER=gnmanager
 export GNMANAGER_PWD=monSuperMotDePasse
-uv run python fresh_deploy.py
+uv run python fresh_deploy.py --systemd
 ```
 
-**Déploiement Local :**
+**Déploiement avec Synchronisation de Base de Données :**
 ```bash
-uv run python fresh_deploy.py
+# Déploie le code ET écrase la base distante avec votre base locale actuel
+uv run python fresh_deploy.py --systemd --copy-db
 ```
 
 ---
