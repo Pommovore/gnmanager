@@ -91,3 +91,18 @@ run_local.sh
 start.sh
 diagnose_remote.py
 test_results.txt
+
+# Backups
+backups/
+scripts/backup.log
+
+# Debug/inspection files
+inspection_result.txt
+test_debug.log
+migrate_log.txt
+upgrade_log*.txt
+backfill_log.txt
+stamp_log.txt
+
+# Logs directory
+logs/
