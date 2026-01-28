@@ -91,7 +91,7 @@ class ParticipantType(Enum):
     - PJ: Personnage Joueur
     - PNJ: Personnage Non Joueur
     """
-    ORGANISATEUR = 'organisateur'
+    ORGANISATEUR = 'Organisateur'
     PJ = 'PJ'
     PNJ = 'PNJ'
 

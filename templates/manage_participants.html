@@ -66,10 +66,11 @@
 
                     <!-- Type (READ-ONLY) -->
                     <td class="align-middle text-center">
+                        {% set genre = p.user.genre[0] if p.user.genre else '?' %}
                         {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
-                        <span class="badge bg-light text-dark border">{{ p.type }} (En Attente)</span>
+                        <span class="badge bg-light text-dark border">{{ p.type }} ({{ genre }}) (En Attente)</span>
                         {% else %}
-                        {{ p.type }}
+                        {{ p.type }} ({{ genre }})
                         {% endif %}
                     </td>
 

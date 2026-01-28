@@ -683,12 +683,16 @@ def casting_data(event_id):
             continue
             
         p_type = p.type or 'Autre'
+        # Normalize type casing for consistency
+        if p_type == 'organisateur':
+            p_type = 'Organisateur'
         if p_type not in participants_by_type:
             participants_by_type[p_type] = []
         participants_by_type[p_type].append({
             'id': p.id,
             'nom': p.user.nom or '',
-            'prenom': p.user.prenom or ''
+            'prenom': p.user.prenom or '',
+            'genre': p.user.genre or ''
         })
     
     # Get proposals with assignments to avoid N+1
@@ -729,7 +733,7 @@ def casting_data(event_id):
         'scores': scores,
         'is_casting_validated': event.is_casting_validated or False,
         'groups_config': json.loads(event.groups_config) if event.groups_config else {},
-        'roles': [{'id': r.id, 'name': r.name, 'type': getattr(r, 'type', None), 'genre': getattr(r, 'genre', None), 'group': getattr(r, 'group', None)} for r in roles]
+        'roles': [{'id': r.id, 'name': r.name, 'type': 'Organisateur' if getattr(r, 'type', None) == 'organisateur' else getattr(r, 'type', None), 'genre': getattr(r, 'genre', None), 'group': getattr(r, 'group', None)} for r in roles]
     })
 
 

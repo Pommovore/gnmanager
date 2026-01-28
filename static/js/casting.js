@@ -113,6 +113,11 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
 
+        // Helper to format counters with colors
+        function formatCounters(pj, pnj, orga) {
+            return `<span class="text-success">PJ:${pj}</span> <span class="text-primary">PNJ:${pnj}</span> <span class="text-warning">O:${orga}</span>`;
+        }
+
         // Update main column counter
         const remainingMainPJ = totalRolesByType['PJ'] - mainAssignedByType['PJ'];
         const remainingMainPNJ = totalRolesByType['PNJ'] - mainAssignedByType['PNJ'];
@@ -120,7 +125,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const mainCounter = clone.querySelector('#main-roles-counter');
         if (mainCounter) {
-            mainCounter.textContent = `(reste PJ:${remainingMainPJ} PNJ:${remainingMainPNJ} O:${remainingMainOrga})`;
+            mainCounter.innerHTML = `(reste ${formatCounters(remainingMainPJ, remainingMainPNJ, remainingMainOrga)})`;
         }
 
         // Add proposal columns to header
@@ -156,7 +161,7 @@ document.addEventListener('DOMContentLoaded', function () {
             th.style.minWidth = '250px';
             th.innerHTML = `
                 ${proposal.name}
-                <small class="text-muted ms-2">(${remainingPJ}/${remainingPNJ}/${remainingOrga})</small>
+                <small class="text-muted ms-2">(${formatCounters(remainingPJ, remainingPNJ, remainingOrga)})</small>
                 <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" data-proposal-id="${proposal.id}">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -171,15 +176,46 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Role info cell
             const roleCell = document.createElement('td');
+            let typeColorClass = 'text-muted';
+            if (role.type === 'PJ') typeColorClass = 'text-success';
+            else if (role.type === 'PNJ') typeColorClass = 'text-primary';
+            else if (role.type === 'Organisateur') typeColorClass = 'text-warning';
+
             roleCell.innerHTML = `
                 <strong>${role.name}</strong><br>
-                <small class="text-muted">${role.type || 'Tous'} - ${role.genre || 'Tous'}</small>
+                <small class="${typeColorClass}">${role.type || 'Tous'} - ${role.genre || 'Tous'}</small>
             `;
             tr.appendChild(roleCell);
 
             // Main assignment cell
             const mainCell = document.createElement('td');
-            mainCell.innerHTML = createAssignmentDropdown('main', role.id, role.type, castingData.assignments['main'][role.id]);
+            const mainParticipantId = castingData.assignments['main'][role.id];
+
+            // Check for genre mismatch logic
+            let genreWarning = '';
+            if (mainParticipantId) {
+                // Find participant to get genre
+                let participant = null;
+                for (const group of Object.values(castingData.participants_by_type)) {
+                    participant = group.find(p => p.id === parseInt(mainParticipantId));
+                    if (participant) break;
+                }
+
+                if (participant && role.genre && participant.genre) {
+                    // Assuming role.genre and participant.genre strings match (e.g. 'Homme', 'Femme')
+                    // Logic: Mismatch if both defined and different. 
+                    // Note: 'X' or 'Autre' might be neutral. 
+                    // User request implies strict mismatch notification.
+                    if (role.genre !== participant.genre) {
+                        genreWarning = '<div class="small" style="color: #d35400; margin-top: 2px;">genres non correspondants</div>';
+                    }
+                }
+            }
+
+            mainCell.innerHTML = `
+                ${createAssignmentDropdown('main', role.id, role.type, mainParticipantId)}
+                ${genreWarning}
+            `;
             tr.appendChild(mainCell);
 
             // Proposal cells
@@ -436,6 +472,22 @@ document.addEventListener('DOMContentLoaded', function () {
                 const proposalId = this.dataset.proposalId;
                 const roleId = this.dataset.roleId;
                 const participantId = this.value || null;
+
+                // Optimistic UI update for genre warning (only for main column)
+                if (proposalId === 'main') {
+                    // Find parent cell
+                    const cell = this.closest('td');
+                    // Remove existing warning
+                    const existingWarning = cell.querySelector('div[style*="color: #d35400"]');
+                    if (existingWarning) existingWarning.remove();
+
+                    if (participantId) {
+                        // We need role and participant data. 
+                        // Casting data is global but retrieving efficient objects requires loop unless map created.
+                        // Ideally we reload data to be sure, but for immediate feedback:
+                        // Reload is triggered by updateAssignment anyway. 
+                    }
+                }
 
                 updateAssignment(proposalId, roleId, participantId);
             });
