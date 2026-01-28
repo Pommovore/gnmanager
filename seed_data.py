@@ -1,454 +1,429 @@
-from app import create_app
-from models import db, User, Event, Role, Participant, ActivityLog
-from werkzeug.security import generate_password_hash
-from datetime import datetime, time, timedelta
-from dotenv import load_dotenv
-import random
 import json
-import csv
 import os
+import random
+from datetime import datetime, timedelta
+from werkzeug.security import generate_password_hash
 
-# Charger les variables d'environnement
-load_dotenv()
+# Configuration
+OUTPUT_FILE = 'config/seed_data.json'
 
-app = create_app()
+def serialize_date(dt):
+    """Sortie ISO pour le JSON"""
+    return dt.isoformat() if dt else None
 
-def export_to_csv():
-    """Exporte toutes les données de la base vers des fichiers CSV dans config/"""
-    print("\n=== Export des données vers CSV ===")
+def generate_users(count=300):
+    first_names_male = ["Lucas", "Hugo", "Louis", "Gabriel", "Arthur", "Jules", "Maël", "Paul", "Adam", "Nathan", "Léo", "Théo", "Raphaël", "Liam", "Ethan", "Noah", "Sacha", "Tom", "Gabin", "Timéo", "Pierre", "Thomas", "Clément", "Maxime", "Alexandre", "Antoine", "Nicolas", "Julien", "Romain", "Florian", "Guillaume", "Kévin", "Jérémy", "Mathieu", "Adrien", "Alexis", "Benjamin", "Valentin", "Anthony", "Aurélien"]
+    first_names_female = ["Emma", "Jade", "Louise", "Alice", "Chloé", "Lina", "Léa", "Rose", "Anna", "Mila", "Inès", "Sarah", "Julia", "Lola", "Juliette", "Zoé", "Manon", "Camille", "Lucie", "Eva", "Marie", "Sophie", "Clara", "Charlotte", "Ambre", "Océane", "Laura", "Julie", "Anaïs", "Pauline", "Marine", "Elise", "Mathilde", "Célia", "Mélanie", "Audrey", "Noémie", "Justine", "Morgane", "Céline"]
+    last_names = ["Martin", "Bernard", "Thomas", "Petit", "Robert", "Richard", "Durand", "Dubois", "Moreau", "Laurent", "Simon", "Michel", "Lefebvre", "Leroy", "Roux", "David", "Bertrand", "Morel", "Fournier", "Girard", "Bonnet", "Dupont", "Lambert", "Fontaine", "Rousseau", "Vincent", "Muller", "Lefevre", "Faure", "Andre", "Mercier", "Blanc", "Guerin", "Boyer", "Garnier", "Chevalier", "Francois", "Legrand", "Gauthier", "Garcia", "Perrin", "Robin", "Clement", "Morin", "Nicolas", "Henry", "Roussel", "Mathieu", "Gautier", "Masson"]
     
-    csv_dir = 'config'
-    os.makedirs(csv_dir, exist_ok=True)
+    users = []
+    emails = set()
     
-    # Export Users
-    users = User.query.all()
-    users_file = os.path.join(csv_dir, 'db_test_users.csv')
-    with open(users_file, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['id', 'email', 'password_hash', 'nom', 'prenom', 'age', 'genre', 'avatar_url', 'role', 'is_banned', 'is_deleted'])
-        for u in users:
-            writer.writerow([
-                u.id, u.email, u.password_hash, u.nom, u.prenom, u.age, 
-                u.genre or '', u.avatar_url or '', u.role, u.is_banned, u.is_deleted
-            ])
-    print(f"✓ Exported {len(users)} users to {users_file}")
-    
-    # Export Events
-    events = Event.query.all()
-    events_file = os.path.join(csv_dir, 'db_test_events.csv')
-    with open(events_file, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['id', 'name', 'description', 'date_start', 'date_end', 'location', 
-                        'background_image', 'visibility', 'organizer_structure', 'org_link_url',
-                        'org_link_title', 'google_form_url', 'google_form_active', 'external_link', 
-                        'statut', 'groups_config'])
-        for e in events:
-            writer.writerow([
-                e.id, e.name, e.description or '', 
-                e.date_start.isoformat() if e.date_start else '',
-                e.date_end.isoformat() if e.date_end else '',
-                e.location or '', e.background_image or '', e.visibility or 'public',
-                e.organizer_structure or '', e.org_link_url or '', e.org_link_title or '',
-                e.google_form_url or '', e.google_form_active or False, e.external_link or '',
-                e.statut, e.groups_config or '{}'
-            ])
-    print(f"✓ Exported {len(events)} events to {events_file}")
-    
-    # Export Roles
-    roles = Role.query.all()
-    roles_file = os.path.join(csv_dir, 'db_test_roles.csv')
-    with open(roles_file, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['id', 'event_id', 'name', 'type', 'genre', 'group', 'assigned_participant_id', 
-                        'comment', 'google_doc_url', 'pdf_url'])
-        for r in roles:
-            writer.writerow([
-                r.id, r.event_id, r.name, r.type or '', r.genre or '', r.group or '',
-                r.assigned_participant_id or '', r.comment or '', 
-                r.google_doc_url or '', r.pdf_url or ''
-            ])
-    print(f"✓ Exported {len(roles)} roles to {roles_file}")
-    
-    # Export Participants
-    participants = Participant.query.all()
-    participants_file = os.path.join(csv_dir, 'db_test_participants.csv')
-    with open(participants_file, 'w', newline='', encoding='utf-8') as f:
-        writer = csv.writer(f)
-        writer.writerow(['id', 'event_id', 'user_id', 'type', 'group', 'role_id',
-                        'role_communicated', 'role_received', 'registration_status', 'paf_status',
-                        'payment_method', 'payment_amount', 'payment_comment', 'comment', 'custom_image'])
-        for p in participants:
-            writer.writerow([
-                p.id, p.event_id, p.user_id, p.type or '', p.group or '', p.role_id or '',
-                p.role_communicated, p.role_received, p.registration_status, p.paf_status or 'non versée',
-                p.payment_method or '', p.payment_amount or 0.0, p.payment_comment or '',
-                p.comment or '', p.custom_image or ''
-            ])
-    print(f"✓ Exported {len(participants)} participants to {participants_file}")
-    
-    print("\n✓ Export CSV terminé avec succès!")
-
-def create_user(email, nom, prenom, password, age=None):
-    user = User(email=email, nom=nom, prenom=prenom, age=age or random.randint(18, 60))
-    user.set_password(password) # Assuming set_password exists or use hash
-    # Verify User model has set_password or use direct hash
-    user.password_hash = generate_password_hash(password)
-    db.session.add(user)
-    return user
-
-with app.app_context():
-    print("Dropping all tables...")
-    db.drop_all()
-    print("Creating all tables...")
-    db.create_all()
-    
-    print("Creating specific users...")
-    # Create Admin/Createur
-    # Spec: "createur = celui qui a deployé... sysadmin... actif... banni"
-    # We'll make Jacques the Createur here.
-    admin_user = User(
-        email='jchodorowski@gmail.com', 
-        nom='Chodorowski', 
-        prenom='Jacques', 
-        age=40,
-        role='createur', # Super Admin
-        is_banned=False
-    )
-    admin_user.password_hash = generate_password_hash('jach1612')
-    db.session.add(admin_user)
-    
-    # Other users - Admin Système
-    user_gwen = User(email='gwengm@gmail.com', nom='GARRIOUX-MORIEN', prenom='Gwenaëlle', age=35, role='sysadmin')  # Admin Système
-    user_gwen.password_hash = generate_password_hash('gwgm1234')
-    db.session.add(user_gwen)
-    
-    user_sylvain = User(email='slytherogue@gmail.com', nom='Michaud', prenom='Sylvain', age=35, role='sysadmin')  # Admin Système
-    user_sylvain.password_hash = generate_password_hash('slym0000')
-    db.session.add(user_sylvain)
-    
-    # Fictitious Users avec des noms plus parlants
-    fictitious_users_data = [
-        ('Sophie', 'Dubois', 'sophie.dubois@email.fr'),
-        ('Thomas', 'Martin', 'thomas.martin@email.fr'),
-        ('Emma', 'Bernard', 'emma.bernard@email.fr'),
-        ('Lucas', 'Petit', 'lucas.petit@email.fr'),
-        ('Léa', 'Robert', 'lea.robert@email.fr'),
-        ('Hugo', 'Richard', 'hugo.richard@email.fr'),
-        ('Chloé', 'Durand', 'chloe.durand@email.fr'),
-        ('Louis', 'Moreau', 'louis.moreau@email.fr'),
-        ('Manon', 'Simon', 'manon.simon@email.fr'),
-        ('Arthur', 'Laurent', 'arthur.laurent@email.fr'),
-        ('Camille', 'Lefebvre', 'camille.lefebvre@email.fr'),
-        ('Nathan', 'Michel', 'nathan.michel@email.fr'),
-        ('Sarah', 'Garcia', 'sarah.garcia@email.fr'),
-        ('Maxime', 'David', 'maxime.david@email.fr'),
-        ('Julie', 'Bertrand', 'julie.bertrand@email.fr'),
-        ('Antoine', 'Roux', 'antoine.roux@email.fr'),
-        ('Clara', 'Vincent', 'clara.vincent@email.fr'),
-        ('Alexandre', 'Fournier', 'alexandre.fournier@email.fr'),
-        ('Marine', 'Girard', 'marine.girard@email.fr'),
-        ('Julien', 'Bonnet', 'julien.bonnet@email.fr'),
-        ('Pauline', 'Dupont', 'pauline.dupont@email.fr'),
-        ('Mathieu', 'Lambert', 'mathieu.lambert@email.fr'),
-        ('Elise', 'Fontaine', 'elise.fontaine@email.fr'),
-        ('Nicolas', 'Rousseau', 'nicolas.rousseau@email.fr'),
-        ('Anaïs', 'Morel', 'anais.morel@email.fr'),
-        ('Pierre', 'Leroy', 'pierre.leroy@email.fr'),
-        ('Laura', 'Gauthier', 'laura.gauthier@email.fr'),
-        ('Benjamin', 'Muller', 'benjamin.muller@email.fr'),
-        ('Océane', 'Blanc', 'oceane.blanc@email.fr'),
-        ('Kevin', 'Guerin', 'kevin.guerin@email.fr'),
-        ('Audrey', 'Boyer', 'audrey.boyer@email.fr'),
-        ('Romain', 'Martinez', 'romain.martinez@email.fr'),
-        ('Morgane', 'Garnier', 'morgane.garnier@email.fr'),
-        ('Vincent', 'Chevalier', 'vincent.chevalier@email.fr'),
-        ('Jade', 'François', 'jade.francois@email.fr'),
-        ('Florian', 'Legrand', 'florian.legrand@email.fr'),
-        ('Mélanie', 'Mercier', 'melanie.mercier@email.fr'),
-        ('Sylvain', 'Renard', 'sylvain.renard@email.fr'),
-        ('Céline', 'Barbier', 'celine.barbier@email.fr'),
+    # Admins fixes avec mots de passe spécifiques
+    admins = [
+        {'email': 'jchodorowski@gmail.com', 'nom': 'Chodorowski', 'prenom': 'Jacques', 'role': 'createur', 'genre': 'Homme', 'password': 'jach1612'},
+        {'email': 'gwengm@gmail.com', 'nom': 'GARRIOUX-MORIEN', 'prenom': 'Gwenaëlle', 'role': 'sysadmin', 'genre': 'Femme', 'password': 'gwgm1234'},
+        {'email': 'slytherogue@gmail.com', 'nom': 'Michaud', 'prenom': 'Sylvain', 'role': 'sysadmin', 'genre': 'Homme', 'password': 'slym0000'}
     ]
     
-    fictitious_users = []
-    for prenom, nom, email in fictitious_users_data:
-        u = User(email=email, nom=nom, prenom=prenom, age=random.randint(20, 45), role='user')
-        u.password_hash = generate_password_hash('test1234')
-        db.session.add(u)
-        fictitious_users.append(u)
+    user_id = 1
+    for admin in admins:
+        users.append({
+            "id": user_id,
+            "email": admin['email'],
+            "password_hash": generate_password_hash(admin['password']),
+            "nom": admin['nom'],
+            "prenom": admin['prenom'],
+            "age": random.randint(30, 50),
+            "genre": admin['genre'],
+            "role": admin['role'],
+            "avatar_url": None,
+            "is_banned": False,
+            "is_deleted": False
+        })
+        emails.add(admin['email'])
+        user_id += 1
         
-    db.session.commit()
+    # Génération aléatoire
+    while len(users) < count:
+        is_male = random.choice([True, False])
+        prenom = random.choice(first_names_male) if is_male else random.choice(first_names_female)
+        nom = random.choice(last_names)
+        email = f"{prenom.lower()}.{nom.lower()}{random.randint(1,99)}@example.com"
+        
+        if email in emails:
+            continue
+            
+        emails.add(email)
+        users.append({
+            "id": user_id,
+            "email": email,
+            "password_hash": generate_password_hash('test1234'),
+            "nom": nom,
+            "prenom": prenom,
+            "age": random.randint(18, 60),
+            "genre": "Homme" if is_male else "Femme",
+            "role": "user",
+            "avatar_url": None,
+            "is_banned": False,
+            "is_deleted": False
+        })
+        user_id += 1
+        
+    return users
+
+def generate_seed_json():
+    print(f"Génération du fichier de seed JSON : {OUTPUT_FILE}...")
     
-    # We need to query them back for relationships
-    admin_user = User.query.filter_by(email='jchodorowski@gmail.com').first()
-    user_gwen = User.query.filter_by(email='gwengm@gmail.com').first()
-    user_sylvain = User.query.filter_by(email='slytherogue@gmail.com').first()
-    print("Creating Events...")
-    # Event 1: Star Wars
-    sw_date = datetime(2026, 6, 30, 9, 0)
-    event_sw = Event(
-        name="Star Wars - Ombres sur Tatooine",
-        date_start=sw_date,
-        date_end=datetime(2026, 6, 30, 23, 0),
-        location="Tatooine (Mos Eisley)",
-        description="Une aventure galactique.",
-        organizer_structure="Rebel Alliance",
-        groups_config=json.dumps({
+    data = {
+        "users": generate_users(300),
+        "events": [],
+        "roles": [],
+        "participants": [],
+        "casting_proposals": [],
+        "casting_assignments": []
+    }
+    
+    user_ids = [u['id'] for u in data['users'] if u['role'] == 'user']
+    users_map = {u['email']: u['id'] for u in data['users']} # Pour accès rapide
+    
+    # IDs counters
+    event_id_counter = 1
+    role_id_counter = 1
+    part_id_counter = 1
+    assign_id_counter = 1
+    prop_id_counter = 1
+    
+    # =========================================================================
+    # 1. EVENT STAR WARS (FIXE) -> Organisateur: Jacques
+    # =========================================================================
+    print("  Génération Star Wars...")
+    now = datetime.now()
+    sw_date_start = now + timedelta(days=60)
+    
+    evt_sw = {
+        "id": event_id_counter,
+        "name": "Star Wars - Ombres sur Tatooine",
+        "description": "Une aventure galactique aux confins de la bordure extérieure.",
+        "date_start": serialize_date(sw_date_start),
+        "date_end": serialize_date(sw_date_start + timedelta(hours=14)),
+        "location": "Tatooine (Mos Eisley)",
+        "organizer_structure": "Rebel Alliance",
+        "visibility": "public",
+        "statut": "En préparation",
+        "groups_config": json.dumps({
             "PJ": ["Peu importe", "Rebelles", "Empire", "Contrebandiers"],
-            "PNJ": ["Peu importe", "Aliens", "Stormtroopers"],
+            "PNJ": ["Peu importe", "Aliens", "Stormtroopers", "Citoyens"],
             "Organisateur": ["général", "coordinateur", "scénariste", "logisticien", "crafteur", "en charge des PNJ"]
-        })
-    )
-    event_sw.statut = "En préparation"
-    db.session.add(event_sw)
+        }),
+        "max_pjs": 30,
+        "max_pnjs": 15,
+        "max_organizers": 10
+    }
+    data["events"].append(evt_sw)
+    sw_id = event_id_counter
+    event_id_counter += 1
     
-    # Event 2: Cthulhu
-    cthulhu_date = datetime(2026, 9, 30, 9, 0)
-    event_cthulhu = Event(
-        name="Cthulhu - ça me gratte dans la tentacule",
-        date_start=cthulhu_date,
-        date_end=datetime(2026, 9, 30, 23, 0),
-        location="Arkham",
-        description="Une enquête horrifique.",
-        organizer_structure="Miskatonic U",
-        groups_config=json.dumps({
-            "PJ": ["Peu importe", "Investigateurs", "Cultistes"],
-            "PNJ": ["Peu importe", "Créatures", "Complices"],
-            "Organisateur": ["général", "coordinateur", "scénariste", "logisticien", "crafteur", "en charge des PNJ"]
-        })
-    )
-    event_cthulhu.statut = "En préparation"
-    db.session.add(event_cthulhu)
-    db.session.commit()
-
-    print("Assigning Organizers...")
-    # Jacques -> Star Wars (coordinateur)
-    p_jacques = Participant(event_id=event_sw.id, user_id=admin_user.id, type="organisateur", group="coordinateur", registration_status="Validé")
-    db.session.add(p_jacques)
-    
-    # Gwen -> Cthulhu (scénariste)
-    p_gwen = Participant(event_id=event_cthulhu.id, user_id=user_gwen.id, type="organisateur", group="scénariste", registration_status="Validé")
-    db.session.add(p_gwen)
-    
-    # Sylvain -> Cthulhu (logisticien)
-    p_sylvain = Participant(event_id=event_cthulhu.id, user_id=user_sylvain.id, type="organisateur", group="logisticien", registration_status="Validé")
-    db.session.add(p_sylvain)
-    
-    print("Assigning Fictitious Participants...")
-    
-    # Star Wars: 4 inscrits (2 PJ, 2 PNJ)
-    sw_pj = fictitious_users[0:2]  # Sophie, Thomas
-    sw_pnj = fictitious_users[2:4]  # Emma, Lucas
-    
-    for u in sw_pj:
-        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PJ", group="Rebelles", registration_status="Validé"))
-    for u in sw_pnj:
-        db.session.add(Participant(event_id=event_sw.id, user_id=u.id, type="PNJ", group="Aliens", registration_status="Validé"))
-
-    # Cthulhu: 5 inscrits (3 PJ, 2 PNJ) - en plus des 2 organisateurs déjà inscrits
-    ct_pj = fictitious_users[4:7]  # Léa, Hugo, Chloé
-    ct_pnj = fictitious_users[7:9]  # Louis, Manon
-    
-    for u in ct_pj:
-        db.session.add(Participant(event_id=event_cthulhu.id, user_id=u.id, type="PJ", group="Investigateurs", registration_status="Validé"))
-    for u in ct_pnj:
-        db.session.add(Participant(event_id=event_cthulhu.id, user_id=u.id, type="PNJ", group="Peu importe", registration_status="Validé"))
-
-    db.session.commit()
-    print("Creating additional requested events...")
-    admin = User.query.filter_by(email="jchodorowski@gmail.com").first() # Retrieve Jacques/Admin to be organizer
-    if not admin:
-        admin = User.query.filter_by(is_admin=True).first()
-        
-    now = datetime(2026, 1, 11) # Fixed reference date or use datetime.now() if system time is correct. 
-    # System time is 2026-01-11 per metadata.
-    
-    # 1. Past Event 1 (-1 year)
-    past1 = Event(
-        name="L'Appel du Vide (Passé)",
-        date_start=now - timedelta(days=365),
-        date_end=now - timedelta(days=363),
-        location="Ancien Manoir",
-        description="Un événement terminé l'an dernier.",
-        organizer_structure="Old Guard"
-    )
-    past1.statut = "Terminé"
-    db.session.add(past1)
-    
-    # 2. Past Event 2 (-6 months)
-    past2 = Event(
-        name="Tournoi des Trois Lunes (Passé)",
-        date_start=now - timedelta(days=180),
-        date_end=now - timedelta(days=178),
-        location="Plaine de Gaïa",
-        description="Un tournoi épique.",
-        organizer_structure="Chevaliers"
-    )
-    past2.statut = "Terminé"
-    db.session.add(past2)
-    
-    # 3. Current Event (Now)
-    current_evt = Event(
-        name="Siège de la Citadelle (En Cours)",
-        date_start=now - timedelta(days=1),
-        date_end=now + timedelta(days=1),
-        location="La Citadelle",
-        description="Une bataille qui fait rage en ce moment même.",
-        organizer_structure="Armée Royale"
-    )
-    current_evt.statut = "Événement en cours"
-    db.session.add(current_evt)
-    
-    # 4. Future Event 1 (+3 months)
-    fut1 = Event(
-        name="Cyberpunk 2099 (Futur +3 mois)",
-        date_start=now + timedelta(days=90),
-        date_end=now + timedelta(days=92),
-        location="Neo-Tokyo",
-        description="Un futur dystopique.",
-        organizer_structure="Corpo Arasaka"
-    )
-    fut1.statut = "En préparation"
-    db.session.add(fut1)
-    
-    # 5. Future Event 2 (+5 months)
-    fut2 = Event(
-        name="Vampire: La Mascarade (Futur +5 mois)",
-        date_start=now + timedelta(days=150),
-        date_end=now + timedelta(days=152),
-        location="Paris Souterrain",
-        description="Intrigues politiques chez les vampires.",
-        organizer_structure="Camarilla"
-    )
-    fut2.statut = "En préparation"
-    db.session.add(fut2)
-    
-    db.session.commit()
-    
-    # Assign organizer to these new events
-    print("Assigning organizers to new events...")
-    # Requirement: jchodorowski (admin) ONLY for Star Wars. 
-    # Use fictitious users 1-5 for others.
-    
-    # We need to fetch fictitious users if not already available in scope (they are in 'fictitious_users' list but scope might be lost if script ran linearly)
-    # Actually, the script runs linearly. 'fictitious_users' list is available.
-    if not fictitious_users or len(fictitious_users) < 5:
-        # Fallback if list is empty or too short (shouldn't happen)
-        fictitious_users = User.query.filter(User.email.like('user%@example.com')).limit(10).all()
-        
-    new_events = [past1, past2, current_evt, fut1, fut2]
-    
-    for i, evt in enumerate(new_events):
-        # Assign a different fictitious user to each event
-        org_user = fictitious_users[i % len(fictitious_users)]
-        db.session.add(Participant(event_id=evt.id, user_id=org_user.id, type="organisateur", group="Organisateur", registration_status="Validé"))
-    
-    db.session.commit()
-    print("Database seeded successfully!")
-    
-    # === CRÉATION DES RÔLES ===
-    print("\\nCreating roles for events...")
-    
-    # Noms de rôles pour PJ
-    pj_role_names = [
-        "Commandant Kerillian", "Dame Elira", "Sire Morvan", "Capitaine Vex", 
-        "Mage Theron", "Chasseur Lynx", "Prêtresse Selene", "Guerrier Drago",
-        "Éclaireur Zara", "Barde Orphéo", "Voleur Shade", "Paladin Aldric",
-        "Druide Rowan", "Assassin Viper", "Chevalier Gaëtan", "Sorcière Morgana",
-        "Archer Silvan", "Berserker Thork", "Nécromancien Kael", "Templier Marcus",
-        "Rôdeur Fenris", "Alchimiste Vera", "Gladiateur Maximus", "Oracle Pythia",
-        "Inquisiteur Dante", "Corsaire Barbe-Rouge", "Shaman Totec", "Amazone Xena",
-        "Moine Shen", "Pirate Sparrow", "Marchand Caravane", "Forgeron Vulcan"
+    # Roles SW
+    pj_roles_sw = [
+        ("Commandant Kerillian", "Rebelles"), ("Dame Elira", "Rebelles"), ("Sire Morvan", "Empire"), ("Capitaine Vex", "Contrebandiers"),
+        ("Mage Theron", "Rebelles"), ("Chasseur Lynx", "Empire"), ("Prêtresse Selene", "Empire"), ("Guerrier Drago", "Contrebandiers"),
+        ("Éclaireur Zara", "Rebelles"), ("Barde Orphéo", "Contrebandiers"), ("Voleur Shade", "Contrebandiers"), ("Paladin Aldric", "Empire"),
+        ("Druide Rowan", "Rebelles"), ("Assassin Viper", "Empire"), ("Chevalier Gaëtan", "Empire"), ("Sorcière Morgana", "Contrebandiers"),
+        ("Archer Silvan", "Rebelles"), ("Berserker Thork", "Contrebandiers"), ("Nécromancien Kael", "Empire"), ("Templier Marcus", "Empire"),
+        ("Rôdeur Fenris", "Rebelles"), ("Alchimiste Vera", "Rebelles"), ("Gladiateur Maximus", "Empire"), ("Oracle Pythia", "Rebelles")
+    ]
+    pnj_roles_sw = [
+         ("Soldat Impérial #1", "Stormtroopers"), ("Soldat Impérial #2", "Stormtroopers"), 
+        ("Barman Cantina", "Citoyens"), ("Chasseur de primes", "Aliens"),
+        ("Jawa #1", "Aliens"), ("Jawa #2", "Aliens"), ("Tusken Raider", "Aliens"),
+        ("Officier Impérial", "Stormtroopers"), ("Espion Rebelle", "Citoyens")
     ]
     
-    # Noms de rôles pour PNJ
-    pnj_role_names = [
-        "Garde #1", "Garde #2", "Villageois", "Tavernier", "Mendiant",
-        "Messager", "Marchand ambulant", "Crieur public", "Soldat", "Serviteur"
+    sw_roles_objs = []
+    
+    for name, group in pj_roles_sw:
+        r = {"id": role_id_counter, "event_id": sw_id, "name": name, "type": "PJ", "genre": random.choice(["Homme", "Femme", "Autre"]), "group": group, "assigned_participant_id": None}
+        data["roles"].append(r)
+        sw_roles_objs.append(r)
+        role_id_counter += 1
+        
+    for name, group in pnj_roles_sw:
+        r = {"id": role_id_counter, "event_id": sw_id, "name": name, "type": "PNJ", "genre": random.choice(["Homme", "Femme", "Autre"]), "group": group, "assigned_participant_id": None}
+        data["roles"].append(r)
+        sw_roles_objs.append(r)
+        role_id_counter += 1
+        
+    # Participants SW -> Jacques SEUL orga
+    # (Les autres admins peuvent être PJs/PNJs ou rien, pour cet event)
+    orga_sw_config = [
+        ('jchodorowski@gmail.com', 'coordinateur')
     ]
     
-    # Récupérer tous les événements
-    all_events = Event.query.all()
-    now = datetime(2026, 1, 18)  # Date de référence actuelle
-    one_month_ahead = now + timedelta(days=30)
+    for email, group in orga_sw_config:
+        uid = users_map[email]
+        p = {
+            "id": part_id_counter,
+            "event_id": sw_id,
+            "user_id": uid,
+            "type": "Organisateur",
+            "group": group,
+            "registration_status": "Validé",
+            "role_communicated": False,
+            "role_received": False
+        }
+        data["participants"].append(p)
+        part_id_counter += 1
+        
+    avail_users = list(user_ids)
+    random.shuffle(avail_users)
     
-    role_index = 0
+    sw_participants_valid = []
     
-    for event in all_events:
-        # Parser groups_config
-        try:
-            groups = json.loads(event.groups_config) if event.groups_config else {}
-        except:
-            groups = {}
+    # PJ Validés (Fill all roles)
+    for _ in range(len(pj_roles_sw)):
+        uid = avail_users.pop()
+        p = {"id": part_id_counter, "event_id": sw_id, "user_id": uid, "type": "PJ", "group": "Peu importe", "registration_status": "Validé"}
+        data["participants"].append(p)
+        sw_participants_valid.append(p)
+        part_id_counter += 1
         
-        # Définir un groups_config par défaut si absent
-        if not groups:
-            groups = {
-                "PJ": ["Peu importe", "Groupe A", "Groupe B"],
-                "PNJ": ["Peu importe", "Figurants", "Techniciens"],
-                "Organisateur": ["général", "coordinateur", "scénariste"]
-            }
-            event.groups_config = json.dumps(groups)
+    # PNJ Validés
+    for _ in range(len(pnj_roles_sw)):
+        uid = avail_users.pop()
+        p = {"id": part_id_counter, "event_id": sw_id, "user_id": uid, "type": "PNJ", "group": "Peu importe", "registration_status": "Validé"}
+        data["participants"].append(p)
+        sw_participants_valid.append(p)
+        part_id_counter += 1
         
-        # Déterminer le nombre de rôles PJ (basé sur le nombre de participants max ou défaut)
-        # On prend un nombre entre 8 et 20 rôles PJ par événement
-        num_pj_roles = random.randint(8, 20)
-        num_pnj_roles = random.randint(3, 8)
-        
-        pj_groups = groups.get("PJ", ["Peu importe"])
-        pnj_groups = groups.get("PNJ", ["Peu importe"])
-        
-        # Créer les rôles PJ
-        event_roles = []
-        for i in range(num_pj_roles):
-            role_name = pj_role_names[(role_index + i) % len(pj_role_names)]
-            role = Role(
-                event_id=event.id,
-                name=role_name,
-                type="PJ",
-                genre=random.choice(["Homme", "Femme", "Autre", None]),
-                group=random.choice(pj_groups),
-                comment=f"Rôle important pour l'intrigue principale." if random.random() > 0.7 else None,
-                google_doc_url=f"https://docs.google.com/document/d/role_{event.id}_{i}" if random.random() > 0.5 else None,
-                pdf_url=None
-            )
-            db.session.add(role)
-            event_roles.append(role)
-        
-        # Créer les rôles PNJ
-        for i in range(num_pnj_roles):
-            role_name = pnj_role_names[i % len(pnj_role_names)]
-            role = Role(
-                event_id=event.id,
-                name=f"{role_name} - {event.name[:10]}",
-                type="PNJ",
-                genre=random.choice(["Homme", "Femme", "Autre", None]),
-                group=random.choice(pnj_groups),
-                comment=None
-            )
-            db.session.add(role)
-        
-        role_index += num_pj_roles
-        
-        # === CALCUL DU TAUX DE REMPLISSAGE ===
-        event_date = event.date_start
-        
-        # Événement passé ou en cours : 80%+ de remplissage
-        if event_date and event_date <= now:
-            fill_rate = random.uniform(0.80, 1.0)
-        # Événement à moins d'un mois : 80%
-        elif event_date and event_date <= one_month_ahead:
-            fill_rate = 0.80
-        # Événement à plus d'un mois : 20-80%
-        else:
-            fill_rate = random.uniform(0.20, 0.80)
-        
-        # Nombre de rôles à assigner
-        num_to_assign = int(len(event_roles) * fill_rate)
-        
-        print(f"  {event.name}: {len(event_roles)} rôles PJ, {num_pnj_roles} rôles PNJ, remplissage {fill_rate*100:.0f}% ({num_to_assign} assignés)")
+    # Waiting
+    for _ in range(5): # PJ
+        data["participants"].append({"id": part_id_counter, "event_id": sw_id, "user_id": avail_users.pop(), "type": "PJ", "group": "Peu importe", "registration_status": "En attente"})
+        part_id_counter += 1
+    for _ in range(2): # PNJ
+        data["participants"].append({"id": part_id_counter, "event_id": sw_id, "user_id": avail_users.pop(), "type": "PNJ", "group": "Peu importe", "registration_status": "En attente"})
+        part_id_counter += 1
+
+    # Casting SW
+    prop = {"id": prop_id_counter, "event_id": sw_id, "name": "Jack", "position": 1, "created_at": serialize_date(now)}
+    data["casting_proposals"].append(prop)
+    prop_id_counter += 1
     
-    db.session.commit()
+    num_cast = int(len(sw_participants_valid) * 0.75)
+    to_cast = random.sample(sw_participants_valid, num_cast)
+    pj_roles_avail = [r for r in sw_roles_objs if r['type'] == 'PJ']
+    pnj_roles_avail = [r for r in sw_roles_objs if r['type'] == 'PNJ']
     
-    # Export to CSV
-    export_to_csv()
+    for p in to_cast:
+        pool = pj_roles_avail if p['type'] == 'PJ' else pnj_roles_avail
+        if pool:
+            role = random.choice(pool)
+            pool.remove(role)
+            data["casting_assignments"].append({
+                "id": assign_id_counter, "proposal_id": 1, "role_id": role['id'], "participant_id": p['id'], "event_id": sw_id, "score": 8
+            })
+            assign_id_counter += 1
+            
+    # =========================================================================
+    # 2. EVENT CTHULHU (FIXE 30/09/2026) -> Orgas: Gwen & Sylvain
+    # =========================================================================
+    print("  Génération Cthulhu...")
+    cth_date = datetime(2026, 9, 30, 20, 0)
+    
+    evt_cth = {
+        "id": event_id_counter,
+        "name": "Cthulhu - ca me gratte dans la tentacule",
+        "description": "Une horreur indicible se réveille dans les abysses de R'lyeh.",
+        "date_start": serialize_date(cth_date),
+        "date_end": serialize_date(cth_date + timedelta(hours=6)),
+        "location": "Arkham",
+        "organizer_structure": "Université Miskatonic",
+        "visibility": "public",
+        "statut": "En préparation",
+        "groups_config": json.dumps({
+            "PJ": ["Investigateurs", "Cultistes"],
+            "PNJ": ["Monstres", "Habitants"],
+            "Organisateur": ["Gardien des arcanes"]
+        }),
+        "max_pjs": 12,
+        "max_pnjs": 5,
+        "max_organizers": 5
+    }
+    data["events"].append(evt_cth)
+    cth_id = event_id_counter
+    event_id_counter += 1
+    
+    # Orgas Cthulhu
+    for email in ['gwengm@gmail.com', 'slytherogue@gmail.com']:
+        uid = users_map[email]
+        data["participants"].append({
+            "id": part_id_counter, "event_id": cth_id, "user_id": uid, "type": "Organisateur", "group": "Gardien des arcanes", "registration_status": "Validé"
+        })
+        part_id_counter += 1
+        
+    # Remplir Cthulhu un peu
+    for _ in range(10): # PJs
+        if not avail_users: break
+        data["participants"].append({"id": part_id_counter, "event_id": cth_id, "user_id": avail_users.pop(), "type": "PJ", "group": "Investigateurs", "registration_status": "Validé"})
+        part_id_counter += 1
+        
+    for i in range(15): # Roles Cthulhu
+        data["roles"].append({
+             "id": role_id_counter, "event_id": cth_id, "name": f"Investigateur {i+1}", "type": "PJ", "genre": "Autre", "group": "Investigateurs", "assigned_participant_id": None
+        })
+        role_id_counter += 1
+
+    # =========================================================================
+    # 3. OTHER EVENTS (10 others -> total ~12 events)
+    # =========================================================================
+    print("  Génération des autres événements...")
+    
+    event_templates = [
+        # 3 TERMINÉS
+        {
+            "name": "Chroniques de l'Ancien Monde", "theme": "Fantasy", "status": "Terminé", 
+            "pj_range": (30, 50), "pnj_range": (5, 10), "orga_range": (2, 7),
+            "date_delta": -400, "desc": "Une épopée médiévale fantastique qui a marqué les esprits."
+        },
+        {
+            "name": "Projet: Oméga", "theme": "Sci-Fi", "status": "Terminé",
+            "pj_range": (30, 50), "pnj_range": (5, 10), "orga_range": (2, 7),
+            "date_delta": -250, "desc": "Expérience scientifique ayant tourné au désastre dans un laboratoire secret."
+        },
+        {
+            "name": "Le Bal des Vampires 1889", "theme": "Horreur Gothique", "status": "Terminé",
+            "pj_range": (30, 50), "pnj_range": (5, 10), "orga_range": (2, 7),
+            "date_delta": -120, "desc": "Intrigues politiques et soif de sang dans le Paris de la Belle Époque."
+        },
+        # 1 EN COURS
+        {
+            "name": "Dernier Refuge", "theme": "Post-Apo", "status": "Événement en cours",
+            "pj_range": (20, 30), "pnj_range": (3, 6), "orga_range": (3, 5),
+            "date_delta": 0, "desc": "Survie en milieu hostile. L'événement se déroule actuellement."
+        },
+        # 6 FUTURS (2026)
+        {
+            "name": "Légendes d'Hyboria", "theme": "Fantasy", "status": "En préparation",
+            "date_delta": 30, "desc": "Barbares et sorciers s'affrontent."
+        },
+        {
+            "name": "Cyber-Net 2077", "theme": "Cyberpunk", "status": "En préparation",
+            "date_delta": 90, "desc": "Piratage et corporations."
+        },
+        {
+            "name": "L'Appel de Cthulhu: Innsmouth", "theme": "Horreur", "status": "En préparation",
+            "date_delta": 120, "desc": "Enquête sombre en bord de mer."
+        },
+         {
+            "name": "Western: Gold Rush", "theme": "Historique", "status": "En préparation",
+            "date_delta": 180, "desc": "Duels au soleil et pépites d'or."
+        },
+         {
+            "name": "Space Opera: Fédération", "theme": "Sci-Fi", "status": "En préparation",
+            "date_delta": 240, "desc": "Diplomatie intergalactique."
+        },
+         {
+            "name": "Zombies: Jour Z", "theme": "Post-Apo", "status": "En préparation",
+            "date_delta": 300, "desc": "Ils reviennent..."
+        }
+    ]
+    
+    # Reload fresh list of unused users for these events
+    # We want to use the 'avail_users' left over, OR just recycle everyone to simulate activity
+    current_users = list(user_ids) 
+    random.shuffle(current_users)
+    
+    for t in event_templates:
+        evt_id = event_id_counter
+        event_id_counter += 1
+        
+        # Date management
+        d_start = now + timedelta(days=t['date_delta'])
+        d_end = d_start + timedelta(days=2)
+        
+        # Config
+        groups = {
+            "PJ": ["Peu importe", "Groupe A", "Groupe B", "Groupe C"],
+            "PNJ": ["Peu importe", "Adversaires", "Ambiance"],
+            "Organisateur": ["Orga Principal", "Scénario", "Logistique"]
+        }
+        
+        evt = {
+            "id": evt_id,
+            "name": t["name"],
+            "description": t["desc"],
+            "date_start": serialize_date(d_start),
+            "date_end": serialize_date(d_end),
+            "location": "Lieu Inconnu",
+            "organizer_structure": "Association GN",
+            "visibility": "public",
+            "statut": t["status"],
+            "groups_config": json.dumps(groups),
+            "max_pjs": 60,
+            "max_pnjs": 20,
+            "max_organizers": 10
+        }
+        data["events"].append(evt)
+        
+        # Participant filling
+        num_pj = random.randint(t.get("pj_range", (5, 20))[0], t.get("pj_range", (5, 20))[1])
+        num_pnj = random.randint(t.get("pnj_range", (2, 8))[0], t.get("pnj_range", (2, 8))[1])
+        num_orga = random.randint(t.get("orga_range", (1, 3))[0], t.get("orga_range", (1, 3))[1])
+        
+        # Orgas
+        for _ in range(num_orga):
+            if current_users:
+                data["participants"].append({
+                    "id": part_id_counter, "event_id": evt_id, "user_id": current_users.pop(), 
+                    "type": "Organisateur", "group": "Orga Principal", "registration_status": "Validé"
+                })
+                part_id_counter += 1
+                if not current_users: # Refresh if empty
+                    current_users = list(user_ids)
+                    random.shuffle(current_users)
+                
+        # PJs
+        for _ in range(num_pj):
+             if current_users:
+                data["participants"].append({
+                    "id": part_id_counter, "event_id": evt_id, "user_id": current_users.pop(), 
+                    "type": "PJ", "group": random.choice(groups["PJ"]), "registration_status": "Validé" if t["status"] in ["Terminé", "Événement en cours"] else random.choice(["Validé", "En attente"])
+                })
+                part_id_counter += 1
+                if not current_users:
+                    current_users = list(user_ids)
+                    random.shuffle(current_users)
+                
+        # PNJs
+        for _ in range(num_pnj):
+             if current_users:
+                data["participants"].append({
+                    "id": part_id_counter, "event_id": evt_id, "user_id": current_users.pop(), 
+                    "type": "PNJ", "group": random.choice(groups["PNJ"]), "registration_status": "Validé"
+                })
+                part_id_counter += 1
+                if not current_users:
+                    current_users = list(user_ids)
+                    random.shuffle(current_users)
+                
+        # Generate Roles for these events (Basic)
+        for i in range(num_pj + 5):
+            data["roles"].append({
+                "id": role_id_counter, "event_id": evt_id, "name": f"Rôle PJ {i+1}", "type": "PJ", "genre": random.choice(["Homme", "Femme"]), "group": random.choice(groups["PJ"]), "assigned_participant_id": None
+            })
+            role_id_counter += 1
+        for i in range(num_pnj + 3):
+            data["roles"].append({
+                "id": role_id_counter, "event_id": evt_id, "name": f"Rôle PNJ {i+1}", "type": "PNJ", "genre": random.choice(["Homme", "Femme"]), "group": random.choice(groups["PNJ"]), "assigned_participant_id": None
+            })
+            role_id_counter += 1
+
+    # Write
+    with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
+        json.dump(data, f, indent=4, ensure_ascii=False)
+        
+    print(f"✓ Terminé ! {len(data['users'])} users, {len(data['events'])} events, {len(data['participants'])} participants.")
+
+if __name__ == '__main__':
+    generate_seed_json()
 
