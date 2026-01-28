@@ -94,13 +94,69 @@ document.addEventListener('DOMContentLoaded', function () {
 
         const clone = template.content.cloneNode(true);
 
+        // Calculate total roles by type (for main column counter)
+        const totalRolesByType = { 'PJ': 0, 'PNJ': 0, 'Organisateur': 0 };
+        roles.forEach(role => {
+            if (totalRolesByType.hasOwnProperty(role.type)) {
+                totalRolesByType[role.type]++;
+            }
+        });
+
+        // Count assigned roles in main column
+        const mainAssignedByType = { 'PJ': 0, 'PNJ': 0, 'Organisateur': 0 };
+        Object.entries(castingData.assignments['main'] || {}).forEach(([roleId, participantId]) => {
+            if (participantId) {
+                const role = roles.find(r => r.id === parseInt(roleId));
+                if (role && mainAssignedByType.hasOwnProperty(role.type)) {
+                    mainAssignedByType[role.type]++;
+                }
+            }
+        });
+
+        // Update main column counter
+        const remainingMainPJ = totalRolesByType['PJ'] - mainAssignedByType['PJ'];
+        const remainingMainPNJ = totalRolesByType['PNJ'] - mainAssignedByType['PNJ'];
+        const remainingMainOrga = totalRolesByType['Organisateur'] - mainAssignedByType['Organisateur'];
+
+        const mainCounter = clone.querySelector('#main-roles-counter');
+        if (mainCounter) {
+            mainCounter.textContent = `(reste PJ:${remainingMainPJ} PNJ:${remainingMainPNJ} O:${remainingMainOrga})`;
+        }
+
         // Add proposal columns to header
         const headerRow = clone.querySelector('thead tr');
         castingData.proposals.forEach(proposal => {
+            const proposalId = proposal.id.toString();
+            const proposalAssignments = castingData.assignments[proposalId] || {};
+
+            // Count total participants by type
+            const totalParticipantsByType = { 'PJ': 0, 'PNJ': 0, 'Organisateur': 0 };
+            Object.entries(castingData.participants_by_type).forEach(([type, participants]) => {
+                if (totalParticipantsByType.hasOwnProperty(type)) {
+                    totalParticipantsByType[type] = participants.length;
+                }
+            });
+
+            // Count assigned participants in this proposal by type
+            const assignedParticipantsByType = { 'PJ': 0, 'PNJ': 0, 'Organisateur': 0 };
+            const assignedParticipantIds = new Set(Object.values(proposalAssignments).filter(id => id));
+
+            Object.entries(castingData.participants_by_type).forEach(([type, participants]) => {
+                if (assignedParticipantsByType.hasOwnProperty(type)) {
+                    assignedParticipantsByType[type] = participants.filter(p => assignedParticipantIds.has(p.id)).length;
+                }
+            });
+
+            // Calculate remaining participants
+            const remainingPJ = totalParticipantsByType['PJ'] - assignedParticipantsByType['PJ'];
+            const remainingPNJ = totalParticipantsByType['PNJ'] - assignedParticipantsByType['PNJ'];
+            const remainingOrga = totalParticipantsByType['Organisateur'] - assignedParticipantsByType['Organisateur'];
+
             const th = document.createElement('th');
             th.style.minWidth = '250px';
             th.innerHTML = `
                 ${proposal.name}
+                <small class="text-muted ms-2">(${remainingPJ}/${remainingPNJ}/${remainingOrga})</small>
                 <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" data-proposal-id="${proposal.id}">
                     <i class="bi bi-trash"></i>
                 </button>
@@ -123,7 +179,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Main assignment cell
             const mainCell = document.createElement('td');
-            mainCell.innerHTML = createAssignmentDropdown('main', role.id, castingData.assignments['main'][role.id]);
+            mainCell.innerHTML = createAssignmentDropdown('main', role.id, role.type, castingData.assignments['main'][role.id]);
             tr.appendChild(mainCell);
 
             // Proposal cells
@@ -135,7 +191,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
                 cell.innerHTML = `
                     <div class="d-flex flex-column gap-1">
-                        ${createAssignmentDropdown(proposalId, role.id, participantId)}
+                        ${createAssignmentDropdown(proposalId, role.id, role.type, participantId)}
                         ${createScoreSlider(proposalId, role.id, score)}
                     </div>
                 `;
@@ -169,10 +225,12 @@ document.addEventListener('DOMContentLoaded', function () {
             headerRow.appendChild(th);
         });
 
-        // Flatten participants list
+        // Flatten participants list (preserve type information)
         let allParticipants = [];
         for (const [type, participants] of Object.entries(castingData.participants_by_type)) {
-            allParticipants = allParticipants.concat(participants);
+            // Add type to each participant for display
+            const participantsWithType = participants.map(p => ({ ...p, type: type }));
+            allParticipants = allParticipants.concat(participantsWithType);
         }
         // Sort by name
         allParticipants.sort((a, b) => a.nom.localeCompare(b.nom));
@@ -182,10 +240,12 @@ document.addEventListener('DOMContentLoaded', function () {
         allParticipants.forEach(p => {
             const tr = document.createElement('tr');
 
-            // Participant name
-            const nameCell = document.createElement('td');
-            nameCell.innerHTML = `<strong>${p.nom} ${p.prenom}</strong>`;
-            tr.appendChild(nameCell);
+            // Participant info cell
+            const participantCell = document.createElement('td');
+            participantCell.innerHTML = `
+                <strong>${p.nom} ${p.prenom}</strong> <small class="text-muted">(${p.type})</small>
+            `;
+            tr.appendChild(participantCell);
 
             // Find assignments for this participant
             // Main assignment
@@ -260,26 +320,40 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Create assignment dropdown HTML (for Roles tab)
-    function createAssignmentDropdown(proposalId, roleId, selectedParticipantId) {
+    function createAssignmentDropdown(proposalId, roleId, roleType, selectedParticipantId) {
         let options = '<option value="">-- Non attribué --</option>';
 
-        // Add participants grouped by type
-        for (const [type, participants] of Object.entries(castingData.participants_by_type)) {
-            options += `<optgroup label="${type}">`;
-            participants.forEach(p => {
-                const selected = p.id === selectedParticipantId ? 'selected' : '';
-                options += `<option value="${p.id}" ${selected}>${p.nom} ${p.prenom}</option>`;
+        // Get participants already assigned in this proposal (exclude from list)
+        const assignedParticipantIds = new Set();
+        if (castingData.assignments && castingData.assignments[proposalId]) {
+            Object.values(castingData.assignments[proposalId]).forEach(participantId => {
+                // Don't exclude the currently selected participant (allow re-assignment)
+                if (participantId && participantId !== selectedParticipantId) {
+                    assignedParticipantIds.add(participantId);
+                }
             });
-            options += '</optgroup>';
         }
 
+        // Filter participants by role type AND availability
+        const matchingParticipants = castingData.participants_by_type[roleType] || [];
+
+        matchingParticipants.forEach(p => {
+            // Skip if already assigned to another role in this proposal
+            if (assignedParticipantIds.has(p.id)) {
+                return;
+            }
+
+            const selected = p.id === selectedParticipantId ? 'selected' : '';
+            options += `<option value="${p.id}" ${selected}>${p.nom} ${p.prenom}</option>`;
+        });
+
         return `
-            <select class="form-select form-select-sm assignment-select" 
-                data-proposal-id="${proposalId}" 
-                data-role-id="${roleId}">
-                ${options}
-            </select>
-        `;
+        <select class="form-select form-select-sm assignment-select" 
+            data-proposal-id="${proposalId}" 
+            data-role-id="${roleId}">
+            ${options}
+        </select>
+    `;
     }
 
     // Create score slider HTML
