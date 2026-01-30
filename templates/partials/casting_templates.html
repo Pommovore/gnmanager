@@ -89,8 +89,13 @@
             <thead class="table-dark">
                 <tr>
                     <th style="min-width: 200px;">Rôle</th>
-                    <th style="min-width: 200px;">Attribution principale <small class="text-muted"
-                            id="main-roles-counter"></small></th>
+                    <th style="min-width: 200px;">
+                        Attribution principale <small class="text-muted" id="main-roles-counter"></small>
+                        <button class="btn btn-sm btn-outline-danger ms-2 p-0 px-1" id="reset-main-btn"
+                            title="Réinitialiser toutes les attributions principales" style="font-size: 0.8rem;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </th>
                     {# Proposal columns will be added dynamically #}
                 </tr>
             </thead>

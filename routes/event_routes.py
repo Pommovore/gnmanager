@@ -692,7 +692,7 @@ def casting_data(event_id):
             'id': p.id,
             'nom': p.user.nom or '',
             'prenom': p.user.prenom or '',
-            'genre': p.user.genre or ''
+            'genre': (p.user.genre or '').strip()
         })
     
     # Get proposals with assignments to avoid N+1
@@ -733,7 +733,7 @@ def casting_data(event_id):
         'scores': scores,
         'is_casting_validated': event.is_casting_validated or False,
         'groups_config': json.loads(event.groups_config) if event.groups_config else {},
-        'roles': [{'id': r.id, 'name': r.name, 'type': 'Organisateur' if getattr(r, 'type', None) == 'organisateur' else getattr(r, 'type', None), 'genre': getattr(r, 'genre', None), 'group': getattr(r, 'group', None)} for r in roles]
+        'roles': [{'id': r.id, 'name': r.name, 'type': 'Organisateur' if getattr(r, 'type', None) == 'organisateur' else getattr(r, 'type', None), 'genre': (getattr(r, 'genre', None) or '').strip(), 'group': getattr(r, 'group', None)} for r in roles]
     })
 
 
@@ -795,9 +795,17 @@ def casting_assign(event_id):
         return jsonify({'success': True})
     
     # Handle custom proposal assignments
+    # Find or create assignment
     proposal = CastingProposal.query.filter_by(id=proposal_id, event_id=event_id).first_or_404()
     
-    # Find or create assignment
+    # ... (rest of casting_assign logic if needed, but we are just appending new route)
+    # Actually I should be appending *after* the function. The grep showed it around line 772.
+    # I will target the end of casting_assign function to append. 
+    # Wait, viewing the file showed casting_assign starts at 772. It ends around line 830 (not visible yet).
+    # I'll just append to the end of the file or after add_proposal if I can find a clear spot.
+    
+    # Let me view the end of casting_assign first to place it correctly.
+
     assignment = CastingAssignment.query.filter_by(
         proposal_id=proposal_id,
         role_id=role_id
@@ -998,3 +1006,27 @@ def auto_assign_casting(event_id):
         'total_roles': n_roles
     })
 
+
+@event_bp.route('/event/<int:event_id>/casting/reset_main', methods=['POST'])
+@login_required
+@organizer_required
+def reset_main_casting(event_id):
+    """
+    Réinitialise toutes les attributions de la colonne principale (casting final).
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Vérifier que le casting n'est pas validé
+    if event.is_casting_validated:
+        return jsonify({'error': 'Le casting est validé, impossible de réinitialiser.'}), 400
+        
+    roles = Role.query.filter_by(event_id=event_id).all()
+    count = 0
+    for role in roles:
+        if role.assigned_participant_id:
+            role.assigned_participant_id = None
+            count += 1
+            
+    db.session.commit()
+    
+    return jsonify({'success': True, 'count': count})

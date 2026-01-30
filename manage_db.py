@@ -216,7 +216,7 @@ def export_data(args):
     from app import create_app
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
     
     app = create_app()
     with app.app_context():
@@ -231,7 +231,8 @@ def export_data(args):
             'account_validation_tokens': [serialize_model(i) for i in AccountValidationToken.query.all()],
             'activity_logs': [serialize_model(i) for i in ActivityLog.query.all()],
             'casting_proposals': [serialize_model(i) for i in CastingProposal.query.all()],
-            'casting_assignments': [serialize_model(i) for i in CastingAssignment.query.all()]
+            'casting_assignments': [serialize_model(i) for i in CastingAssignment.query.all()],
+            'form_responses': [serialize_model(i) for i in FormResponse.query.all()]
         }
         
     with open(file_path, 'w', encoding='utf-8') as f:
@@ -257,7 +258,7 @@ def import_data(args):
     from app import create_app
     from models import (db, User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
     
     app = create_app()
     with app.app_context():
@@ -276,7 +277,8 @@ def import_data(args):
             ('account_validation_tokens', AccountValidationToken),
             ('activity_logs', ActivityLog),
             ('casting_proposals', CastingProposal),
-            ('casting_assignments', CastingAssignment)
+            ('casting_assignments', CastingAssignment),
+            ('form_responses', FormResponse)
         ]
         
         # 1. Importation principale
@@ -326,7 +328,7 @@ def export_data_csv(args):
     from app import create_app
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
     
     app = create_app()
     with app.app_context():
@@ -340,6 +342,7 @@ def export_data_csv(args):
         export_model_to_csv(ActivityLog, dir_path, 'activity_logs.csv')
         export_model_to_csv(CastingProposal, dir_path, 'casting_proposals.csv')
         export_model_to_csv(CastingAssignment, dir_path, 'casting_assignments.csv')
+        export_model_to_csv(FormResponse, dir_path, 'form_responses.csv')
         
     logger.info("Export CSV terminé.")
 
@@ -357,7 +360,7 @@ def import_data_csv(args):
     from app import create_app
     from models import (db, User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
     
     app = create_app()
     with app.app_context():
@@ -397,6 +400,7 @@ def import_data_csv(args):
         import_model_from_csv(ActivityLog, dir_path, 'activity_logs.csv', db)
         import_model_from_csv(CastingProposal, dir_path, 'casting_proposals.csv', db)
         import_model_from_csv(CastingAssignment, dir_path, 'casting_assignments.csv', db)
+        import_model_from_csv(FormResponse, dir_path, 'form_responses.csv', db)
         
         fix_sequences_logic(db, app)
 
@@ -407,7 +411,7 @@ def clean_database(db):
     """Vide la base de données dans l'ordre correct."""
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
                         
     logger.info("Nettoyage complet de la base...")
     try:
@@ -416,6 +420,7 @@ def clean_database(db):
         db.session.query(ActivityLog).delete()
         db.session.query(AccountValidationToken).delete()
         db.session.query(PasswordResetToken).delete()
+        db.session.query(FormResponse).delete() # Added
         db.session.query(Participant).delete()
         db.session.query(Role).delete()
         db.session.query(EventLink).delete()
@@ -477,7 +482,7 @@ def reset_db(args):
              # Copie de la logique originale de suppression sélective
             from models import (CastingAssignment, CastingProposal, ActivityLog, 
                               AccountValidationToken, PasswordResetToken, Participant, 
-                              Role, Event, EventLink)
+                              Role, Event, EventLink, FormResponse)
                               
             db.session.query(CastingAssignment).delete()
             db.session.query(CastingProposal).delete()

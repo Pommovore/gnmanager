@@ -128,6 +128,46 @@ document.addEventListener('DOMContentLoaded', function () {
             mainCounter.innerHTML = `(reste ${formatCounters(remainingMainPJ, remainingMainPNJ, remainingMainOrga)})`;
         }
 
+        const resetBtn = clone.querySelector('#reset-main-btn');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', function () {
+                if (castingData.is_casting_validated) {
+                    alert('Modification impossible : le casting est validé.');
+                    return;
+                }
+                if (confirm('⚠️ Attention !\n\nVous êtes sur le point de réinitialiser toutes les attributions de la colonne principale.\nCette action supprimera toutes les affectations finales.\n\nÊtes-vous sûr de vouloir continuer ?')) {
+                    const btnHtml = this.innerHTML;
+                    this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+                    this.disabled = true;
+
+                    fetch(`${baseUrl}/event/${eventId}/casting/reset_main`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-CSRFToken': getCsrfToken()
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                // alert(`${data.count} attributions réinitialisées.`);
+                                loadCastingData();
+                            } else {
+                                alert(data.error || 'Erreur lors de la réinitialisation');
+                                this.innerHTML = btnHtml;
+                                this.disabled = false;
+                            }
+                        })
+                        .catch(err => {
+                            console.error(err);
+                            alert('Erreur serveur');
+                            this.innerHTML = btnHtml;
+                            this.disabled = false;
+                        });
+                }
+            });
+        }
+
         // Add proposal columns to header
         const headerRow = clone.querySelector('thead tr');
         castingData.proposals.forEach(proposal => {
@@ -206,14 +246,28 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Logic: Mismatch if both defined and different. 
                     // Note: 'X' or 'Autre' might be neutral. 
                     // User request implies strict mismatch notification.
-                    if (role.genre !== participant.genre) {
+                    // Genre normalization helper
+                    function normalizeGenre(g) {
+                        if (!g) return '';
+                        g = g.trim().toLowerCase();
+                        if (g === 'h' || g === 'homme') return 'homme';
+                        if (g === 'f' || g === 'femme') return 'femme';
+                        return g;
+                    }
+
+                    const roleGenre = normalizeGenre(role.genre);
+                    const participantGenre = normalizeGenre(participant.genre);
+
+                    if (roleGenre && participantGenre && roleGenre !== participantGenre) {
                         genreWarning = '<div class="small" style="color: #d35400; margin-top: 2px;">genres non correspondants</div>';
                     }
                 }
             }
 
+            const isMainDisabled = !!castingData.is_casting_validated;
+
             mainCell.innerHTML = `
-                ${createAssignmentDropdown('main', role.id, role.type, mainParticipantId)}
+                ${createAssignmentDropdown('main', role.id, role.type, mainParticipantId, isMainDisabled)}
                 ${genreWarning}
             `;
             tr.appendChild(mainCell);
@@ -294,7 +348,8 @@ document.addEventListener('DOMContentLoaded', function () {
             }
 
             const mainCell = document.createElement('td');
-            mainCell.innerHTML = createRoleDropdown('main', p.id, mainRoleId);
+            const isMainDisabled = !!castingData.is_casting_validated;
+            mainCell.innerHTML = createRoleDropdown('main', p.id, mainRoleId, isMainDisabled);
             tr.appendChild(mainCell);
 
             // Proposals
@@ -320,7 +375,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // Create ROLE dropdown (for Participants tab)
-    function createRoleDropdown(proposalId, participantId, selectedRoleId) {
+    function createRoleDropdown(proposalId, participantId, selectedRoleId, isDisabled = false) {
         let options = '<option value="">-- Aucun rôle --</option>';
 
         // Create map of assigned roles in this proposal to exclude them
@@ -349,14 +404,15 @@ document.addEventListener('DOMContentLoaded', function () {
         return `
             <select class="form-select form-select-sm role-select" 
                 data-proposal-id="${proposalId}" 
-                data-participant-id="${participantId}">
+                data-participant-id="${participantId}"
+                ${isDisabled ? 'disabled' : ''}>
                 ${options}
             </select>
         `;
     }
 
     // Create assignment dropdown HTML (for Roles tab)
-    function createAssignmentDropdown(proposalId, roleId, roleType, selectedParticipantId) {
+    function createAssignmentDropdown(proposalId, roleId, roleType, selectedParticipantId, isDisabled = false) {
         let options = '<option value="">-- Non attribué --</option>';
 
         // Get participants already assigned in this proposal (exclude from list)
@@ -386,7 +442,8 @@ document.addEventListener('DOMContentLoaded', function () {
         return `
         <select class="form-select form-select-sm assignment-select" 
             data-proposal-id="${proposalId}" 
-            data-role-id="${roleId}">
+            data-role-id="${roleId}"
+            ${isDisabled ? 'disabled' : ''}>
             ${options}
         </select>
     `;
@@ -602,6 +659,10 @@ document.addEventListener('DOMContentLoaded', function () {
             autoAssignBtn.parentNode.replaceChild(newAutoBtn, autoAssignBtn);
 
             newAutoBtn.addEventListener('click', function () {
+                if (castingData.is_casting_validated) {
+                    alert('Modification impossible : le casting est validé.');
+                    return;
+                }
                 if (confirm('Voulez-vous lancer l\'attribution automatique optimale (Algorithme Hongrois) ?\nCela remplacera les attributions actuelles de la colonne principale basee sur les scores.')) {
                     const btnHtml = this.innerHTML;
                     this.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Calcul...';
@@ -657,11 +718,9 @@ document.addEventListener('DOMContentLoaded', function () {
                     .then(response => response.json())
                     .then(data => {
                         if (data.success) {
-                            if (data.is_casting_validated) {
-                                validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
-                            } else {
-                                validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
-                            }
+                            // Update local state and trigger full re-render
+                            castingData.is_casting_validated = !!data.is_casting_validated;
+                            renderCastingTable();
                         } else {
                             this.checked = !this.checked;
                             alert('Erreur lors de la mise à jour');
@@ -735,8 +794,18 @@ document.addEventListener('DOMContentLoaded', function () {
             validationSwitch.checked = !!castingData.is_casting_validated;
             if (castingData.is_casting_validated) {
                 validationLabel.innerHTML = '<span class="badge bg-success">Validé</span>';
+                // Disable reset and auto-assign buttons
+                const resetBtn = document.getElementById('reset-main-btn');
+                if (resetBtn) resetBtn.disabled = true;
+                const autoBtn = document.getElementById('auto-assign-btn');
+                if (autoBtn) autoBtn.disabled = true;
             } else {
                 validationLabel.innerHTML = '<span class="badge bg-secondary">Non-validé</span>';
+                // Re-enable reset and auto-assign buttons
+                const resetBtn = document.getElementById('reset-main-btn');
+                if (resetBtn) resetBtn.disabled = false;
+                const autoBtn = document.getElementById('auto-assign-btn');
+                if (autoBtn) autoBtn.disabled = false;
             }
         }
     }
