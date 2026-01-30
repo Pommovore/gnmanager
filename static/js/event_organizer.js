@@ -45,13 +45,22 @@ document.addEventListener('DOMContentLoaded', function () {
         return new bootstrap.Tooltip(tooltipTriggerEl);
     });
 
-    // Activate tab from URL hash (for redirect after role creation/update)
-    const hash = window.location.hash;
-    if (hash) {
-        const tabTrigger = document.querySelector('[data-bs-toggle="list"][href="' + hash + '"]');
-        if (tabTrigger) {
-            const tab = new bootstrap.Tab(tabTrigger);
-            tab.show();
+    // Activate tab from URL hash (for redirect after role creation/update or sidebar clicks)
+    function activateTabFromHash() {
+        const hash = window.location.hash;
+        if (hash) {
+            // Find tab trigger by href (handles both #hash and full_url#hash)
+            const tabTrigger = document.querySelector('[data-bs-toggle="list"][href="' + hash + '"]');
+            if (tabTrigger) {
+                const tab = new bootstrap.Tab(tabTrigger);
+                tab.show();
+            }
         }
     }
+
+    // Initial activation
+    activateTabFromHash();
+
+    // Activation on hash change (useful if user clicks sidebar link on same page)
+    window.addEventListener('hashchange', activateTabFromHash);
 });

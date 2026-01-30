@@ -12,6 +12,7 @@ Ce module définit tous les modèles de la base de données:
 
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
+from sqlalchemy.orm import validates
 from datetime import datetime
 
 db = SQLAlchemy()
@@ -42,6 +43,11 @@ class User(UserMixin, db.Model):
     age = db.Column(db.Integer)
     genre = db.Column(db.String(20))
     avatar_url = db.Column(db.String(200))
+    
+    # Nouveaux champs de contact
+    phone = db.Column(db.String(20))
+    discord = db.Column(db.String(100))
+    facebook = db.Column(db.String(200))
     
     # Champs RBAC (Role-Based Access Control)
     role = db.Column(db.String(20), default='user')  # createur, sysadmin, user
@@ -118,6 +124,10 @@ class Event(db.Model):
     # Format: [{"name": "PJ Standard", "amount": 50}, {"name": "PJ Réduit", "amount": 30}]
     paf_config = db.Column(db.Text, default='[]')
     
+    # Moyens de paiement autorisés (JSON)
+    # Format: ["Helloasso", "PayPal", "Espèces"]
+    payment_methods = db.Column(db.Text, default='["Helloasso"]')
+    
     # Nombre maximum de participants
     max_pjs = db.Column(db.Integer, default=50)
     max_pnjs = db.Column(db.Integer, default=10)
@@ -125,6 +135,7 @@ class Event(db.Model):
     
     # Casting validation status
     is_casting_validated = db.Column(db.Boolean, default=False)
+
     
     # Relations
     links = db.relationship('EventLink', backref='event', cascade='all, delete-orphan')
@@ -188,6 +199,19 @@ class Role(db.Model):
     google_doc_url = db.Column(db.String(255))
     pdf_url = db.Column(db.String(255))
     
+    @validates('type')
+    def validate_type(self, key, value):
+        """Assure que le type est normalisé (Organisateur, PJ, PNJ)."""
+        if value:
+            v_lower = value.lower()
+            if v_lower == 'organisateur':
+                return 'Organisateur'
+            if v_lower == 'pj':
+                return 'PJ'
+            if v_lower == 'pnj':
+                return 'PNJ'
+        return value
+
     # Relation pour obtenir facilement le participant assigné
     assigned_participant = db.relationship('Participant', foreign_keys=[assigned_participant_id], backref='assigned_role_ref')
     
@@ -212,8 +236,8 @@ class Participant(db.Model):
         paf_status: Statut PAF - Participation Aux Frais (non versée/partielle/versée/erreur)
         payment_method: Méthode de paiement
         payment_amount: Montant payé
-        payment_comment: Commentaire sur le paiement
-        comment: Commentaire général
+        global_comment: Commentaire général (ex: régime alimentaire, notes internes)
+        comment: Commentaire (obsolète/interne)
         custom_image: Image personnalisée du participant
     """
     id = db.Column(db.Integer, primary_key=True)
@@ -235,10 +259,49 @@ class Participant(db.Model):
     
     payment_method = db.Column(db.String(50))
     payment_amount = db.Column(db.Float, default=0.0)
-    payment_comment = db.Column(db.Text)
+    global_comment = db.Column(db.Text)
     comment = db.Column(db.Text)
     custom_image = db.Column(db.String(200))
+    info_payement = db.Column(db.Text)
     
+    # Coordonnées spécifiques à l'événement (copiées depuis User lors de l'inscription)
+    participant_phone = db.Column(db.String(20))
+    participant_discord = db.Column(db.String(100))
+    participant_facebook = db.Column(db.String(200))
+    
+    # Flags de consentement pour partager les coordonnées avec les organisateurs
+    share_phone = db.Column(db.Boolean, default=True)
+    share_discord = db.Column(db.Boolean, default=True)
+    share_facebook = db.Column(db.Boolean, default=True)
+    
+    @property
+    def is_organizer(self):
+        """Vérifie si le participant est un organisateur (insensible à la casse)."""
+        return self.type and self.type.lower() == 'organisateur'
+        
+    @property
+    def is_pj(self):
+        """Vérifie si le participant est un PJ (insensible à la casse)."""
+        return self.type and self.type.lower() == 'pj'
+        
+    @property
+    def is_pnj(self):
+        """Vérifie si le participant est un PNJ (insensible à la casse)."""
+        return self.type and self.type.lower() == 'pnj'
+
+    @validates('type')
+    def validate_type(self, key, value):
+        """Assure que le type est normalisé (Organisateur, PJ, PNJ)."""
+        if value:
+            v_lower = value.lower()
+            if v_lower == 'organisateur':
+                return 'Organisateur'
+            if v_lower == 'pj':
+                return 'PJ'
+            if v_lower == 'pnj':
+                return 'PNJ'
+        return value
+
     # Database indexes for foreign keys (improves query performance)
     __table_args__ = (
         db.Index('idx_participant_event', 'event_id'),

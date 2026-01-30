@@ -27,15 +27,15 @@
     {% set row_class = "list-group-item-secondary" %}
     {% set badge_class = "bg-light text-dark border" %}
     {% set badge_text = participation.type ~ " (En Attente)" %}
-    {% elif participation.type == 'organisateur' or participation.type == 'Organisateur' %}
+    {% elif participation.is_organizer %}
     {% set row_class = "list-group-item-danger" %}
     {% set badge_class = "bg-danger" %}
     {% set badge_text = "Organisateur" %}
-    {% elif participation.type == 'PJ' %}
+    {% elif participation.is_pj %}
     {% set row_class = "list-group-item-success" %}
     {% set badge_class = "bg-success" %}
     {% set badge_text = "PJ" %}
-    {% elif participation.type == 'PNJ' %}
+    {% elif participation.is_pnj %}
     {% set row_class = "list-group-item-primary" %}
     {% set badge_class = "bg-primary" %}
     {% set badge_text = "PNJ" %}

@@ -139,6 +139,24 @@ class TestEventDetailAndUpdate:
         # Au minimum, vérifier que la structure a été mise à jour
         assert 'PJ' in config or 'PNJ' in config or 'Organisateur' in config
 
+    def test_regenerate_secret_as_organizer(self, client, sample_event, user_creator, db):
+        """Test de régénération du webhook_secret par un organisateur."""
+        from tests.conftest import login
+        login(client, 'creator@test.com', 'creator123')
+        
+        old_secret = sample_event.webhook_secret
+        
+        response = client.post(f'/event/{sample_event.id}/regenerate_secret')
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['success'] is True
+        assert data['new_secret'] != old_secret
+        
+        # Vérifier en base
+        db.session.refresh(sample_event)
+        assert sample_event.webhook_secret == data['new_secret']
+
 
 class TestEventJoin:
     """Tests d'inscription à un événement."""

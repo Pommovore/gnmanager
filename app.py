@@ -244,6 +244,14 @@ def create_app(test_config=None):
              
         return dict(app_version=version)
     
+    @app.template_filter('from_json')
+    def from_json_filter(s):
+        import json
+        try:
+            return json.loads(s) if s else None
+        except (ValueError, TypeError, json.JSONDecodeError):
+            return None
+    
     # Error handlers
     @app.errorhandler(404)
     def page_not_found(e):

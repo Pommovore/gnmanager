@@ -1,0 +1,90 @@
+<!-- Modals pour édition des coordonnées -->
+{% if participant %}
+<!-- Modal Facebook -->
+<div class="modal fade" id="editFacebookModal" tabindex="-1" aria-labelledby="editFacebookLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editFacebookLabel">
+                    <i class="bi bi-facebook me-2"></i>Modifier mon Facebook
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form action="{{ url_for('participant.update_contact', event_id=event.id, participant_id=participant.id) }}"
+                method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="field" value="facebook">
+                <div class="modal-body">
+                    <label for="facebook_value" class="form-label">URL de votre profil Facebook</label>
+                    <input type="text" class="form-control" id="facebook_value" name="value"
+                        value="{{ participant.participant_facebook or '' }}"
+                        placeholder="https://facebook.com/votreprofile">
+                    <div class="form-text">Laissez vide pour ne pas partager cette information</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Discord -->
+<div class="modal fade" id="editDiscordModal" tabindex="-1" aria-labelledby="editDiscordLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editDiscordLabel">
+                    <i class="bi bi-discord me-2"></i>Modifier mon Discord
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form action="{{ url_for('participant.update_contact', event_id=event.id, participant_id=participant.id) }}"
+                method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="field" value="discord">
+                <div class="modal-body">
+                    <label for="discord_value" class="form-label">Nom d'utilisateur Discord</label>
+                    <input type="text" class="form-control" id="discord_value" name="value"
+                        value="{{ participant.participant_discord or '' }}" placeholder="username#1234">
+                    <div class="form-text">Laissez vide pour ne pas partager cette information</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Téléphone -->
+<div class="modal fade" id="editPhoneModal" tabindex="-1" aria-labelledby="editPhoneLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="editPhoneLabel">
+                    <i class="bi bi-smartphone me-2"></i>Modifier mon Téléphone
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Fermer"></button>
+            </div>
+            <form action="{{ url_for('participant.update_contact', event_id=event.id, participant_id=participant.id) }}"
+                method="POST">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                <input type="hidden" name="field" value="phone">
+                <div class="modal-body">
+                    <label for="phone_value" class="form-label">Numéro de téléphone</label>
+                    <input type="tel" class="form-control" id="phone_value" name="value"
+                        value="{{ participant.participant_phone or '' }}" placeholder="+33 6 12 34 56 78">
+                    <div class="form-text">Laissez vide pour ne pas partager cette information</div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Enregistrer</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}

@@ -28,4 +28,5 @@ dependencies = [
     "scipy>=1.15.0",
     "numpy>=2.2.0",
     "markdown>=3.10.1",
+    "flask-caching>=2.3.1",
 ]

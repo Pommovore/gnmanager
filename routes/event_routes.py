@@ -126,13 +126,23 @@ def detail(event_id):
     # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
-    is_organizer = participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower() and participant.registration_status == RegistrationStatus.VALIDATED.value
+    is_organizer = participant and participant.is_organizer and participant.registration_status == RegistrationStatus.VALIDATED.value
     groups_config = json.loads(event.groups_config or '{}')
 
     # Calcul des compteurs de participants (hors rejetés)
-    count_pjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
-    count_pnjs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.PNJ.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
-    count_orgs = Participant.query.filter_by(event_id=event.id, type=ParticipantType.ORGANISATEUR.value).filter(Participant.registration_status != RegistrationStatus.REJECTED.value).count()
+    from sqlalchemy import func
+    count_pjs = Participant.query.filter_by(event_id=event.id).filter(
+        func.lower(Participant.type) == ParticipantType.PJ.value.lower(),
+        Participant.registration_status != RegistrationStatus.REJECTED.value
+    ).count()
+    count_pnjs = Participant.query.filter_by(event_id=event.id).filter(
+        func.lower(Participant.type) == ParticipantType.PNJ.value.lower(),
+        Participant.registration_status != RegistrationStatus.REJECTED.value
+    ).count()
+    count_orgs = Participant.query.filter_by(event_id=event.id).filter(
+        func.lower(Participant.type) == ParticipantType.ORGANISATEUR.value.lower(),
+        Participant.registration_status != RegistrationStatus.REJECTED.value
+    ).count()
     
     # Récupérer les rôles de l'événement avec eager loading des assignments pour la modale de suppression
     roles = Role.query.filter_by(event_id=event.id)\
@@ -290,6 +300,16 @@ def update_general(event_id):
                     pass
         event.paf_config = json.dumps(paf_config)
         
+        # Configuration des moyens de paiement
+        payment_methods_raw = request.form.get('payment_methods', '').strip()
+        if payment_methods_raw:
+            # Parse comma-separated list
+            methods = [m.strip() for m in payment_methods_raw.split(',') if m.strip()]
+            event.payment_methods = json.dumps(methods)
+        elif payment_methods_raw == '':
+            # Si le champ est vide, garder au moins Helloasso
+            event.payment_methods = json.dumps(['Helloasso'])
+        
         # Checkbox handling: presence means True
         event.google_form_active = 'google_form_active' in request.form
              
@@ -310,6 +330,40 @@ def update_general(event_id):
         flash('Erreur de format de date. Veuillez utiliser le format AAAA-MM-JJ.', 'danger')
         
     return redirect(url_for('event.detail', event_id=event.id))
+
+
+@event_bp.route('/event/<int:event_id>/regenerate_secret', methods=['POST'])
+@login_required
+@organizer_required
+def regenerate_secret(event_id):
+    """
+    Régénère le webhook_secret d'un événement.
+    
+    Accès réservé aux organisateurs.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    import secrets
+    new_secret = secrets.token_hex(16).upper()
+    event.webhook_secret = new_secret
+    
+    # Log deletion/update
+    log = ActivityLog(
+        action_type=ActivityLogType.EVENT_UPDATE.value,
+        user_id=current_user.id,
+        event_id=event.id,
+        details=json.dumps({
+            'updated_fields': 'webhook_secret (regenerated)',
+            'event_name': event.name
+        })
+    )
+    db.session.add(log)
+    db.session.commit()
+    
+    return jsonify({
+        'success': True,
+        'new_secret': new_secret
+    })
 
 
 @event_bp.route('/event/<int:event_id>/update_status', methods=['POST'])
@@ -523,6 +577,11 @@ def join(event_id):
         comment = ""
     
     try:
+        # Récupérer les préférences de partage (par défaut True)
+        share_phone = request.form.get('share_phone', 'on') == 'on'
+        share_discord = request.form.get('share_discord', 'on') == 'on'
+        share_facebook = request.form.get('share_facebook', 'on') == 'on'
+        
         # Création et sauvegarde de la participation
         participant = Participant(
             event_id=event.id, 
@@ -530,7 +589,15 @@ def join(event_id):
             type=registration_type,
             registration_status=status,
             comment=comment,
-            paf_status='non versée'
+            paf_status='non versée',
+            # Copier les coordonnées du User vers le Participant
+            participant_phone=current_user.phone if share_phone else None,
+            participant_discord=current_user.discord if share_discord else None,
+            participant_facebook=current_user.facebook if share_facebook else None,
+            # Flags de consentement
+            share_phone=share_phone,
+            share_discord=share_discord,
+            share_facebook=share_facebook
         )
         db.session.add(participant)
         
@@ -683,9 +750,6 @@ def casting_data(event_id):
             continue
             
         p_type = p.type or 'Autre'
-        # Normalize type casing for consistency
-        if p_type == 'organisateur':
-            p_type = 'Organisateur'
         if p_type not in participants_by_type:
             participants_by_type[p_type] = []
         participants_by_type[p_type].append({
@@ -733,7 +797,7 @@ def casting_data(event_id):
         'scores': scores,
         'is_casting_validated': event.is_casting_validated or False,
         'groups_config': json.loads(event.groups_config) if event.groups_config else {},
-        'roles': [{'id': r.id, 'name': r.name, 'type': 'Organisateur' if getattr(r, 'type', None) == 'organisateur' else getattr(r, 'type', None), 'genre': (getattr(r, 'genre', None) or '').strip(), 'group': getattr(r, 'group', None)} for r in roles]
+        'roles': [{'id': r.id, 'name': r.name, 'type': r.type, 'genre': (getattr(r, 'genre', None) or '').strip(), 'group': getattr(r, 'group', None)} for r in roles]
     })
 
 

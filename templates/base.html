@@ -152,6 +152,26 @@
                                 </div>
                             </div>
 
+                            <hr class="my-4">
+                            <h6 class="mb-3"><i class="bi bi-person-lines-fill me-2"></i>Coordonnées de Contact</h6>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label for="phone" class="form-label">Téléphone</label>
+                                    <input type="text" class="form-control" id="phone" name="phone"
+                                        value="{{ current_user.phone or '' }}" placeholder="+33 6 12 34 56 78">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label for="discord" class="form-label">Discord</label>
+                                    <input type="text" class="form-control" id="discord" name="discord"
+                                        value="{{ current_user.discord or '' }}" placeholder="username#1234">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label for="facebook" class="form-label">Facebook</label>
+                                <input type="text" class="form-control" id="facebook" name="facebook"
+                                    value="{{ current_user.facebook or '' }}" placeholder="https://facebook.com/...">
+                            </div>
+
                             <div class="mb-3">
                                 <label for="avatar" class="form-label">Avatar</label>
                                 {% if current_user.avatar_path %}

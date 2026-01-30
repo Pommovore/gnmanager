@@ -53,7 +53,119 @@ isateurs.
         ('Gestion des Participants', '#')
     ]
         
-    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs)
+    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs, is_organizer=True)
+
+
+@participant_bp.route('/event/<int:event_id>/participants/export')
+@login_required
+@organizer_required
+def export_participants(event_id):
+    """
+    Exporte tous les participants d'un événement en CSV avec toutes les données visibles.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # Récupérer tous les participants avec leurs users et rôles
+    participants = Participant.query.filter_by(event_id=event.id)\
+        .options(joinedload(Participant.user), joinedload(Participant.role)).all()
+    
+    # Créer le CSV en mémoire
+    output = io.StringIO()
+    writer = csv.writer(output)
+    
+    # En-têtes
+    headers = [
+        'Nom', 'Prénom', 'Email', 'Age', 'Genre',
+        'Type', 'Groupe', 'Statut Inscription',
+        'Téléphone', 'Discord', 'Facebook',
+        'Rôle Assigné',
+        'Statut PAF', 'Type PAF', 'Montant Versé', 'Moyen Paiement', 'Montant Dû',
+        'Commentaire Général', 'Info Paiement'
+    ]
+    writer.writerow(headers)
+    
+    # Données
+    for p in participants:
+        # Calculer montant dû basé sur le type PAF
+        paf_config = json.loads(event.paf_config or '[]')
+        due_amount = 0.0
+        if p.paf_type:
+            for config in paf_config:
+                if config.get('name') == p.paf_type:
+                    due_amount = float(config.get('amount', 0))
+                    break
+        
+        row = [
+            p.user.nom or '',
+            p.user.prenom or '',
+            p.user.email or '',
+            p.user.age or '',
+            p.user.genre or '',
+            p.type or '',
+            p.group or '',
+            p.registration_status or '',
+            # Contacts (seulement si partagés)
+            p.participant_phone if p.share_phone else '',
+            p.participant_discord if p.share_discord else '',
+            p.participant_facebook if p.share_facebook else '',
+            # Rôle
+            p.role.name if p.role else '',
+            # PAF
+            p.paf_status or '',
+            p.paf_type or '',
+            p.payment_amount or 0.0,
+            p.payment_method or '',
+            due_amount,
+            # Commentaires
+            p.global_comment or '',
+            p.info_payement or ''
+        ]
+        writer.writerow(row)
+    
+    # Préparer la réponse
+    output.seek(0)
+    from flask import make_response
+    response = make_response(output.getvalue())
+    response.headers['Content-Type'] = 'text/csv; charset=utf-8'
+    response.headers['Content-Disposition'] = f'attachment; filename=participants_{event.name.replace(" ", "_")}_{datetime.datetime.now().strftime("%Y%m%d")}.csv'
+    
+    return response
+
+
+@participant_bp.route('/event/<int:event_id>/participant/<int:participant_id>/update_contact', methods=['POST'])
+@login_required
+def update_contact(event_id, participant_id):
+    """
+    Met à jour un champ de contact d'un participant pour un événement spécifique.
+    
+    Permet aux utilisateurs de modifier leurs coordonnées (Facebook, Discord, Téléphone)
+    pour un événement particulier.
+    """
+    participant = Participant.query.get_or_404(participant_id)
+    
+    # Vérifier que l'utilisateur est propriétaire de cette participation
+    if participant.user_id != current_user.id:
+        flash('Accès non autorisé', 'danger')
+        return redirect(url_for('event.detail', event_id=event_id))
+    
+    # Récupérer le champ à modifier et la nouvelle valeur
+    field = request.form.get('field')
+    value = request.form.get('value', '').strip()
+    
+    # Mise à jour selon le champ
+    if field == 'facebook':
+        participant.participant_facebook = value if value else None
+    elif field == 'discord':
+        participant.participant_discord = value if value else None
+    elif field == 'phone':
+        participant.participant_phone = value if value else None
+    else:
+        flash('Champ invalide', 'danger')
+        return redirect(url_for('event.detail', event_id=event_id))
+    
+    db.session.commit()
+    flash('Coordonnées mises à jour', 'success')
+    return redirect(url_for('event.detail', event_id=event_id))
 
 
 @participant_bp.route('/event/<int:event_id>/participants/bulk_update', methods=['POST'])
@@ -131,6 +243,11 @@ def update(event_id, p_id):
     p.payment_method = request.form.get('payment_method')
     p.comment = request.form.get('comment')
     
+    # Mise à jour des informations de contact de l'utilisateur
+    p.user.discord = request.form.get('discord')
+    p.user.phone = request.form.get('phone')
+    p.user.facebook = request.form.get('facebook')
+    
     # Log individual update
     log = ActivityLog(
         user_id=current_user.id,
@@ -182,6 +299,76 @@ def update_paf(event_id, p_id):
     
     flash(f'Type de PAF mis à jour pour {p.user.email}.', 'success')
     return redirect(url_for('event.detail', event_id=event_id) + '#list-paf')
+
+
+@participant_bp.route('/event/<int:event_id>/participant/<int:p_id>/update_paf_inline', methods=['POST'])
+@login_required
+@organizer_required
+def update_paf_inline(event_id, p_id):
+    """
+    Met à jour les informations de PAF d'un participant via AJAX.
+    """
+    data = request.json
+    p = Participant.query.get_or_404(p_id)
+    event = Event.query.get_or_404(event_id)
+    
+    if p.event_id != event_id:
+        return jsonify({'success': False, 'error': 'Participant invalide'}), 400
+        
+    if 'payment_amount' in data:
+        try:
+            p.payment_amount = float(data['payment_amount'])
+        except (ValueError, TypeError):
+            pass
+    if 'payment_method' in data:
+        p.payment_method = data['payment_method']
+    if 'paf_type' in data:
+        p.paf_type = data['paf_type']
+    if 'info_payement' in data:
+        p.info_payement = data['info_payement']
+    if 'global_comment' in data:
+        p.global_comment = data['global_comment']
+        
+    # Recalculer le statut PAF si nécessaire
+    # Si le statut est 'dispensé(e)' ou 'erreur', on le garde sauf si le montant change vers un montant positif
+    recalc_status = True
+    if p.paf_status in ['dispensé(e)', 'erreur'] and ('payment_amount' not in data or float(data.get('payment_amount', 0)) == 0):
+        recalc_status = False
+        
+    if recalc_status:
+        paf_config = json.loads(event.paf_config or '[]')
+        paf_map = {item['name']: float(item['amount']) for item in paf_config}
+        due = paf_map.get(p.paf_type, 0.0) if p.paf_type else 0.0
+        
+        if p.payment_amount >= due and due > 0:
+            p.paf_status = 'versée'
+        elif p.payment_amount > 0:
+            p.paf_status = 'partielle'
+        else:
+            p.paf_status = 'non versée'
+            
+    db.session.commit()
+    
+    # Recalculer due pour le retour AJAX
+    paf_config = json.loads(event.paf_config or '[]')
+    paf_map = {item['name']: float(item['amount']) for item in paf_config}
+    due = paf_map.get(p.paf_type, 0.0) if p.paf_type else 0.0
+    remaining = due - p.payment_amount
+    
+    return jsonify({
+        'success': True,
+        'paf_status': p.paf_status,
+        'paf_status_cap': p.paf_status.capitalize(),
+        'payment_amount': p.payment_amount,
+        'payment_method': p.payment_method,
+        'paf_type': p.paf_type,
+        'due': due,
+        'remaining': remaining,
+        'info_payement_empty': not bool(p.info_payement),
+        'info_payement': p.info_payement,
+        'global_comment_empty': not bool(p.global_comment),
+        'global_comment': p.global_comment
+    })
 
 
 @participant_bp.route('/event/<int:event_id>/participant/<int:p_id>/change-status', methods=['POST'])
@@ -253,7 +440,7 @@ def api_assign():
     # Security check (organizer)
     event = Event.query.get_or_404(event_id)
     me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
-    if not me or me.type != ParticipantType.ORGANISATEUR.value:
+    if not me or not me.is_organizer:
         return jsonify({'error': 'Unauthorized'}), 403
         
     participant = Participant.query.get_or_404(participant_id)
@@ -294,7 +481,7 @@ def api_unassign():
     
     event = Event.query.get_or_404(event_id)
     me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
-    if not me or me.type != ParticipantType.ORGANISATEUR.value:
+    if not me or not me.is_organizer:
         return jsonify({'error': 'Unauthorized'}), 403
 
     if role_id:

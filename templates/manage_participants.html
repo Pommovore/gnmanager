@@ -1,265 +1,460 @@
 {% extends "base.html" %}
 {% block content %}
-<div class="container-fluid mt-3">
-    <div class="d-flex justify-content-between align-items-center mb-3">
-        <h3>Gestion des Participants - {{ event.name }}</h3>
-        <div>
-            <button type="button" class="btn btn-success me-2" data-bs-toggle="modal" data-bs-target="#exportModal">
-                <i class="bi bi-download"></i> Exporter
-            </button>
-            <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary">
-                <i class="bi bi-arrow-left"></i> Retour à l'événement
-            </a>
-        </div>
-    </div>
+<div class="row">
+    {# Sidebar navigation #}
+    {% include 'partials/event_sidebar.html' %}
 
-    <div class="table-responsive">
-        <table class="table table-sm table-hover table-bordered small">
-            <thead class="table-dark">
-                <tr>
-                    <th class="text-center" style="width: 15%">Participant</th>
-                    <th class="text-center" style="width: 15%">Email</th>
-                    <th class="text-center" style="width: 10%">Statut</th>
-                    <th class="text-center" style="width: 10%">Type</th>
-                    <th class="text-center" style="width: 10%">Groupe</th>
-                    <th class="text-center" style="width: 10%">PAF</th>
-                    <th class="text-center" style="width: 25%">Actions</th>
-                    <th class="text-center" style="width: 5%"></th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for p in participants %}
-                {% set row_class = "" %}
-                {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
-                {% set row_class = "table-warning" %}
-                {% elif p.type == 'organisateur' %}
-                {% set row_class = "table-secondary" %}
-                {% elif p.type == 'PJ' %}
-                {% set row_class = "table-info" %}
-                {% elif p.type == 'PNJ' %}
-                {% set row_class = "table-warning" %}
-                {% endif %}
+    {# Content Area #}
+    <div class="col-md-10">
+        <div class="container-fluid mt-3">
+            <div class="d-flex justify-content-between align-items-center mb-3 flex-column flex-md-row">
+                <h3 class="mb-3 mb-md-0">Gestion des Participants - {{ event.name }}</h3>
+                <div class="d-flex flex-column flex-md-row gap-2" style="min-width: 200px;">
+                    <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
+                        class="btn btn-success flex-fill">
+                        <i class="bi bi-download"></i> Exporter CSV
+                    </a>
+                    <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary flex-fill">
+                        <i class="bi bi-arrow-left"></i> Retour à l'événement
+                    </a>
+                </div>
+            </div>
 
-                <tr class="{{ row_class }}">
-                    <!-- Participant -->
-                    <td class="align-middle">
-                        <strong>{{ p.user.nom }} {{ p.user.prenom }}</strong>
-                    </td>
-
-                    <!-- Email -->
-                    <td class="align-middle">
-                        <span class="badge bg-secondary">{{ p.user.email }}</span>
-                    </td>
-
-                    <!-- Statut (READ-ONLY) -->
-                    <td class="align-middle text-center">
-                        {% if p.registration_status == 'Validé' %}
-                        <span class="badge bg-success">✓ Validé</span>
-                        {% elif p.registration_status == 'Rejeté' %}
-                        <span class="badge bg-danger">✗ Rejeté</span>
-                        {% elif p.registration_status == 'En attente' %}
-                        <span class="badge bg-info">⏳ Attente</span>
-                        {% else %}
-                        <span class="badge bg-warning text-dark">⚠ À valider</span>
-                        {% endif %}
-                    </td>
-
-                    <!-- Type (READ-ONLY) -->
-                    <td class="align-middle text-center">
-                        {% set genre = p.user.genre[0] if p.user.genre else '?' %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover table-bordered small">
+                    <thead class="table-dark">
+                        <tr>
+                            <th class="text-center" style="width: 15%">Participant</th>
+                            <th class="text-center" style="width: 15%">Contact</th>
+                            <th class="text-center" style="width: 10%">Statut</th>
+                            <th class="text-center" style="width: 10%">Type</th>
+                            <th class="text-center" style="width: 10%">Groupe</th>
+                            <th class="text-center" style="width: 10%">PAF</th>
+                            <th class="text-center" style="width: 25%">Actions</th>
+                            <th class="text-center" style="width: 5%"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for p in participants %}
+                        {% set row_class = "" %}
                         {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
-                        <span class="badge bg-light text-dark border">{{ p.type }} ({{ genre }}) (En Attente)</span>
-                        {% else %}
-                        {{ p.type }} ({{ genre }})
+                        {% set row_class = "table-warning" %}
+                        {% elif p.is_organizer %}
+                        {% set row_class = "table-secondary" %}
+                        {% elif p.is_pj %}
+                        {% set row_class = "table-info" %}
+                        {% elif p.is_pnj %}
+                        {% set row_class = "table-warning" %}
                         {% endif %}
-                    </td>
 
-                    <!-- Groupe (READ-ONLY) -->
-                    <td class="align-middle text-center">
-                        {{ p.group or 'Peu importe' }}
-                    </td>
+                        <tr class="{{ row_class }}">
+                            <!-- Participant -->
+                            <td class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <strong class="me-2">{{ p.user.nom }} {{ p.user.prenom }}</strong>
+                                    <button type="button"
+                                        class="btn btn-sm gc-btn {{ 'btn-outline-danger' if p.global_comment else 'btn-outline-primary' }}"
+                                        data-p-id="{{ p.id }}" data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
+                                        title="{{ p.global_comment or 'Aucun commentaire général' }}">
+                                        <i class="bi bi-info-circle"></i>
+                                    </button>
+                                </div>
+                            </td>
 
-                    <!-- PAF (READ-ONLY) -->
-                    <td class="align-middle text-center">
-                        {% if p.paf_status == 'versée' %}
-                        <span class="badge bg-success">Versée</span>
-                        {% elif p.paf_status == 'partielle' %}
-                        <span class="badge bg-warning text-dark">Partielle</span>
-                        {% elif p.paf_status == 'dispensé(e)' %}
-                        <span class="badge bg-info">Dispensé(e)</span>
-                        {% elif p.paf_status == 'erreur' %}
-                        <span class="badge bg-danger">Erreur</span>
-                        {% else %}
-                        <span class="badge bg-secondary">Non versée</span>
-                        {% endif %}
-                    </td>
+                            <!-- Contact -->
+                            <td class="align-middle">
+                                {% set discord_val = p.participant_discord or p.user.discord %}
+                                {% set facebook_val = p.participant_facebook or p.user.facebook %}
+                                {% set phone_val = p.participant_phone or p.user.phone %}
 
-                    <!-- Actions intelligentes -->
-                    <td class="align-middle">
-                        <div class="d-flex w-100 gap-1">
-                            {% if p.registration_status != 'Validé' %}
-                            <form method="POST"
-                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                class="flex-fill">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <input type="hidden" name="action" value="validate">
-                                <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
-                                    <i class="bi bi-check-circle"></i> Valider
+                                {% set show_discord = discord_val if p.share_discord else None %}
+                                {% set show_facebook = facebook_val if p.share_facebook else None %}
+                                {% set show_phone = phone_val if p.share_phone else None %}
+
+                                <div
+                                    style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: fit-content; margin: 0 auto;">
+                                    <!-- Email -->
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-envelope cursor-pointer contact-icon fw-bold text-primary"
+                                            title="{{ p.user.email }}"
+                                            onclick="copyToClipboard('{{ p.user.email }}', this)"
+                                            style="font-size: 1.1rem;"></i>
+                                    </div>
+
+                                    <!-- Discord -->
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-discord cursor-pointer contact-icon {{ 'text-primary' if show_discord else '' }}"
+                                            title="{{ show_discord or 'Non renseigné ou privé' }}"
+                                            onclick="{% if show_discord %}copyToClipboard('{{ show_discord }}', this){% endif %}"
+                                            style="font-size: 1.1rem; opacity: {{ 1 if show_discord else 0.3 }};"></i>
+                                    </div>
+
+                                    <!-- Facebook -->
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-facebook cursor-pointer contact-icon {{ 'text-primary' if show_facebook else '' }}"
+                                            title="{{ show_facebook or 'Non renseigné ou privé' }}"
+                                            onclick="{% if show_facebook %}copyToClipboard('{{ show_facebook }}', this){% endif %}"
+                                            style="font-size: 1.1rem; opacity: {{ 1 if show_facebook else 0.3 }};"></i>
+                                    </div>
+
+                                    <!-- Phone -->
+                                    <div class="d-flex justify-content-center">
+                                        <i class="bi bi-telephone cursor-pointer contact-icon {{ 'text-success' if show_phone else '' }}"
+                                            title="{{ show_phone or 'Non renseigné ou privé' }}"
+                                            onclick="{% if show_phone %}copyToClipboard('{{ show_phone }}', this){% endif %}"
+                                            style="font-size: 1.1rem; opacity: {{ 1 if show_phone else 0.3 }};"></i>
+                                    </div>
+                                </div>
+                            </td>
+
+                            <!-- Statut (READ-ONLY) -->
+                            <td class="align-middle text-center">
+                                {% if p.registration_status == 'Validé' %}
+                                <span class="badge bg-success">✓ Validé</span>
+                                {% elif p.registration_status == 'Rejeté' %}
+                                <span class="badge bg-danger">✗ Rejeté</span>
+                                {% elif p.registration_status == 'En attente' %}
+                                <span class="badge bg-info">⏳ Attente</span>
+                                {% else %}
+                                <span class="badge bg-warning text-dark">⚠ À valider</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Type (READ-ONLY) -->
+                            <td class="align-middle text-center">
+                                {% set genre = p.user.genre[0] if p.user.genre else '?' %}
+                                {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
+                                <span class="badge bg-light text-dark border">{{ p.type }} ({{ genre }}) (En
+                                    Attente)</span>
+                                {% else %}
+                                {{ p.type }} ({{ genre }})
+                                {% endif %}
+                            </td>
+
+                            <!-- Groupe (READ-ONLY) -->
+                            <td class="align-middle text-center">
+                                {{ p.group or 'Peu importe' }}
+                            </td>
+
+                            <!-- PAF (READ-ONLY) -->
+                            <td class="align-middle text-center">
+                                {% if p.paf_status == 'versée' %}
+                                <span class="badge bg-success">Versée</span>
+                                {% elif p.paf_status == 'partielle' %}
+                                <span class="badge bg-warning text-dark">Partielle</span>
+                                {% elif p.paf_status == 'dispensé(e)' %}
+                                <span class="badge bg-info">Dispensé(e)</span>
+                                {% elif p.paf_status == 'erreur' %}
+                                <span class="badge bg-danger">Erreur</span>
+                                {% else %}
+                                <span class="badge bg-secondary">Non versée</span>
+                                {% endif %}
+                            </td>
+
+                            <!-- Actions intelligentes -->
+                            <td class="align-middle">
+                                <div class="d-flex w-100 gap-1">
+                                    {% if p.registration_status != 'Validé' %}
+                                    <form method="POST"
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
+                                        class="flex-fill">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <input type="hidden" name="action" value="validate">
+                                        <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
+                                            <i class="bi bi-check-circle"></i> Valider
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if p.registration_status != 'En attente' %}
+                                    <form method="POST"
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
+                                        class="flex-fill">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <input type="hidden" name="action" value="pending">
+                                        <button type="submit" class="btn btn-sm btn-info w-100 py-1"
+                                            title="Mettre en attente">
+                                            <i class="bi bi-clock"></i> Attente
+                                        </button>
+                                    </form>
+                                    {% endif %}
+
+                                    {% if p.registration_status != 'Rejeté' %}
+                                    <form method="POST"
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
+                                        class="flex-fill">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <input type="hidden" name="action" value="reject">
+                                        <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
+                                            <i class="bi bi-x-circle"></i> Exclure
+                                        </button>
+                                    </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+
+                            <!-- Édition -->
+                            <td class="align-middle text-center">
+                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                    data-bs-target="#editModal{{ p.id }}" title="Éditer">
+                                    <i class="bi bi-gear-fill"></i>
                                 </button>
-                            </form>
-                            {% endif %}
+                            </td>
+                        </tr>
 
-                            {% if p.registration_status != 'En attente' %}
-                            <form method="POST"
-                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                class="flex-fill">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <input type="hidden" name="action" value="pending">
-                                <button type="submit" class="btn btn-sm btn-info w-100 py-1" title="Mettre en attente">
-                                    <i class="bi bi-clock"></i> Attente
-                                </button>
-                            </form>
-                            {% endif %}
-
-                            {% if p.registration_status != 'Rejeté' %}
-                            <form method="POST"
-                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                class="flex-fill">
-                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <input type="hidden" name="action" value="reject">
-                                <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
-                                    <i class="bi bi-x-circle"></i> Exclure
-                                </button>
-                            </form>
-                            {% endif %}
-                        </div>
-                    </td>
-
-                    <!-- Édition -->
-                    <td class="align-middle text-center">
-                        <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
-                            data-bs-target="#editModal{{ p.id }}" title="Éditer">
-                            <i class="bi bi-gear-fill"></i>
-                        </button>
-                    </td>
-                </tr>
-
-                <!-- Modal d'édition -->
-                <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
-                    <div class="modal-dialog">
-                        <div class="modal-content">
-                            <div class="modal-header">
-                                <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
-                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                        <!-- Modal d'édition -->
+                        <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
+                            <div class="modal-dialog">
+                                <div class="modal-content">
+                                    <div class="modal-header">
+                                        <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
+                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                    </div>
+                                    <form method="POST"
+                                        action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
+                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                        <div class="modal-body">
+                                            <div class="mb-3">
+                                                <label class="form-label">Email (lecture seule)</label>
+                                                <input type="text" class="form-control bg-light"
+                                                    value="{{ p.user.email }}" readonly>
+                                            </div>
+                                            <div class="row">
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Discord</label>
+                                                    <input type="text" name="discord" class="form-control"
+                                                        value="{{ p.user.discord or '' }}"
+                                                        placeholder="Ex: Pseudo#1234">
+                                                </div>
+                                                <div class="col-md-6 mb-3">
+                                                    <label class="form-label">Téléphone</label>
+                                                    <input type="text" name="phone" class="form-control"
+                                                        value="{{ p.user.phone or '' }}" placeholder="Ex: 0612345678">
+                                                </div>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Facebook (Lien Profil)</label>
+                                                <input type="text" name="facebook" class="form-control"
+                                                    value="{{ p.user.facebook or '' }}"
+                                                    placeholder="Ex: https://facebook.com/pseudo">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Type</label>
+                                                <select name="type" class="form-select" required>
+                                                    <option value="Organisateur" {% if p.is_organizer %}selected{% endif
+                                                        %}>
+                                                        Organisateur</option>
+                                                    <option value="PJ" {% if p.is_pj %}selected{% endif %}>PJ</option>
+                                                    <option value="PNJ" {% if p.is_pnj %}selected{% endif %}>PNJ
+                                                    </option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Groupe</label>
+                                                <select name="group" class="form-select" id="groupSelect{{p.id}}"
+                                                    data-participant-type="{{p.type}}">
+                                                    <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group
+                                                        or 'Peu
+                                                        importe' }}</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">PAF (Participation Aux Frais)</label>
+                                                <select name="paf_status" class="form-select">
+                                                    <option value="non versée" {% if p.paf_status=='non versée' or not
+                                                        p.paf_status %}selected{% endif %}>Non versée</option>
+                                                    <option value="partielle" {% if p.paf_status=='partielle'
+                                                        %}selected{% endif %}>Partielle</option>
+                                                    <option value="versée" {% if p.paf_status=='versée' %}selected{%
+                                                        endif %}>
+                                                        Versée</option>
+                                                    <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)'
+                                                        %}selected{% endif %}>
+                                                        Dispensé(e)</option>
+                                                    <option value="erreur" {% if p.paf_status=='erreur' %}selected{%
+                                                        endif %}>
+                                                        Erreur</option>
+                                                </select>
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Montant (€)</label>
+                                                <input type="number" step="0.01" name="payment_amount"
+                                                    class="form-control" value="{{ p.payment_amount }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Moyen de paiement</label>
+                                                <input type="text" name="payment_method" class="form-control"
+                                                    value="{{ p.payment_method or '' }}">
+                                            </div>
+                                            <div class="mb-3">
+                                                <label class="form-label">Commentaire</label>
+                                                <textarea name="comment" class="form-control"
+                                                    rows="3">{{ p.comment or '' }}</textarea>
+                                            </div>
+                                        </div>
+                                        <div class="modal-footer">
+                                            <button type="button" class="btn btn-secondary"
+                                                data-bs-dismiss="modal">Annuler</button>
+                                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                                        </div>
+                                    </form>
+                                </div>
                             </div>
-                            <form method="POST"
-                                action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
+                        </div>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Export Modal -->
+        <div class="modal fade" id="exportModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Exporter les participants</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Choisissez le format d'export :</p>
+                        <div class="d-grid gap-2">
+                            <form action="{{ url_for('participant.export_csv', event_id=event.id) }}" method="POST">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                <div class="modal-body">
-                                    <div class="mb-3">
-                                        <label class="form-label">Email (lecture seule)</label>
-                                        <input type="text" class="form-control" value="{{ p.user.email }}" disabled>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Type</label>
-                                        <select name="type" class="form-select" required>
-                                            <option value="organisateur" {% if p.type=='organisateur' %}selected{% endif
-                                                %}>Organisateur</option>
-                                            <option value="PJ" {% if p.type=='PJ' %}selected{% endif %}>PJ</option>
-                                            <option value="PNJ" {% if p.type=='PNJ' %}selected{% endif %}>PNJ
-                                            </option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Groupe</label>
-                                        <select name="group" class="form-select" id="groupSelect{{p.id}}"
-                                            data-participant-type="{{p.type}}">
-                                            <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group or 'Peu
-                                                importe' }}</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">PAF (Participation Aux Frais)</label>
-                                        <select name="paf_status" class="form-select">
-                                            <option value="non versée" {% if p.paf_status=='non versée' or not
-                                                p.paf_status %}selected{% endif %}>Non versée</option>
-                                            <option value="partielle" {% if p.paf_status=='partielle' %}selected{% endif
-                                                %}>Partielle</option>
-                                            <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
-                                                Versée</option>
-                                            <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)' %}selected{%
-                                                endif %}>
-                                                Dispensé(e)</option>
-                                            <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
-                                                Erreur</option>
-                                        </select>
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Montant (€)</label>
-                                        <input type="number" step="0.01" name="payment_amount" class="form-control"
-                                            value="{{ p.payment_amount }}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Moyen de paiement</label>
-                                        <input type="text" name="payment_method" class="form-control"
-                                            value="{{ p.payment_method or '' }}">
-                                    </div>
-                                    <div class="mb-3">
-                                        <label class="form-label">Commentaire</label>
-                                        <textarea name="comment" class="form-control"
-                                            rows="3">{{ p.comment or '' }}</textarea>
-                                    </div>
-                                </div>
-                                <div class="modal-footer">
-                                    <button type="button" class="btn btn-secondary"
-                                        data-bs-dismiss="modal">Annuler</button>
-                                    <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                </div>
+                                <button type="submit" class="btn btn-outline-success w-100 mb-2">
+                                    <i class="bi bi-file-earmark-spreadsheet"></i> Format CSV (Excel)
+                                </button>
+                            </form>
+
+                            <form action="{{ url_for('participant.export_google', event_id=event.id) }}" method="POST">
+                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                <button type="submit" class="btn btn-outline-primary w-100">
+                                    <i class="bi bi-google"></i> Google Sheets (Compte Google requis)
+                                </button>
                             </form>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
-</div>
-
-<!-- Export Modal -->
-<div class="modal fade" id="exportModal" tabindex="-1">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title">Exporter les participants</h5>
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
-            <div class="modal-body">
-                <p>Choisissez le format d'export :</p>
-                <div class="d-grid gap-2">
-                    <form action="{{ url_for('participant.export_csv', event_id=event.id) }}" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <button type="submit" class="btn btn-outline-success w-100 mb-2">
-                            <i class="bi bi-file-earmark-spreadsheet"></i> Format CSV (Excel)
-                        </button>
-                    </form>
+        </div>
 
-                    <form action="{{ url_for('participant.export_google', event_id=event.id) }}" method="POST">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <button type="submit" class="btn btn-outline-primary w-100">
-                            <i class="bi bi-google"></i> Google Sheets (Compte Google requis)
-                        </button>
-                    </form>
+        <!-- Modal Global Comment -->
+        <div class="modal fade" id="globalCommentModal" tabindex="-1" aria-labelledby="globalCommentModalLabel"
+            aria-hidden="true">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="globalCommentModalLabel">Commentaire général</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p>Participant : <span id="globalCommentParticipant" class="fw-bold"></span></p>
+                        <div class="mb-3">
+                            <label for="globalCommentTextarea" class="form-label">Note interne / Commentaire
+                                général</label>
+                            <textarea class="form-control" id="globalCommentTextarea" rows="4"></textarea>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="button" class="btn btn-primary" id="saveGlobalCommentBtn">Enregistrer</button>
+                    </div>
                 </div>
             </div>
         </div>
-    </div>
-</div>
 
-<!-- Groups Config Data (for JavaScript) -->
-<script id="groups-config-data" type="application/json">
+        <script>
+            function copyToClipboard(text, element) {
+                if (!text) return;
+                navigator.clipboard.writeText(text).then(() => {
+                    const originalTitle = element.title;
+                    element.title = "Copié !";
+                    const tooltip = bootstrap.Tooltip.getOrCreateInstance(element);
+                    tooltip.show();
+                    setTimeout(() => {
+                        element.title = originalTitle;
+                        tooltip.hide();
+                    }, 1000);
+                }).catch(err => {
+                    console.error('Erreur de copie :', err);
+                });
+            }
+
+            document.addEventListener('DOMContentLoaded', function () {
+                // Init tooltips
+                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
+                const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+                    return new bootstrap.Tooltip(tooltipTriggerEl)
+                });
+                const event_id = "{{ event.id }}";
+                const csrf_token = "{{ csrf_token() }}";
+
+                const gcModalEl = document.getElementById('globalCommentModal');
+                let gcModal = null;
+                if (gcModalEl) {
+                    gcModal = new bootstrap.Modal(gcModalEl);
+                }
+
+                let currentPId = null;
+
+                document.querySelectorAll('.gc-btn').forEach(btn => {
+                    btn.addEventListener('click', function () {
+                        currentPId = this.dataset.pId;
+                        document.getElementById('globalCommentParticipant').textContent = this.dataset.pName;
+                        document.getElementById('globalCommentTextarea').value = this.title === 'Aucun commentaire général' ? '' : this.title;
+                        if (gcModal) gcModal.show();
+                    });
+                });
+
+                const saveGcBtn = document.getElementById('saveGlobalCommentBtn');
+                if (saveGcBtn) {
+                    saveGcBtn.addEventListener('click', function () {
+                        const text = document.getElementById('globalCommentTextarea').value;
+
+                        fetch(`/event/${event_id}/participant/${currentPId}/update_paf_inline`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRFToken': csrf_token
+                            },
+                            body: JSON.stringify({ global_comment: text })
+                        })
+                            .then(response => response.json())
+                            .then(result => {
+                                if (result.success) {
+                                    const gcBtn = document.querySelector(`.gc-btn[data-p-id="${currentPId}"]`);
+                                    if (gcBtn) {
+                                        if (result.global_comment_empty) {
+                                            gcBtn.classList.remove('btn-outline-danger');
+                                            gcBtn.classList.add('btn-outline-primary');
+                                            gcBtn.title = 'Aucun commentaire général';
+                                        } else {
+                                            gcBtn.classList.remove('btn-outline-primary');
+                                            gcBtn.classList.add('btn-outline-danger');
+                                            gcBtn.title = result.global_comment;
+                                        }
+                                    }
+                                    if (gcModal) gcModal.hide();
+                                } else {
+                                    alert('Erreur: ' + (result.error || 'Inconnue'));
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error:', error);
+                                alert('Une erreur est survenue.');
+                            });
+                    });
+                }
+            });
+        </script>
+
+        <!-- Groups Config Data (for JavaScript) -->
+        <script id="groups-config-data" type="application/json">
     {{ groups_config | tojson }}
 </script>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/participants.css') }}">
-<script src="{{ url_for('static', filename='js/participants.js') }}"></script>
+        <link rel="stylesheet" href="{{ url_for('static', filename='css/participants.css') }}">
+        <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
+    </div> {# Close container-fluid #}
+</div> {# Close col-md-10 #}
+</div> {# Close row #}
 {% endblock %}

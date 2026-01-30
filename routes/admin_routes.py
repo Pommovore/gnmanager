@@ -139,6 +139,11 @@ def update_profile():
     current_user.age = request.form.get('age')
     current_user.genre = request.form.get('genre')
     
+    # Coordonnées de contact
+    current_user.phone = request.form.get('phone')
+    current_user.discord = request.form.get('discord')
+    current_user.facebook = request.form.get('facebook')
+    
     # Traitement de l'avatar
     if 'avatar' in request.files:
         file = request.files['avatar']

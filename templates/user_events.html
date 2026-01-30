@@ -66,11 +66,11 @@
                                 </a>
                             </td>
                             <td>
-                                {% if item.participation.type == 'organisateur' %}
+                                {% if item.participation.is_organizer %}
                                 <span class="badge bg-primary">Organisateur</span>
-                                {% elif item.participation.type == 'PJ' %}
+                                {% elif item.participation.is_pj %}
                                 <span class="badge bg-info">PJ</span>
-                                {% elif item.participation.type == 'PNJ' %}
+                                {% elif item.participation.is_pnj %}
                                 <span class="badge bg-secondary">PNJ</span>
                                 {% else %}
                                 <span class="badge bg-light text-dark">{{ item.participation.type }}</span>
