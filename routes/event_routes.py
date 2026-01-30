@@ -126,7 +126,7 @@ def detail(event_id):
     # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
-    is_organizer = participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower()
+    is_organizer = participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower() and participant.registration_status == RegistrationStatus.VALIDATED.value
     groups_config = json.loads(event.groups_config or '{}')
 
     # Calcul des compteurs de participants (hors rejetés)
@@ -585,7 +585,7 @@ def delete_event(event_id):
     # Vérification des permissions
     is_organizer = False
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
-    if participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower():
+    if participant and participant.type.lower() == ParticipantType.ORGANISATEUR.value.lower() and participant.registration_status == RegistrationStatus.VALIDATED.value:
         is_organizer = True
         
     if not (current_user.is_admin or is_organizer):

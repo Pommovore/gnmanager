@@ -90,7 +90,7 @@ class TestParticipantType:
     
     def test_participant_type_values(self):
         """Test des types de participants."""
-        assert ParticipantType.ORGANISATEUR.value == 'organisateur'
+        assert ParticipantType.ORGANISATEUR.value == 'Organisateur'
         assert ParticipantType.PJ.value == 'PJ'
         assert ParticipantType.PNJ.value == 'PNJ'
     
@@ -199,7 +199,7 @@ class TestHelperFunctions:
     def test_get_enum_values_participant_type(self):
         """Test de get_enum_values pour ParticipantType."""
         values = get_enum_values(ParticipantType)
-        assert 'organisateur' in values
+        assert 'Organisateur' in values
         assert 'PJ' in values
         assert 'PNJ' in values
     

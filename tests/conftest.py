@@ -166,7 +166,7 @@ def event_sample(db, user_creator):
     participant = Participant(
         event_id=event.id,
         user_id=user_creator.id,
-        type='organisateur',
+        type='Organisateur',  # Fixed: must match ParticipantType.ORGANISATEUR.value
         group='général',
         registration_status='Validé'
     )

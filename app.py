@@ -17,7 +17,7 @@ Usage:
 from flask import Flask, render_template
 from models import db, User
 from flask_login import LoginManager
-from extensions import mail, migrate, csrf, limiter, oauth
+from extensions import mail, migrate, csrf, limiter, oauth, cache
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 from logging_config import configure_logging
@@ -146,6 +146,15 @@ def create_app(test_config=None):
     # Configuration Rate Limiting
     app.config['RATELIMIT_ENABLED'] = not app.config.get('TESTING', False)
     
+    # Configuration Cache
+    # SimpleCache pour dev/test, Redis recommandé en production
+    cache_type = os.environ.get('CACHE_TYPE', 'SimpleCache')
+    app.config['CACHE_TYPE'] = cache_type
+    app.config['CACHE_DEFAULT_TIMEOUT'] = int(os.environ.get('CACHE_DEFAULT_TIMEOUT', 300))  # 5 minutes par défaut
+    
+    if cache_type == 'RedisCache':
+        app.config['CACHE_REDIS_URL'] = os.environ.get('CACHE_REDIS_URL', 'redis://localhost:6379/0')
+    
     # Initialisation des extensions
     app.jinja_env.add_extension('jinja2.ext.do')
     db.init_app(app)
@@ -154,6 +163,7 @@ def create_app(test_config=None):
     csrf.init_app(app)
     csrf.init_app(app)
     limiter.init_app(app)
+    cache.init_app(app)
     oauth.init_app(app)
     
     # Configuration OAuth Google
