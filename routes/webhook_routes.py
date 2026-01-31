@@ -102,6 +102,7 @@ def gform_webhook():
 
         email = data.get('email')
         if email:
+            logger.info(f"Processing email: {email}") # DEBUG LOG
             # 1. Identifier ou Créer l'Utilisateur
             user = User.query.filter_by(email=email).first()
             if not user:
@@ -119,6 +120,8 @@ def gform_webhook():
                 )
                 db.session.add(user)
                 db.session.flush() # Pour avoir l'ID
+            else:
+                 logger.info(f"Found existing User ID: {user.id}") # DEBUG LOG
             
             # 2. Identifier ou Créer le Participant
             participant = Participant.query.filter_by(user_id=user.id, event_id=event.id).first()
@@ -134,9 +137,13 @@ def gform_webhook():
                 )
                 db.session.add(participant)
                 db.session.flush()
+            else:
+                 logger.info(f"Found existing Participant ID: {participant.id}") # DEBUG LOG
             
             # 3. Traitement des réponses pour global_comment
             answers = data.get('answers', {})
+            logger.info(f"Processing {len(answers) if answers else 0} answers") # DEBUG LOG
+
             formatted_answers = []
             
             # On essaie d'être malin : si c'est un dict, on formate Key: Value
@@ -153,12 +160,17 @@ def gform_webhook():
             timestamp_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M')
             header = f"\n\n--- Import GForm ({timestamp_str}) ---\n"
             
+            logger.info(f"Updating global_comment for Participant {participant.id}") # DEBUG LOG
+
             if participant.global_comment:
                 participant.global_comment += header + new_comment_content
             else:
                 participant.global_comment = header.strip() + "\n" + new_comment_content
+        else:
+            logger.warning("No email found in webhook payload - skipping User/Participant processing") # DEBUG LOG
         
         db.session.commit()
+        logger.info("Transaction committed successfully") # DEBUG LOG
         
         return jsonify({
             "status": "success", 
