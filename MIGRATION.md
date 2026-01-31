@@ -174,9 +174,14 @@ Les URLs suivantes **NE FONCTIONNERONT PAS** tant que `event_routes.py` et `part
 |--------|--------|--------|--------|
 | `auth_routes.py` | ✅ Fait | 7 | ~250 |
 | `admin_routes.py` | ✅ Fait | 7 | ~280 |
-| `event_routes.py` | ❌ À faire | 6 | ~250 |
-| `participant_routes.py` | ❌ À faire | 7 | ~250 |
-| **TOTAL** | **50%** | **27** | **~1030** |
+| `event_routes.py` | ✅ Fait | ~15 | ~300 |
+| `participant_routes.py` | ✅ Fait | ~10 | ~300 |
+| **TOTAL** | **100%** | **~39** | **~1130** |
+
+## ✅ État Final
+La migration vers des blueprints modulaires est **terminée**.
+L'ensemble des routes a été migré depuis `routes_legacy.py` vers le dossier `routes/`.
+`routes_legacy.py` n'est plus utilisé par l'application.
 
 ## 🎯 Prochaines étapes
 

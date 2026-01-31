@@ -257,7 +257,7 @@ else:
 - **Werkzeug** : Hashage de mots de passe
 - **python-dotenv** : Chargement des variables d'environnement
 - **Paramiko** : Connexions SSH pour le déploiement
-- **Paramiko** : Connexions SSH pour le déploiement
+
 - **PyYAML** : Parsing de la config de déploiement
 - **NumPy & SciPy** : Calculs matriciels pour l'algorithme d'optimisation de casting
 
@@ -317,8 +317,7 @@ uv run flask db downgrade
 ```
 
 **Migrations existantes :**
-- `250207c201b0` : Ajout de `google_form_active`
-- `2f8a1c3b4d5e` : Ajout de `is_casting_validated` (Event) et `score` (CastingAssignment)
+- `7f2f95249844` : Migration initiale (Nettoyage Schema & Initialisation)
 
 ### Consultation des logs (serveur distant)
 ```bash

@@ -98,6 +98,79 @@ class TestEventModel:
             assert event.org_link_url == 'https://example.org'
             assert event.org_link_title == 'Mon Asso'
             assert event.google_form_url == 'https://forms.gle/test'
+    
+    def test_organizing_association_field(self, app, db):
+        """Test du champ organizing_association."""
+        with app.app_context():
+            from models import db
+            
+            # Test avec une valeur personnalisée
+            event1 = Event(
+                name='GN avec association',
+                date_start=datetime.now(),
+                date_end=datetime.now() + timedelta(days=1),
+                location='Paris',
+                organizing_association='Association GN Paris'
+            )
+            db.session.add(event1)
+            db.session.commit()
+            
+            assert event1.organizing_association == 'Association GN Paris'
+            
+            # Test de la valeur par défaut
+            event2 = Event(
+                name='GN sans association',
+                date_start=datetime.now(),
+                date_end=datetime.now() + timedelta(days=1),
+                location='Lyon'
+            )
+            db.session.add(event2)
+            db.session.commit()
+            
+            assert event2.organizing_association == 'une entité mystérieuse et inquiétante'
+    
+    def test_display_organizers_field(self, app, db):
+        """Test du champ display_organizers."""
+        with app.app_context():
+            from models import db
+            
+            # Test avec display_organizers = True
+            event1 = Event(
+                name='GN avec orgas visibles',
+                date_start=datetime.now(),
+                date_end=datetime.now() + timedelta(days=1),
+                location='Paris',
+                display_organizers=True
+            )
+            db.session.add(event1)
+            db.session.commit()
+            
+            assert event1.display_organizers is True
+            
+            # Test avec display_organizers = False
+            event2 = Event(
+                name='GN avec orgas cachés',
+                date_start=datetime.now(),
+                date_end=datetime.now() + timedelta(days=1),
+                location='Lyon',
+                display_organizers=False
+            )
+            db.session.add(event2)
+            db.session.commit()
+            
+            assert event2.display_organizers is False
+            
+            # Test de la valeur par défaut (True)
+            event3 = Event(
+                name='GN avec défaut',
+                date_start=datetime.now(),
+                date_end=datetime.now() + timedelta(days=1),
+                location='Marseille'
+            )
+            db.session.add(event3)
+            db.session.commit()
+            
+            assert event3.display_organizers is True
 
 
 class TestParticipantModel:

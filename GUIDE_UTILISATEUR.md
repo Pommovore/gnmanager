@@ -63,6 +63,8 @@ Cette page est le cœur de l'information pour un jeu donné. Elle est divisée e
 Si vous êtes désigné comme **Organisateur** sur cet événement, vous voyez des onglets supplémentaires :
 
 - **Infos Générales (modif)** : Pour éditer la description, les jauges, les liens, les dates et changer le statut de l'événement.
+    - **Association Organisatrice** : Permet de définir le nom de l'entité qui organise (défaut: "une entité mystérieuse...").
+    - **Affichage des organisateurs** : Case à cocher pour masquer la liste des organisateurs aux participants (utile pour garder le mystère).
 - **Groupes** : Pour configurer les noms des groupes (factions) disponibles.
 - **Participants** : Liste complète des inscrits avec tableau de gestion (Validation, PAF, Repas). Permet d'exporter les données en CSV/Excel.
 - **Rôles** : Création et édition de la liste des rôles (Nom, Type, Liens GDoc/PDF).

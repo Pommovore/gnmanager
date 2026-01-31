@@ -144,22 +144,35 @@ def update_profile():
     current_user.discord = request.form.get('discord')
     current_user.facebook = request.form.get('facebook')
     
-    # Traitement de l'avatar
+    # Gestion de l'avatar avec validation stricte
+    from utils.file_validation import FileValidationError, validate_upload, generate_unique_filename
+    from PIL import Image
+    
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and file.filename != '':
-            # Créer le répertoire de stockage
-            static_folder = os.path.join(os.getcwd(), 'static', 'uploads')
-            os.makedirs(static_folder, exist_ok=True)
-            
-            # Redimensionner l'image
-            img = Image.open(file)
-            img.thumbnail(DefaultValues.DEFAULT_AVATAR_SIZE)
-            
-            # Sauvegarder avec l'ID utilisateur comme nom
-            save_path = os.path.join(static_folder, f"avatar_{current_user.id}.png")
-            img.save(save_path)
-            current_user.avatar_url = f"/static/uploads/avatar_{current_user.id}.png"
+            try:
+                # Validation stricte du fichier
+                validate_upload(file, file_type="image")
+                
+                # Créer le répertoire de stockage
+                static_folder = os.path.join(os.getcwd(), 'static', 'uploads')
+                os.makedirs(static_folder, exist_ok=True)
+                
+                # Redimensionner l'image
+                img = Image.open(file)
+                img.thumbnail(DefaultValues.DEFAULT_AVATAR_SIZE)
+                
+                # Sauvegarder avec l'ID utilisateur comme nom
+                save_path = os.path.join(static_folder, f"avatar_{current_user.id}.png")
+                img.save(save_path)
+                current_user.avatar_url = f"/static/uploads/avatar_{current_user.id}.png"
+            except FileValidationError as e:
+                flash(str(e), 'danger')
+                return redirect(url_for('admin.dashboard'))
+            except Exception as e:
+                flash(f"Erreur lors du traitement de l'image : {str(e)}", 'danger')
+                return redirect(url_for('admin.dashboard'))
 
     # Mise à jour du mot de passe
     new_password = request.form.get('new_password')

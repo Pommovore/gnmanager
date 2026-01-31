@@ -102,11 +102,13 @@ class Event(db.Model):
     background_image_light = db.Column(db.String(200))
     background_image_dark = db.Column(db.String(200))
     visibility = db.Column(db.String(20), default='public')  # public, private
+    organizing_association = db.Column(db.String(150), default='une entité mystérieuse et inquiétante')
     organizer_structure = db.Column(db.String(100))
     org_link_url = db.Column(db.String(255))
     org_link_title = db.Column(db.String(100))
     google_form_url = db.Column(db.String(255))
     google_form_active = db.Column(db.Boolean, default=False)
+    display_organizers = db.Column(db.Boolean, default=True)
     # Secret unique pour le webhook Google Forms de cet événement
     webhook_secret = db.Column(db.String(32), unique=True, nullable=True)
     # Discord Webhook URL for notifications

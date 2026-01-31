@@ -43,16 +43,54 @@
         margin-bottom: 0.75rem;
         color: var(--bs-primary);
     }
+
+    .organizer-box {
+        border: 2px solid #C5A028;
+        background-color: rgba(197, 160, 40, 0.2);
+        /* 75% transparent (25% opacity) */
+        padding: 0.75rem 1.25rem;
+        margin-bottom: 1rem;
+        border-radius: 0.375rem;
+        font-weight: 500;
+    }
+
+    [data-bs-theme="dark"] .organizer-box {
+        color: #ffda6a;
+    }
+
+    [data-bs-theme="light"] .organizer-box {
+        color: #856404;
+    }
 </style>
 
 <div class="card mb-4" id="event-info-card">
     <div class="card-body">
         {% if is_organizer %}
-        <div class="alert alert-warning mb-2">Vous êtes organisateur de cet événement.</div>
+        {% set other_orgs = [] %}
+        {% for p in event.participants if p.is_organizer and p.registration_status == 'Validé' and p.user_id !=
+        current_user.id %}
+        {% set _ = other_orgs.append(p.user.prenom ~ ' ' ~ p.user.nom) %}
+        {% endfor %}
+        <div class="organizer-box">
+            Vous êtes organisateur de cet événement{% if other_orgs %} avec {{ other_orgs|join(', ') }}{% endif %}.
+        </div>
         {% endif %}
 
         {# 1. Titre #}
         <h1 class="card-title">{{ event.name }}</h1>
+        <div class="text-muted mb-3">
+            <p class="mb-0">organisé par : {{ event.organizing_association or 'une entité mystérieuse et inquiétante' }}
+            </p>
+            {% if event.display_organizers and not is_organizer %}
+            {% set all_validated_orgs = [] %}
+            {% for p in event.participants if p.is_organizer and p.registration_status == 'Validé' %}
+            {% set _ = all_validated_orgs.append(p.user.prenom ~ ' ' ~ p.user.nom) %}
+            {% endfor %}
+            {% if all_validated_orgs %}
+            <p class="mb-0 small">organisateurs : {{ all_validated_orgs|join(', ') }}</p>
+            {% endif %}
+            {% endif %}
+        </div>
 
         {# 2. Date #}
         <p class="text-muted">
@@ -118,7 +156,7 @@
 
         <div class="border border-3 rounded p-3 mt-3">
             <p class="mb-1">
-                <strong>Votre rôle :</strong>
+                <strong>Mon rôle :</strong>
                 <span class="badge {{ badge_class }} ms-2">
                     {{ participant.type }}
                     {% if participant.group and participant.group != 'Peu importe' %}
@@ -132,7 +170,7 @@
             {% if assigned_role %}
             <p class="mb-1">
                 <i class="bi bi-arrow-right text-primary"></i>
-                <strong class="ms-1">Fiche de personnage :</strong>
+                <strong class="ms-1">Ma fiche de personnage :</strong>
                 {% if assigned_role.pdf_url %}
                 <a href="{{ assigned_role.pdf_url }}" target="_blank" class="ms-1">
                     <i class="bi bi-file-pdf text-danger"></i> Télécharger le PDF
@@ -143,11 +181,11 @@
             </p>
             {% endif %}
             <p class="mb-1">
-                <strong>Votre inscription :</strong>
+                <strong>Status de mon inscription :</strong>
                 <span class="badge {{ reg_class }} ms-2">{{ participant.registration_status }}</span>
             </p>
             <p class="mb-0">
-                <strong>Votre PAF :</strong>
+                <strong>Status de ma PAF :</strong>
                 <span class="badge {{ paf_class }} ms-2">{{ participant.paf_status }}</span>
             </p>
 

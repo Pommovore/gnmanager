@@ -63,7 +63,9 @@ def create_event():
             visibility=visibility, 
             statut=EventStatus.PREPARATION.value,  # 'En préparation'
             org_link_title=request.form.get('org_link_title', ''),
-            google_form_url=request.form.get('google_form_url', '')
+            google_form_url=request.form.get('google_form_url', ''),
+            organizing_association=request.form.get('organizing_association'),
+            display_organizers=request.form.get('display_organizers') == 'on'
         )
         
         # Generate generic webhook secret
@@ -202,7 +204,9 @@ def update_general(event_id):
     org_link_title = request.form.get('org_link_title')
     org_link_title = request.form.get('org_link_title')
     google_form_url = request.form.get('google_form_url')
+    organizing_association = request.form.get('organizing_association')
     discord_webhook_url = request.form.get('discord_webhook_url')
+    display_organizers = request.form.get('display_organizers') == 'on'
     statut = request.form.get('statut')
     
     try:
@@ -217,6 +221,8 @@ def update_general(event_id):
         # Application des modifications si validation OK
         if name: event.name = name
         if location: event.location = location
+        if organizing_association: event.organizing_association = organizing_association
+        event.display_organizers = display_organizers
         if statut: event.statut = statut
         event.discord_webhook_url = discord_webhook_url
         
@@ -228,28 +234,21 @@ def update_general(event_id):
         if description is not None: event.description = description
         if google_form_url is not None: event.google_form_url = google_form_url
         
-        # Gestion de l'image de fond
-        # Gestion des images de fond (sombre/clair)
+        # Upload des images de fond avec validation stricte
+        import os
+        from flask import current_app
+        from utils.file_validation import save_validated_file, FileValidationError
+        
         def save_event_image(file, suffix):
+            """Sauvegarder une image d'événement avec validation stricte."""
             if file and file.filename:
-                from werkzeug.utils import secure_filename
-                import os
-                
-                allowed_extensions = {'png', 'jpg', 'jpeg', 'webp'}
-                ext = file.filename.rsplit('.', 1)[1].lower() if '.' in file.filename else ''
-                
-                if ext in allowed_extensions:
-                    filename = secure_filename(f"{event.id}_{suffix}.{ext}")
-                    # Chemin relatif pour stockage
-                    upload_folder = 'static/uploads/events'
-                    # Chemin absolu pour sauvegarde
-                    save_path = os.path.join(current_app.root_path, upload_folder)
-                    os.makedirs(save_path, exist_ok=True)
-                    
-                    file.save(os.path.join(save_path, filename))
+                try:
+                    upload_folder = os.path.join(current_app.root_path, 'static/uploads/events')
+                    filename = save_validated_file(file, upload_folder, prefix=f"{event.id}_{suffix}")
                     return f"uploads/events/{filename}"
-                else:
-                    flash(f'Format d\'image non supporté pour {suffix} (PNG, JPG, WEBP uniquement)', 'warning')
+                except FileValidationError as e:
+                    flash(str(e), 'danger')
+                    return None
             return None
 
         if 'background_image_light' in request.files:

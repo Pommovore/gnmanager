@@ -191,8 +191,7 @@ uv run flask db upgrade
 ### Migrations existantes
 | Révision | Description |
 |----------|-------------|
-| `250207c201b0` | Ajout de `google_form_active` à Event |
-| `2f8a1c3b4d5e` | Ajout de `is_casting_validated` (Event) et `score` (CastingAssignment) |
+| `7f2f95249844` | Migration initiale (Nettoyage Schema & Initialisation) |
 
 ### En cas de problème de migration
 Si la base de données est déjà à jour mais la table `alembic_version` n'est pas synchronisée :
@@ -201,7 +200,7 @@ Si la base de données est déjà à jour mais la table `alembic_version` n'est 
 uv run flask db stamp head
 
 # Ou manuellement
-sqlite3 instance/gnmanager.db "DELETE FROM alembic_version; INSERT INTO alembic_version (version_num) VALUES ('2f8a1c3b4d5e');"
+sqlite3 instance/gnmanager.db "DELETE FROM alembic_version; INSERT INTO alembic_version (version_num) VALUES ('7f2f95249844');"
 ```
 
 ---
