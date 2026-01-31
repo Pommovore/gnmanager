@@ -381,6 +381,8 @@
                 });
                 const event_id = "{{ event.id }}";
                 const csrf_token = "{{ csrf_token() }}";
+                const baseUrl = "{{ config.APPLICATION_ROOT or '' }}";
+                const updatePafInlineUrl = `${baseUrl}/event/${event_id}/participant/{p_id}/update_paf_inline`;
 
                 const gcModalEl = document.getElementById('globalCommentModal');
                 let gcModal = null;
@@ -404,7 +406,7 @@
                     saveGcBtn.addEventListener('click', function () {
                         const text = document.getElementById('globalCommentTextarea').value;
 
-                        fetch("{{ url_for('participant.update_paf_inline', event_id=event.id, p_id='PLACEHOLDER') }}".replace('PLACEHOLDER', currentPId), {
+                        fetch(updatePafInlineUrl.replace('{p_id}', currentPId), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
