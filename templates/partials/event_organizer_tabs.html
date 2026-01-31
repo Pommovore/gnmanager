@@ -638,6 +638,7 @@
                                     <button type="button"
                                         class="btn btn-sm paf-info-btn {{ 'btn-outline-danger' if p.info_payement else 'btn-outline-primary' }}"
                                         data-p-id="{{ p.id }}" data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
+                                        data-info="{{ p.info_payement or '' }}"
                                         title="{{ p.info_payement or 'Aucune information' }}">
                                         <i class="bi bi-info-circle"></i>
                                     </button>
@@ -863,11 +864,16 @@
                                 infoBtn.classList.remove('btn-outline-danger');
                                 infoBtn.classList.add('btn-outline-primary');
                                 infoBtn.title = 'Aucune information';
+                                infoBtn.dataset.info = '';
                             } else {
                                 infoBtn.classList.remove('btn-outline-primary');
                                 infoBtn.classList.add('btn-outline-danger');
                                 infoBtn.title = result.info_payement;
+                                infoBtn.dataset.info = result.info_payement;
                             }
+                            // Re-init tooltip if needed (optional, Bootstrap handles title changes usually)
+                            const tooltip = bootstrap.Tooltip.getInstance(infoBtn);
+                            if (tooltip) tooltip.setContent({ '.tooltip-inner': infoBtn.title });
                         }
 
                         // Update Global Comment Button Color and Title
@@ -877,11 +883,15 @@
                                 gcBtn.classList.remove('btn-outline-danger');
                                 gcBtn.classList.add('btn-outline-primary');
                                 gcBtn.title = 'Aucun commentaire général';
+                                gcBtn.dataset.comment = '';
                             } else {
                                 gcBtn.classList.remove('btn-outline-primary');
                                 gcBtn.classList.add('btn-outline-danger');
                                 gcBtn.title = result.global_comment;
+                                gcBtn.dataset.comment = result.global_comment;
                             }
+                            const tooltip = bootstrap.Tooltip.getInstance(gcBtn);
+                            if (tooltip) tooltip.setContent({ '.tooltip-inner': gcBtn.title });
                         }
                     } else {
                         console.error('Update failed:', result.error);
@@ -902,7 +912,7 @@
             btn.addEventListener('click', function () {
                 currentPId = this.dataset.pId;
                 document.getElementById('infoPayementParticipant').textContent = this.dataset.pName;
-                document.getElementById('infoPayementTextarea').value = this.title === 'Aucune information' ? '' : this.title;
+                document.getElementById('infoPayementTextarea').value = this.dataset.info || '';
                 if (infoModal) infoModal.show();
             });
         });
