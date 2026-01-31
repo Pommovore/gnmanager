@@ -730,7 +730,11 @@
         // Global variables for AJAX
         const event_id = "{{ event.id }}";
         const csrf_token = "{{ csrf_token() }}";
-        const baseUrl = "{{ config.APPLICATION_ROOT or '' }}";
+        let baseUrl = "{{ config.APPLICATION_ROOT or '' }}";
+        if (baseUrl === '/') baseUrl = '';
+
+        // Ensure baseUrl doesn't end with slash if we're appending path that starts with slash
+        if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
 
         // URL patterns for dynamic routes
         const updatePafInlineUrl = `${baseUrl}/event/${event_id}/participant/{p_id}/update_paf_inline`;
