@@ -290,3 +290,86 @@ class TestWebhookErrorHandling:
         assert response.status_code == 200
         data = response.get_json()
         assert data['status'] == 'success'
+
+
+class TestUserParticipantCreation:
+    """Tests de création d'utilisateurs et participants via webhook."""
+    
+    def test_create_user_and_participant_from_webhook(self, client, event_sample, db):
+        """Test qu'un email inconnu entraîne la création d'un utilisateur et d'un participant."""
+        from models import User, Participant, FormResponse
+        
+        event_sample.webhook_secret = 'token_user_creation'
+        db.session.commit()
+        
+        email = 'imnew@example.com'
+        payload = {
+            'responseId': 'resp_new_user_001',
+            'email': email,
+            'answers': {
+                'Question 1': 'Réponse 1',
+                'Question 2': 'Réponse 2'
+            }
+        }
+        
+        response = client.post('/api/webhook/gform',
+            headers={'Authorization': 'Bearer token_user_creation'},
+            json=payload
+        )
+        
+        assert response.status_code == 200
+        data = response.get_json()
+        assert data['status'] == 'success'
+        assert data['user_processed'] is True
+        
+        # Vérifications
+        user = User.query.filter_by(email=email).first()
+        assert user is not None
+        assert user.nom == 'Utilisateur'
+        
+        participant = Participant.query.filter_by(user_id=user.id, event_id=event_sample.id).first()
+        assert participant is not None
+        assert participant.registration_status == 'À valider'
+        assert 'Question 1: Réponse 1' in participant.global_comment
+        assert 'Question 2: Réponse 2' in participant.global_comment
+
+    def test_update_existing_participant_comment(self, client, event_sample, user_regular, db):
+        """Test d'ajout de commentaire pour un participant existant."""
+        from models import Participant
+        from constants import RegistrationStatus
+        
+        event_sample.webhook_secret = 'token_user_update'
+        db.session.commit()
+        
+        # Créer d'abord le participant
+        p = Participant(
+            user_id=user_regular.id,
+            event_id=event_sample.id,
+            type='PJ',
+            registration_status=RegistrationStatus.VALIDATED.value,
+            global_comment="Commentaire initial."
+        )
+        db.session.add(p)
+        db.session.commit()
+        
+        payload = {
+            'responseId': 'resp_update_p_001',
+            'email': user_regular.email,
+            'answers': {
+                'Nouvelle Info': 'Super Important'
+            }
+        }
+        
+        response = client.post('/api/webhook/gform',
+            headers={'Authorization': 'Bearer token_user_update'},
+            json=payload
+        )
+        
+        assert response.status_code == 200
+        
+        # Vérifier que le commentaire a été ajouté
+        db.session.refresh(p)
+        assert "Commentaire initial." in p.global_comment
+        assert "--- Import GForm" in p.global_comment
+        assert "Nouvelle Info: Super Important" in p.global_comment
+

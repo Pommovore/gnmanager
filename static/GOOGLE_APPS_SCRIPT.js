@@ -3,7 +3,7 @@
  * 
  * INSTRUCTIONS:
  * 1. Ouvrez votre Google Form.
- * 2. Cliquez sur les 3 points verticaux (menu) -> Éditeur de scripts.
+ * 2. Cliquez sur les 3 points verticaux (menu) -> Apps Script.
  * 3. Collez ce code en remplaçant tout le contenu existant.
  * 4. Configurez les variables API_URL et API_SECRET ci-dessous.
  * 5. Sauvegardez (Ctrl+S).
@@ -19,8 +19,9 @@
 // URL de votre instance GN Manager (ex: https://mon-gn.com/api/webhook/gform)
 var API_URL = "https://VOTRE_DOMAINE/api/webhook/gform";
 
-// Votre secret API (trouvable dans le fichier .env sur le serveur : API_SECRET)
-var API_SECRET = "REMPLACEZ_PAR_VOTRE_API_SECRET";
+// Votre secret API (trouvable dans l'onglet "Généralités" de votre événement sur GN Manager)
+// ATTENTION : Chaque événement a un secret différent.
+var API_SECRET = "REMPLACEZ_PAR_VOTRE_SECRET_EVENEMENT";
 
 // ==========================================
 // CODE (NE PAS TOUCHER)

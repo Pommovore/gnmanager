@@ -89,12 +89,79 @@ def gform_webhook():
             db.session.add(form_response)
             action = "created"
             
+        # ---------------------------------------------------------
+        # Nouvelle logique : Inscription/Mise à jour du Participant
+        # ---------------------------------------------------------
+        from models import User, Participant
+        from constants import RegistrationStatus, ParticipantType
+        from werkzeug.security import generate_password_hash
+        import secrets
+
+        email = data.get('email')
+        if email:
+            # 1. Identifier ou Créer l'Utilisateur
+            user = User.query.filter_by(email=email).first()
+            if not user:
+                logger.info(f"Creating new User for email {email}")
+                # Mot de passe aléatoire (l'utilisateur devra le reset)
+                temp_password = secrets.token_urlsafe(12)
+                user = User(
+                    email=email,
+                    nom="Utilisateur", # Placeholder
+                    prenom="GForm",    # Placeholder
+                    password_hash=generate_password_hash(temp_password),
+                    role='user',
+                    is_banned=False,
+                    is_deleted=False
+                )
+                db.session.add(user)
+                db.session.flush() # Pour avoir l'ID
+            
+            # 2. Identifier ou Créer le Participant
+            participant = Participant.query.filter_by(user_id=user.id, event_id=event.id).first()
+            if not participant:
+                logger.info(f"Registering User {user.id} to Event {event.id}")
+                participant = Participant(
+                    user_id=user.id,
+                    event_id=event.id,
+                    type=ParticipantType.PJ.value, # Défaut
+                    registration_status=RegistrationStatus.TO_VALIDATE.value, # "À valider"
+                    role_communicated=False,
+                    role_received=False
+                )
+                db.session.add(participant)
+                db.session.flush()
+            
+            # 3. Traitement des réponses pour global_comment
+            answers = data.get('answers', {})
+            formatted_answers = []
+            
+            # On essaie d'être malin : si c'est un dict, on formate Key: Value
+            # Si c'est une liste (cas rare via webhook GForm?), on join
+            if isinstance(answers, dict):
+                for key, value in answers.items():
+                    # Nettoyage basique
+                    val_str = str(value) if value is not None else ""
+                    formatted_answers.append(f"{key}: {val_str}")
+            else:
+                formatted_answers.append(str(answers))
+            
+            new_comment_content = "\n".join(formatted_answers)
+            timestamp_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M')
+            header = f"\n\n--- Import GForm ({timestamp_str}) ---\n"
+            
+            if participant.global_comment:
+                participant.global_comment += header + new_comment_content
+            else:
+                participant.global_comment = header.strip() + "\n" + new_comment_content
+        
         db.session.commit()
         
         return jsonify({
             "status": "success", 
             "action": action, 
-            "id": form_response.id
+            "id": form_response.id,
+            "user_processed": bool(email)
         }), 200
         
     except Exception as e:
