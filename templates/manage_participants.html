@@ -404,7 +404,7 @@
                     saveGcBtn.addEventListener('click', function () {
                         const text = document.getElementById('globalCommentTextarea').value;
 
-                        fetch(`/event/${event_id}/participant/${currentPId}/update_paf_inline`, {
+                        fetch("{{ url_for('participant.update_paf_inline', event_id=event.id, p_id='PLACEHOLDER') }}".replace('PLACEHOLDER', currentPId), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',

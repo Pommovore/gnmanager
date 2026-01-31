@@ -742,7 +742,7 @@
         if (regenerateBtn) {
             regenerateBtn.addEventListener('click', function () {
                 if (confirm('Êtes-vous sûr de vouloir régénérer la clé API ? L\'ancienne clé ne fonctionnera plus immédiatement.')) {
-                    fetch(`/event/${event_id}/regenerate_secret`, {
+                    fetch("{{ url_for('event.regenerate_secret', event_id=event.id) }}", {
                         method: 'POST',
                         headers: {
                             'X-CSRFToken': csrf_token,
@@ -811,7 +811,7 @@
         });
 
         function updateParticipantPAF(pId, data) {
-            fetch(`/event/${event_id}/participant/${pId}/update_paf_inline`, {
+            fetch("{{ url_for('participant.update_paf_inline', event_id=event.id, p_id='PLACEHOLDER') }}".replace('PLACEHOLDER', pId), {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
