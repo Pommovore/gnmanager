@@ -56,7 +56,7 @@ var API_SECRET = "votre_secret_xxx_yyy_zzz";
 Sauvegardez avec `Ctrl + S`. Nommez le projet "Webhook GN Manager" si demandé.
 
 ### D. Activation du Déclencheur (Trigger)
-1.  Dans le menu de gauche de l'éditeur, cliquez sur l'icône **Déclencheurs (Réveil)** ⏰.
+1.  Dans la **barre latérale verticale tout à gauche** de l'éditeur, cliquez sur l'icône **Déclencheurs (Réveil / Horloge)** ⏰ (souvent la 3ème ou 4ème icône en partant du haut).
 2.  Cliquez sur **"Ajouter un déclencheur"** (bouton bleu en bas à droite).
 3.  Configurez comme suit :
     *   **Fonction à exécuter** : `sendToWebapp`

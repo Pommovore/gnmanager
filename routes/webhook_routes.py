@@ -36,7 +36,10 @@ def verify_token():
     # Fallback legacy (env var) si besoin, mais on passe au per-event.
     return None
 
+from extensions import csrf
+
 @webhook_bp.route('/api/webhook/gform', methods=['POST'])
+@csrf.exempt
 def gform_webhook():
     """
     Endpoint pour recevoir les données de Google Forms via Apps Script.
