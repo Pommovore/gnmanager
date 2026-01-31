@@ -6,7 +6,7 @@ import json
 from flask import current_app
 from exceptions import ExternalServiceError
 
-def send_discord_notification(webhook_url, event_name, user_data, registration_type):
+def send_discord_notification(webhook_url, event_name, user_data, registration_type, extra_fields=None):
     """
     Send a notification to a Discord channel via Webhook.
     
@@ -15,6 +15,7 @@ def send_discord_notification(webhook_url, event_name, user_data, registration_t
         event_name (str): The name of the event
         user_data (dict): Dictionary containing 'nom', 'prenom', 'email'
         registration_type (str): Type of registration (PJ, PNJ, Organisateur)
+        extra_fields (list): Optional list of dicts {'name':..., 'value':..., 'inline':...}
     
     Raises:
         ExternalServiceError: If the request fails
@@ -47,6 +48,9 @@ def send_discord_notification(webhook_url, event_name, user_data, registration_t
             "text": "GN Manager Notification System"
         }
     }
+
+    if extra_fields:
+        embed['fields'].extend(extra_fields)
 
     payload = {
         "embeds": [embed]

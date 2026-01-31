@@ -542,6 +542,7 @@
                                     <button type="button"
                                         class="btn btn-sm paf-global-comment-btn {{ 'btn-outline-danger' if p.global_comment else 'btn-outline-primary' }}"
                                         data-p-id="{{ p.id }}" data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
+                                        data-comment="{{ p.global_comment or '' }}"
                                         title="{{ p.global_comment or 'Aucun commentaire général' }}">
                                         <i class="bi bi-info-circle"></i>
                                     </button>
@@ -926,7 +927,7 @@
             btn.addEventListener('click', function () {
                 currentPId = this.dataset.pId;
                 document.getElementById('globalCommentParticipant').textContent = this.dataset.pName;
-                document.getElementById('globalCommentTextarea').value = this.title === 'Aucun commentaire général' ? '' : this.title;
+                document.getElementById('globalCommentTextarea').value = this.dataset.comment || '';
                 if (gcModal) gcModal.show();
             });
         });

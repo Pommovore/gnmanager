@@ -171,7 +171,50 @@ def gform_webhook():
         
         db.session.commit()
         logger.info("Transaction committed successfully") # DEBUG LOG
-        
+
+        # ---------------------------------------------------------
+        # Nouvelle logique : Notification Discord
+        # ---------------------------------------------------------
+        if event.discord_webhook_url:
+             try:
+                from services.discord_service import send_discord_notification
+                
+                # Préparer les champs pour Discord
+                discord_fields = []
+                # Limiter le nombre de champs pour éviter les limites Discord (25 champs max)
+                answers = data.get('answers', {})
+                if isinstance(answers, dict):
+                    for i, (q, a) in enumerate(answers.items()):
+                        if i >= 20: # Garder une marge
+                            break
+                        # Tronquer les réponses trop longues
+                        val_str = str(a) if a is not None else ""
+                        if len(val_str) > 1024:
+                            val_str = val_str[:1021] + "..."
+                        
+                        discord_fields.append({
+                            "name": q[:256], # Titre max 256 chars
+                            "value": val_str,
+                            "inline": False 
+                        })
+                
+                user_data = {
+                    'nom': user.nom if user else "Inconnu",
+                    'prenom': user.prenom if user else "Inconnu",
+                    'email': email
+                }
+                
+                send_discord_notification(
+                    webhook_url=event.discord_webhook_url,
+                    event_name=event.name,
+                    user_data=user_data,
+                    registration_type="Inscription via Google Form",
+                    extra_fields=discord_fields
+                )
+                logger.info("Discord notification sent")
+             except Exception as e_discord:
+                 logger.error(f"Failed to send Discord notification: {e_discord}")
+
         return jsonify({
             "status": "success", 
             "action": action, 
