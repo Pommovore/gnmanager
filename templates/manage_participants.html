@@ -202,110 +202,104 @@
                             </td>
                         </tr>
 
-                        <!-- Modal d'édition -->
-                        <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
-                            <div class="modal-dialog">
-                                <div class="modal-content">
-                                    <div class="modal-header">
-                                        <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
-                                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                                    </div>
-                                    <form method="POST"
-                                        action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                        <div class="modal-body">
-                                            <div class="mb-3">
-                                                <label class="form-label">Email (lecture seule)</label>
-                                                <input type="text" class="form-control bg-light"
-                                                    value="{{ p.user.email }}" readonly>
-                                            </div>
-                                            <div class="row">
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label">Discord</label>
-                                                    <input type="text" name="discord" class="form-control"
-                                                        value="{{ p.user.discord or '' }}"
-                                                        placeholder="Ex: Pseudo#1234">
-                                                </div>
-                                                <div class="col-md-6 mb-3">
-                                                    <label class="form-label">Téléphone</label>
-                                                    <input type="text" name="phone" class="form-control"
-                                                        value="{{ p.user.phone or '' }}" placeholder="Ex: 0612345678">
-                                                </div>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Facebook (Lien Profil)</label>
-                                                <input type="text" name="facebook" class="form-control"
-                                                    value="{{ p.user.facebook or '' }}"
-                                                    placeholder="Ex: https://facebook.com/pseudo">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Type</label>
-                                                <select name="type" class="form-select" required>
-                                                    <option value="Organisateur" {% if p.is_organizer %}selected{% endif
-                                                        %}>
-                                                        Organisateur</option>
-                                                    <option value="PJ" {% if p.is_pj %}selected{% endif %}>PJ</option>
-                                                    <option value="PNJ" {% if p.is_pnj %}selected{% endif %}>PNJ
-                                                    </option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Groupe</label>
-                                                <select name="group" class="form-select" id="groupSelect{{p.id}}"
-                                                    data-participant-type="{{p.type}}">
-                                                    <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group
-                                                        or 'Peu
-                                                        importe' }}</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">PAF (Participation Aux Frais)</label>
-                                                <select name="paf_status" class="form-select">
-                                                    <option value="non versée" {% if p.paf_status=='non versée' or not
-                                                        p.paf_status %}selected{% endif %}>Non versée</option>
-                                                    <option value="partielle" {% if p.paf_status=='partielle'
-                                                        %}selected{% endif %}>Partielle</option>
-                                                    <option value="versée" {% if p.paf_status=='versée' %}selected{%
-                                                        endif %}>
-                                                        Versée</option>
-                                                    <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)'
-                                                        %}selected{% endif %}>
-                                                        Dispensé(e)</option>
-                                                    <option value="erreur" {% if p.paf_status=='erreur' %}selected{%
-                                                        endif %}>
-                                                        Erreur</option>
-                                                </select>
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Montant (€)</label>
-                                                <input type="number" step="0.01" name="payment_amount"
-                                                    class="form-control" value="{{ p.payment_amount }}">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Moyen de paiement</label>
-                                                <input type="text" name="payment_method" class="form-control"
-                                                    value="{{ p.payment_method or '' }}">
-                                            </div>
-                                            <div class="mb-3">
-                                                <label class="form-label">Commentaire</label>
-                                                <textarea name="comment" class="form-control"
-                                                    rows="3">{{ p.comment or '' }}</textarea>
-                                            </div>
-                                        </div>
-                                        <div class="modal-footer">
-                                            <button type="button" class="btn btn-secondary"
-                                                data-bs-dismiss="modal">Annuler</button>
-                                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                                        </div>
-                                    </form>
-                                </div>
-                            </div>
-                        </div>
+
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+
+        {% for p in participants %}
+        <!-- Modal d'édition -->
+        <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <form method="POST" action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label class="form-label">Email (lecture seule)</label>
+                                <input type="text" class="form-control bg-light" value="{{ p.user.email }}" readonly>
+                            </div>
+                            <div class="row">
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Discord</label>
+                                    <input type="text" name="discord" class="form-control"
+                                        value="{{ p.user.discord or '' }}" placeholder="Ex: Pseudo#1234">
+                                </div>
+                                <div class="col-md-6 mb-3">
+                                    <label class="form-label">Téléphone</label>
+                                    <input type="text" name="phone" class="form-control"
+                                        value="{{ p.user.phone or '' }}" placeholder="Ex: 0612345678">
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Facebook (Lien Profil)</label>
+                                <input type="text" name="facebook" class="form-control"
+                                    value="{{ p.user.facebook or '' }}" placeholder="Ex: https://facebook.com/pseudo">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Type</label>
+                                <select name="type" class="form-select" required>
+                                    <option value="Organisateur" {% if p.is_organizer %}selected{% endif %}>
+                                        Organisateur</option>
+                                    <option value="PJ" {% if p.is_pj %}selected{% endif %}>PJ</option>
+                                    <option value="PNJ" {% if p.is_pnj %}selected{% endif %}>PNJ
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Groupe</label>
+                                <select name="group" class="form-select" id="groupSelect{{p.id}}"
+                                    data-participant-type="{{p.type}}">
+                                    <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group
+                                        or 'Peu
+                                        importe' }}</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">PAF (Participation Aux Frais)</label>
+                                <select name="paf_status" class="form-select">
+                                    <option value="non versée" {% if p.paf_status=='non versée' or not p.paf_status
+                                        %}selected{% endif %}>Non versée</option>
+                                    <option value="partielle" {% if p.paf_status=='partielle' %}selected{% endif %}>
+                                        Partielle</option>
+                                    <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
+                                        Versée</option>
+                                    <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)' %}selected{% endif %}>
+                                        Dispensé(e)</option>
+                                    <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
+                                        Erreur</option>
+                                </select>
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Montant (€)</label>
+                                <input type="number" step="0.01" name="payment_amount" class="form-control"
+                                    value="{{ p.payment_amount }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Moyen de paiement</label>
+                                <input type="text" name="payment_method" class="form-control"
+                                    value="{{ p.payment_method or '' }}">
+                            </div>
+                            <div class="mb-3">
+                                <label class="form-label">Commentaire</label>
+                                <textarea name="comment" class="form-control" rows="3">{{ p.comment or '' }}</textarea>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" class="btn btn-primary">Enregistrer</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        {% endfor %}
 
         <!-- Export Modal -->
         <div class="modal fade" id="exportModal" tabindex="-1">

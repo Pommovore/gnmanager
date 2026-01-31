@@ -1,0 +1,303 @@
+{# Modals for Event Organizer content - extracted from event_organizer_tabs.html to fix layout issues #}
+
+{% if is_organizer %}
+{# Add Role Modal #}
+<div class="modal fade" id="addRoleModal" tabindex="-1" aria-labelledby="addRoleModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('event.add_role', event_id=event.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="addRoleModalLabel">
+                        <i class="bi bi-plus-circle"></i> Ajouter un nouveau rôle
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom du rôle *</label>
+                            <input type="text" class="form-control" name="name" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type *</label>
+                            <select class="form-select role-type-select" name="type" required data-target="add">
+                                <option value="">Sélectionner...</option>
+                                <option value="Organisateur">Organisateur</option>
+                                <option value="PJ">PJ</option>
+                                <option value="PNJ">PNJ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Groupe</label>
+                            <select class="form-select role-group-select" name="group" id="add-group-select" disabled>
+                                <option value="">Sélectionnez d'abord un type</option>
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Genre</label>
+                            <select class="form-select" name="genre">
+                                <option value="">Non spécifié</option>
+                                <option value="Homme">Homme</option>
+                                <option value="Femme">Femme</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL Google Doc</label>
+                            <input type="url" class="form-control" name="google_doc_url"
+                                placeholder="https://docs.google.com/...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL PDF</label>
+                            <input type="url" class="form-control" name="pdf_url" placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-control" name="comment" rows="2"
+                            placeholder="Notes internes sur ce rôle..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-success">
+                        <i class="bi bi-check"></i> Créer le rôle
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Edit Role Modals #}
+{% for role in roles %}
+<div class="modal fade" id="editRoleModal{{ role.id }}" tabindex="-1" aria-labelledby="editRoleModalLabel{{ role.id }}"
+    aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <form method="POST" action="{{ url_for('event.update_role', event_id=event.id, role_id=role.id) }}">
+                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                <div class="modal-header">
+                    <h5 class="modal-title" id="editRoleModalLabel{{ role.id }}">
+                        <i class="bi bi-gear"></i> Modifier le rôle : {{ role.name }}
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Nom du rôle *</label>
+                            <input type="text" class="form-control" name="name" value="{{ role.name }}" required>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Type *</label>
+                            <select class="form-select role-type-select" name="type" required
+                                data-target="edit{{ role.id }}">
+                                <option value="">Sélectionner...</option>
+                                <option value="Organisateur" {% if role.type=='Organisateur' %}selected{% endif %}>
+                                    Organisateur</option>
+                                <option value="PJ" {% if role.type=='PJ' %}selected{% endif %}>PJ</option>
+                                <option value="PNJ" {% if role.type=='PNJ' %}selected{% endif %}>PNJ</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Groupe</label>
+                            <select class="form-select role-group-select" name="group"
+                                id="edit{{ role.id }}-group-select" data-current="{{ role.group or '' }}">
+                                <option value="">Aucun groupe</option>
+                                {% if role.type and groups_config.get(role.type) %}
+                                {% for grp in groups_config.get(role.type, []) %}
+                                <option value="{{ grp }}" {% if role.group==grp %}selected{% endif %}>{{ grp }}</option>
+                                {% endfor %}
+                                {% endif %}
+                            </select>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">Genre</label>
+                            <select class="form-select" name="genre">
+                                <option value="">Non spécifié</option>
+                                <option value="Homme" {% if role.genre=='Homme' %}selected{% endif %}>Homme</option>
+                                <option value="Femme" {% if role.genre=='Femme' %}selected{% endif %}>Femme</option>
+                                <option value="Autre" {% if role.genre=='Autre' %}selected{% endif %}>Autre</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL Google Doc</label>
+                            <input type="url" class="form-control" name="google_doc_url"
+                                value="{{ role.google_doc_url or '' }}" placeholder="https://docs.google.com/...">
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <label class="form-label">URL PDF</label>
+                            <input type="url" class="form-control" name="pdf_url" value="{{ role.pdf_url or '' }}"
+                                placeholder="https://...">
+                        </div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Commentaire</label>
+                        <textarea class="form-control" name="comment" rows="2"
+                            placeholder="Notes internes sur ce rôle...">{{ role.comment or '' }}</textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-check"></i> Enregistrer
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# Delete Role Modal #}
+<div class="modal fade" id="deleteRoleModal{{ role.id }}" tabindex="-1"
+    aria-labelledby="deleteRoleModalLabel{{ role.id }}" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="deleteRoleModalLabel{{ role.id }}">
+                    <i class="bi bi-exclamation-triangle"></i> Supprimer le rôle ?
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                    aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Êtes-vous sûr de vouloir supprimer le rôle <strong>{{ role.name }}</strong> ?</p>
+                <p class="text-muted small">Cette action est irréversible.</p>
+
+                {% set assigned_p = role.assigned_participant %}
+                {# Filter casting assignments that have a participant #}
+                {% set proposed_assignments = [] %}
+                {% for ca in role.casting_assignments %}
+                {% if ca.participant_id or ca.score %}
+                {% do proposed_assignments.append(ca) %}
+                {% endif %}
+                {% endfor %}
+
+                {% if assigned_p or proposed_assignments|length > 0 %}
+                <div class="alert alert-warning d-flex align-items-start mt-3">
+                    <i class="bi bi-exclamation-circle-fill me-2 fs-5"></i>
+                    <div>
+                        <strong>Attention :</strong><br>
+
+                        {% if assigned_p %}
+                        Ce rôle est attribué à <strong>{{ assigned_p.user.prenom }} {{ assigned_p.user.nom }}</strong>
+                        (Principal).<br>
+                        {% endif %}
+
+                        {% for assignment in proposed_assignments %}
+                        {% if assignment.participant_id %}
+                        Ce rôle est proposé à <strong>{{ assignment.participant.user.prenom }} {{
+                            assignment.participant.user.nom }}</strong>
+                        (Proposition : {{ assignment.proposal.name }}).<br>
+                        {% elif assignment.score %}
+                        Ce rôle a un score de <strong>{{ assignment.score }}</strong>
+                        (Proposition : {{ assignment.proposal.name }}).<br>
+                        {% endif %}
+                        {% endfor %}
+
+                        <div class="mt-2 text-dark small">La suppression annulera ces attributions.</div>
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <form method="POST" action="{{ url_for('event.delete_role', event_id=event.id, role_id=role.id) }}">
+                    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                    <button type="submit" class="btn btn-danger">
+                        <i class="bi bi-trash"></i> Confirmer la suppression
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+{# P.A.F. Modals #}
+
+<!-- Modal Info Payement -->
+<div class="modal fade" id="infoPayementModal" tabindex="-1" aria-labelledby="infoPayementModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="infoPayementModalLabel">Informations paiement</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Participant : <span id="infoPayementParticipant" class="fw-bold"></span></p>
+                <div class="mb-3">
+                    <label for="infoPayementTextarea" class="form-label">Note interne / Informations de paiement</label>
+                    <textarea class="form-control" id="infoPayementTextarea" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveInfoPayementBtn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Global Comment -->
+<div class="modal fade" id="globalCommentModal" tabindex="-1" aria-labelledby="globalCommentModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="globalCommentModalLabel">Commentaire général</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Participant : <span id="globalCommentParticipant" class="fw-bold"></span></p>
+                <div class="mb-3">
+                    <label for="globalCommentTextarea" class="form-label">Note interne / Commentaire général</label>
+                    <textarea class="form-control" id="globalCommentTextarea" rows="4"></textarea>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="saveGlobalCommentBtn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Payment Amount -->
+<div class="modal fade" id="paymentAmountModal" tabindex="-1" aria-labelledby="paymentAmountModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="paymentAmountModalLabel">Modifier le montant versé</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>Participant : <span id="paymentAmountParticipant" class="fw-bold"></span></p>
+                <div class="mb-3">
+                    <label for="paymentAmountInput" class="form-label">Montant versé (€)</label>
+                    <div class="input-group">
+                        <input type="number" step="0.01" class="form-control" id="paymentAmountInput">
+                        <span class="input-group-text">€</span>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                <button type="button" class="btn btn-primary" id="savePaymentAmountBtn">Enregistrer</button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}

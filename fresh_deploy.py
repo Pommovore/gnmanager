@@ -724,6 +724,11 @@ Exemples:
         default='./config/deploy_config.yaml',
         help='Chemin vers deploy_config.yaml (défaut: ./config/deploy_config.yaml)'
     )
+    parser.add_argument(
+        '--keep-dev-db',
+        action='store_true',
+        help='Déployer la base de données de développement en l\'état courant (Alias de --copy-db)'
+    )
     
     # Legacy arguments removed: --local
     
@@ -811,7 +816,7 @@ Exemples:
         create_admin_user(args.target_dir, config, None, sudo_password, ssh)
         
         # 9. Sync DB (Optionnel)
-        if args.copy_db:
+        if args.copy_db or args.keep_dev_db:
              sync_database(args.target_dir, user, sudo_password, ssh)
         
         # 10. Import des données de test (optionnel - seulement si pas de copy_db pour éviter conflits ?)

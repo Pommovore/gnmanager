@@ -65,6 +65,7 @@ uv run python fresh_deploy.py [OPTIONS]
 **Options :**
 - `--config PATH` : Chemin vers le fichier de config (défaut : `config/deploy_config.yaml`)
 - `--copy-db` : Copie la base de données locale vers le serveur distant (utile pour initialiser la prod avec des données de dev).
+- `--keep-dev-db` : Alias de `--copy-db`. Déploie la base de données de développement en l'état courant.
 - `--create-test-db` : Importe les données de test standard.
 - `--systemd` : Configure et démarre le service systemd.
 
