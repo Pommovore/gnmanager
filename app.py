@@ -130,6 +130,12 @@ def create_app(test_config=None):
     if 'SQLALCHEMY_DATABASE_URI' not in app.config:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gnmanager.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+
+    # Optimisations SQLite pour la concurrence (WAL mode + timeout)
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+        app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
+            'connect_args': {'timeout': 30},
+        }
     
     # Email Configuration
     app.config['MAIL_SERVER'] = os.environ.get('MAIL_SERVER', 'smtp.googlemail.com')
@@ -158,6 +164,18 @@ def create_app(test_config=None):
     # Initialisation des extensions
     app.jinja_env.add_extension('jinja2.ext.do')
     db.init_app(app)
+
+    # Activer le Write-Ahead Logging (WAL) pour meilleure concurrence lecture/écriture
+    # DOIT être fait après init_app et dans un contexte d'application
+    if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
+        from sqlalchemy import event
+        with app.app_context():
+            @event.listens_for(db.engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.close()
     mail.init_app(app)
     migrate.init_app(app, db)
     csrf.init_app(app)

@@ -106,3 +106,7 @@ stamp_log.txt
 
 # Logs directory
 logs/
+config/deploy_config_dev.yaml
+config/deploy_config_test.yaml
+config/deploy_config_prod.yaml
+static/uploads/
