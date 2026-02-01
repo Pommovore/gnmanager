@@ -216,6 +216,7 @@ class Role(db.Model):
 
     # Relation pour obtenir facilement le participant assigné
     assigned_participant = db.relationship('Participant', foreign_keys=[assigned_participant_id], backref='assigned_role_ref')
+    event = db.relationship('Event', backref=db.backref('roles', cascade='all, delete-orphan'))
     
     def __repr__(self):
         return f'<Role {self.name} - Event {self.event_id}>'
@@ -313,7 +314,7 @@ class Participant(db.Model):
     
     # Relations
     user = db.relationship('User', backref='participations')
-    event = db.relationship('Event', backref='participants')
+    event = db.relationship('Event', backref=db.backref('participants', cascade='all, delete-orphan'))
     role = db.relationship('Role', foreign_keys=[role_id], backref='participants_with_role')
     
     def __repr__(self):
@@ -415,7 +416,9 @@ class CastingProposal(db.Model):
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     
     # Relations
-    event = db.relationship('Event', backref='casting_proposals')
+    # Relations
+    event = db.relationship('Event', backref=db.backref('casting_proposals', cascade='all, delete-orphan'))
+    assignments = db.relationship('CastingAssignment', backref='proposal', cascade='all, delete-orphan')
     assignments = db.relationship('CastingAssignment', backref='proposal', cascade='all, delete-orphan')
     
     def __repr__(self):
@@ -451,7 +454,7 @@ class CastingAssignment(db.Model):
     # Relations
     role = db.relationship('Role', backref='casting_assignments')
     participant = db.relationship('Participant', backref='casting_assignments')
-    event = db.relationship('Event', backref='casting_assignments')
+    event = db.relationship('Event', backref=db.backref('casting_assignments', cascade='all, delete-orphan'))
     
     def __repr__(self):
         return f'<CastingAssignment Proposal:{self.proposal_id} Role:{self.role_id} Participant:{self.participant_id}>'
