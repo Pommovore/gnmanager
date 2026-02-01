@@ -214,14 +214,16 @@ def connect_ssh(host, user, password):
         sys.exit(1)
 
 
-def stop_systemd_service(sudo_password=None, ssh=None):
+
+# Ajout de l'argument pour le nom du service
+def stop_systemd_service(service_name, sudo_password=None, ssh=None):
     """Arrête le service systemd."""
-    print("🛑 Arrêt du service systemd...")
+    print(f"🛑 Arrêt du service systemd ({service_name})...")
     try:
-        run_command("sudo systemctl stop gnmanager.service", capture_output=True, sudo_password=sudo_password, ssh=ssh)
-        print("✅ Service systemd arrêté")
+        run_command(f"sudo systemctl stop {service_name}", capture_output=True, sudo_password=sudo_password, ssh=ssh)
+        print(f"✅ Service {service_name} arrêté")
     except Exception:
-        print("⚠️  Impossible d'arrêter le service (peut-être pas installé ?)")
+        print(f"⚠️  Impossible d'arrêter le service {service_name} (peut-être pas installé ?)")
 
 
 def kill_port_processes(port, sudo_password=None, ssh=None):
@@ -271,23 +273,23 @@ def check_remote_dir_exists(ssh, path):
     return stdout.read().decode().strip() == 'yes'
 
 
-def rename_old_deployment(target_dir, ssh=None, sudo_password=None):
+def rename_old_deployment(deployment_path, ssh=None, sudo_password=None):
     """Renomme l'ancien déploiement avec extension .old_N."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
+    # deployment_path est le chemin complet (ex: /opt/gnmanager ou /opt/gnmanager_dev)
     
     if ssh:
-        exists = check_remote_dir_exists(ssh, gnmanager_path)
+        exists = check_remote_dir_exists(ssh, deployment_path)
     else:
-        exists = os.path.exists(gnmanager_path)
+        exists = os.path.exists(deployment_path)
         
     if not exists:
-        print(f"ℹ️  Aucun déploiement existant dans {target_dir}")
+        print(f"ℹ️  Aucun déploiement existant dans {deployment_path}")
         return
     
     # Trouver le premier .old_N disponible
     i = 1
     while True:
-        old_path = f"{gnmanager_path}.old_{i}"
+        old_path = f"{deployment_path}.old_{i}"
         if ssh:
             if not check_remote_dir_exists(ssh, old_path):
                 break
@@ -296,19 +298,19 @@ def rename_old_deployment(target_dir, ssh=None, sudo_password=None):
                 break
         i += 1
     
-    old_path = f"{gnmanager_path}.old_{i}"
-    print(f"📦 Renommage de l'ancien déploiement: {gnmanager_path} -> {old_path}")
+    old_path = f"{deployment_path}.old_{i}"
+    print(f"📦 Renommage de l'ancien déploiement: {deployment_path} -> {old_path}")
     
-    cmd = f"sudo mv {gnmanager_path} {old_path}"
+    cmd = f"sudo mv {deployment_path} {old_path}"
     run_command(cmd, ssh=ssh, sudo_password=sudo_password)
     print(f"✅ Ancien déploiement sauvegardé dans {old_path}")
 
 
 
-def transfer_files(target_dir, user, sudo_password=None, ssh=None):
+def transfer_files(deployment_path, user, sudo_password=None, ssh=None):
     """Transfère les fichiers suivis par git vers la cible (au lieu de cloner)."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
-    print(f"📂 Transfert des fichiers locaux vers {gnmanager_path}...")
+    # deployment_path est déjà le chemin complet (ex: /opt/gnmanager_dev)
+    print(f"📂 Transfert des fichiers locaux vers {deployment_path}...")
     
     # 1. Lister les fichiers suivis par git
     try:
@@ -319,16 +321,16 @@ def transfer_files(target_dir, user, sudo_password=None, ssh=None):
         
     # Ajouter config/deploy_config.yaml et google_credentials.json s'ils ne sont pas suivis
     extras = ['config/deploy_config.yaml', 'config/google_credentials.json']
+    # Ajouter aussi les configs spécifiques pour référence
+    extras.extend(['config/deploy_config_prod.yaml', 'config/deploy_config_dev.yaml', 'config/deploy_config_test.yaml'])
+
     for extra in extras:
         if os.path.exists(extra):
             files.append(extra)
             
     # Créer le dossier racine (si n'existe pas)
-    run_command(f"sudo mkdir -p {gnmanager_path}", sudo_password=sudo_password, ssh=ssh)
+    run_command(f"sudo mkdir -p {deployment_path}", sudo_password=sudo_password, ssh=ssh)
     # Donner la propriété temporaire pour pouvoir écrire
-    # Pour remote, on utilise l'user SSH connecté par défaut s'il n'est pas spécifié, 
-    # mais ici on a 'user' (le user cible). 
-    # Pour simplifier l'écriture SFTP, on donne les droits au user courant (SSH ou local)
     current_user_cmd = "whoami"
     if ssh:
         stdin, stdout, stderr = ssh.exec_command(current_user_cmd)
@@ -336,23 +338,18 @@ def transfer_files(target_dir, user, sudo_password=None, ssh=None):
     else:
         current_user = subprocess.check_output(current_user_cmd, shell=True, text=True).strip()
         
-    run_command(f"sudo chown -R {current_user} {gnmanager_path}", sudo_password=sudo_password, ssh=ssh)
+    run_command(f"sudo chown -R {current_user} {deployment_path}", sudo_password=sudo_password, ssh=ssh)
     
     if ssh:
         sftp = ssh.open_sftp()
         created_dirs = set()
         for f in files:
             local_path = f
-            remote_path = os.path.join(gnmanager_path, f).replace("\\", "/") # Pour compat windaube si jamais
+            remote_path = os.path.join(deployment_path, f).replace("\\", "/") 
             remote_dir = os.path.dirname(remote_path)
             
-            # Créer les dossiers parents s'ils n'existent pas
-            # Optimisation: on traque les dossiers déjà créés pour éviter les appels répétés
             if remote_dir not in created_dirs:
                 try:
-                    # On vérifie si le dossier existe déjà (plus propre que mkdir -p aveugle)
-                    # Mais mkdir -p est atomique et simple. On réduit juste le bruit.
-                    # On utilise run_command_remote silencieusement ou via ssh.exec_command
                     cmd = f"mkdir -p {remote_dir}"
                     ssh.exec_command(cmd)
                     created_dirs.add(remote_dir)
@@ -369,7 +366,7 @@ def transfer_files(target_dir, user, sudo_password=None, ssh=None):
         # Local copy
         for f in files:
             src = os.path.abspath(f)
-            dst = os.path.join(gnmanager_path, f)
+            dst = os.path.join(deployment_path, f)
             os.makedirs(os.path.dirname(dst), exist_ok=True)
             shutil.copy2(src, dst)
             
@@ -377,18 +374,18 @@ def transfer_files(target_dir, user, sudo_password=None, ssh=None):
 
 
 
-def setup_ownership(target_dir, user, sudo_password=None, ssh=None):
+def setup_ownership(deployment_path, user, sudo_password=None, ssh=None):
     """Configure la propriété des fichiers."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
     print(f"🔑 Configuration de la propriété: {user}:{user}")
-    run_command(f"sudo chown -R {user}:{user} {gnmanager_path}", sudo_password=sudo_password, ssh=ssh)
+    run_command(f"sudo chown -R {user}:{user} {deployment_path}", sudo_password=sudo_password, ssh=ssh)
     print("✅ Propriété configurée")
 
 
-def copy_config(config_path, target_dir, ssh=None):
+def copy_config(config_source_path, deployment_path, ssh=None):
     """Copie le fichier de configuration."""
-    source = os.path.abspath(config_path)
-    dest_path = os.path.join(target_dir, 'gnmanager', 'config', 'deploy_config.yaml')
+    source = os.path.abspath(config_source_path)
+    # On renomme toujours en deploy_config.yaml sur la cible pour que l'app s'y retrouve par défaut
+    dest_path = os.path.join(deployment_path, 'config', 'deploy_config.yaml')
     
     print(f"📋 Copie de la configuration: {source} -> {dest_path}")
     
@@ -399,7 +396,6 @@ def copy_config(config_path, target_dir, ssh=None):
         try:
             sftp.stat(remote_config_dir)
         except IOError:
-            # Créer le dossier (on suppose que le clonage git l'a déjà créé, mais par sécurité)
             pass
             
         sftp.put(source, dest_path)
@@ -410,30 +406,25 @@ def copy_config(config_path, target_dir, ssh=None):
     print("✅ Configuration copiée")
 
 
-def install_dependencies(target_dir, user, sudo_password=None, ssh=None):
+def install_dependencies(deployment_path, user, sudo_password=None, ssh=None):
     """Installe les dépendances avec uv."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
     print("📦 Installation des dépendances (uv sync)...")
     
     # Prefix command to ensuring uv is in PATH
     uv_cmd = "export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv sync"
     
-    run_command(uv_cmd, cwd=gnmanager_path, ssh=ssh)
+    run_command(uv_cmd, cwd=deployment_path, ssh=ssh)
     print("✅ Dépendances installées")
 
 
-def create_version_file(target_dir, user, sudo_password=None, ssh=None):
-    """Génère le fichier .deploy-version avec le tag git et la date du dernier commit."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
+def create_version_file(deployment_path, user, sudo_password=None, ssh=None):
+    """Génère le fichier .deploy-version."""
     print("🔖 Génération du fichier de version...")
-    
-    # Commande pour obtenir la version: Tag + Date du commit
-    # Format attendu: TAG-YYYYMMDD_HHMMSS (ex: V0.4-20260125_154000)
     
     version_str = "dev"
     try:
         # 0. Fetch tags to ensure we have the latest
-        subprocess.run(["git", "fetch", "--tags"], check=False, stderr=subprocess.DEVNULL)
+        subprocess.run(["git", "fetch", "origin", "--tags"], check=False, stderr=subprocess.DEVNULL)
 
         # 1. Get last commit date formatted
         ts = subprocess.check_output(
@@ -443,9 +434,9 @@ def create_version_file(target_dir, user, sudo_password=None, ssh=None):
         
         # 2. Get latest tag
         try:
-            # Utilisation de la méthode triée par date de création pour avoir le VRAI dernier tag
-            # même si on n'est pas sur le commit du tag
-            tag_cmd = "git tag --sort=-creatordate | head -n 1"
+            # Utilisation de la méthode triée par version (semver) pour avoir la version la plus élevée
+            # creatordate peut être trompeur si une vieille version a été taggée récemment
+            tag_cmd = "git tag --sort=-version:refname | head -n 1"
             tag = subprocess.check_output(tag_cmd, shell=True, text=True).strip()
             if not tag:
                 tag = "dev"
@@ -458,47 +449,38 @@ def create_version_file(target_dir, user, sudo_password=None, ssh=None):
         version_str = f"{tag}_{ts}"
     except Exception as e:
         print(f"⚠️ Impossible de déterminer la version git locale: {e}")
-        # Fallback date courante
         version_str = f"dev_{int(time.time())}"
         
     print(f"ℹ️  Version détectée: {version_str}")
     
     version_file = ".deploy-version"
     
-    # Écrire le fichier sur la cible
     if ssh:
-        # Écrire fichier temporaire
         with open('temp_version', 'w') as f:
             f.write(version_str)
-        
-        # Envoyer
         try:
             sftp = ssh.open_sftp()
-            remote_path = os.path.join(gnmanager_path, version_file)
+            remote_path = os.path.join(deployment_path, version_file)
             sftp.put('temp_version', remote_path)
             sftp.close()
             os.remove('temp_version')
             
-            # S'assurer des permissions
             run_command(f"chown {user}:{user} {remote_path}" if user else f"chmod 644 {remote_path}", 
                        sudo_password=sudo_password, ssh=ssh)
         except Exception as e:
              print(f"❌ Erreur envoi fichier version: {e}")
     else:
-        # Local
-        target_file = os.path.join(gnmanager_path, version_file)
+        target_file = os.path.join(deployment_path, version_file)
         with open(target_file, 'w') as f:
             f.write(version_str)
             
     print("✅ Fichier .deploy-version créé")
 
 
-
 # 2. Update definition
-def create_env_file(target_dir, config, user, sudo_password=None, ssh=None, force_local=False):
+def create_env_file(deployment_path, config, user, sudo_password=None, ssh=None, force_local=False):
     """Crée le fichier .env avec les variables d'environnement."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
-    env_path = os.path.join(gnmanager_path, '.env')
+    env_path = os.path.join(deployment_path, '.env')
     
     print("🔐 Génération du fichier .env...")
     
@@ -508,16 +490,11 @@ def create_env_file(target_dir, config, user, sudo_password=None, ssh=None, forc
     # Générer une SECRET_KEY
     import secrets
     secret_key = secrets.token_hex(32)
-    api_secret = secrets.token_hex(16) # Secret pour le webhook Google Forms
+    api_secret = secrets.token_hex(16) 
     
     host = deploy_config.get('machine_name', '0.0.0.0')
     port = deploy_config.get('port', 5000)
-    
-    
-    # Récupérer app_prefix depuis la config
     app_prefix = deploy_config.get('app_prefix')
-    
-    # Si machine_name est distant, on veut quand même écouter sur 0.0.0.0
     flask_host = '0.0.0.0' 
     
     env_content = f"""# Configuration générée automatiquement par fresh_deploy.py
@@ -530,21 +507,15 @@ MAIL_DEFAULT_SENDER={email_config.get('default_sender', '')}
 FLASK_HOST={flask_host}
 FLASK_PORT={port}
 APP_PUBLIC_HOST={host}:{port}
-APP_PUBLIC_HOST={host}:{port}
 SECRET_KEY={secret_key}
 API_SECRET={api_secret}
 PYTHONUNBUFFERED=1
 """
-    # Si un préfixe est configuré ET qu'on n'est pas en force_local
     if app_prefix and not force_local:
         env_content += f"APPLICATION_ROOT={app_prefix}\n"
 
-    
-    # Lecture des credentials Google optionnels
-    # On cherche d'abord dans le dossier config local (d'où est lancé le script)
+    # Google Credentials
     google_creds_path = './config/google_credentials.json'
-    
-    # Pour être robuste, on cherche aussi par rapport au fichier de script
     if not os.path.exists(google_creds_path):
          google_creds_path = os.path.join(os.path.dirname(__file__), 'config', 'google_credentials.json')
 
@@ -552,13 +523,9 @@ PYTHONUNBUFFERED=1
         try:
             with open(google_creds_path, 'r') as f:
                 creds = json.load(f)
-                # Structure typique: {"web": {"client_id": "...", "client_secret": "..."}}
-                # ou direct {"client_id": "...", ...}
                 web_config = creds.get('web', creds)
-                
                 client_id = web_config.get('client_id')
                 client_secret = web_config.get('client_secret')
-                
                 if client_id and client_secret:
                     print(f"🔑 Ajout des credentials Google depuis {google_creds_path}")
                     env_content += f"GOOGLE_CLIENT_ID={client_id}\n"
@@ -566,13 +533,10 @@ PYTHONUNBUFFERED=1
         except Exception as e:
             print(f"⚠️ Erreur lecture google_credentials.json: {e}")
 
-    
     if ssh:
-        # Écrire localement temporairement
         temp_env = '.env.tmp'
         with open(temp_env, 'w', encoding='utf-8') as f:
             f.write(env_content)
-            
         sftp = ssh.open_sftp()
         sftp.put(temp_env, env_path)
         sftp.close()
@@ -581,13 +545,11 @@ PYTHONUNBUFFERED=1
         with open(env_path, 'w', encoding='utf-8') as f:
             f.write(env_content)
     
-    # Propriété déjà correcte (créé par l'utilisateur courant/ssh)
     print("✅ Fichier .env créé")
 
 
-def create_admin_user(target_dir, config, user, sudo_password=None, ssh=None):
+def create_admin_user(deployment_path, config, user, sudo_password=None, ssh=None):
     """Crée le compte admin dans la base de données."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
     admin_config = config.get('admin', {})
     
     admin_email = admin_config.get('email', 'admin@example.com')
@@ -597,8 +559,6 @@ def create_admin_user(target_dir, config, user, sudo_password=None, ssh=None):
     
     print(f"👤 Création du compte admin: {admin_email}")
     
-    # Script Python pour créer l'admin
-    # Note: On doit échapper les quotes pour la ligne de commande
     script = f"""
 from app import create_app
 from models import db, User
@@ -635,49 +595,93 @@ except Exception as e:
     print(f'ERREUR: {{e}}')
     sys.exit(1)
 """
-    # Échappement pour passer le script en ligne de commande
-    script_oneliner = script.replace('\n', '; ').replace('"', '\\"')
-    
-    # Plus simple: écrire le script dans un fichier temporaire sur la cible et l'exécuter
     script_name = "init_admin.py"
     if ssh:
         with open(script_name, 'w') as f:
             f.write(script)
         sftp = ssh.open_sftp()
-        remote_script = os.path.join(gnmanager_path, script_name)
+        remote_script = os.path.join(deployment_path, script_name)
         sftp.put(script_name, remote_script)
         sftp.close()
         os.remove(script_name)
         
-        run_command(f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {script_name}", cwd=gnmanager_path, ssh=ssh)
-        run_command(f"rm {script_name}", cwd=gnmanager_path, ssh=ssh)
+        run_command(f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {script_name}", cwd=deployment_path, ssh=ssh)
+        run_command(f"rm {script_name}", cwd=deployment_path, ssh=ssh)
     else:
-        local_script = os.path.join(gnmanager_path, script_name)
+        local_script = os.path.join(deployment_path, script_name)
         with open(local_script, 'w') as f:
             f.write(script)
-        run_command(f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {script_name}", cwd=gnmanager_path)
+        run_command(f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {script_name}", cwd=deployment_path)
         os.remove(local_script)
         
     print("✅ Compte admin configuré")
 
 
-def import_test_data(target_dir, user, sudo_password=None, ssh=None):
+def import_test_data(deployment_path, user, sudo_password=None, ssh=None):
     """Importe les données de test depuis config/."""
-    gnmanager_path = os.path.join(target_dir, 'gnmanager')
     print("📊 Import des données de test...")
     run_command(
         "export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python manage_db.py import -f config/ --clean",
-        cwd=gnmanager_path,
+        cwd=deployment_path,
         ssh=ssh
     )
     print("✅ Données de test importées")
 
 
-def start_systemd_service(sudo_password=None, ssh=None):
+def start_systemd_service(service_name, sudo_password=None, ssh=None):
     """Démarre le service systemd."""
-    print("🚀 Démarrage du service systemd...")
-    run_command("sudo systemctl start gnmanager.service", sudo_password=sudo_password, ssh=ssh)
+    print(f"🚀 Démarrage du service systemd ({service_name})...")
+    run_command(f"sudo systemctl start {service_name}", sudo_password=sudo_password, ssh=ssh)
     print("✅ Service systemd démarré")
+
+
+def sync_database(deployment_path, user, sudo_password=None, ssh=None):
+    """Synchronise la base de données locale vers le distant."""
+    print("🔄 Synchronisation de la base de données...")
+    
+    # 1. Export local
+    local_export_file = "deploy_temp.json"
+    print(f"  - Export local vers {local_export_file}...")
+    try:
+        # On utilise uv run pour s'assurer d'avoir les dépendances
+        export_cmd = f"uv run python manage_db.py export --file {local_export_file}"
+        run_command_local(export_cmd, capture_output=True)
+    except Exception as e:
+        print(f"❌ Erreur export local: {e}")
+        sys.exit(1)
+        
+    # 2. Transfert
+    print(f"  - Transfert vers le serveur...")
+    remote_export_file = os.path.join(deployment_path, local_export_file)
+    try:
+        sftp = ssh.open_sftp()
+        sftp.put(local_export_file, remote_export_file)
+        sftp.close()
+    except Exception as e:
+        print(f"❌ Erreur transfert fichier: {e}")
+        try: os.remove(local_export_file)
+        except: pass
+        sys.exit(1)
+        
+    # 3. Import distant
+    print(f"  - Import sur le serveur (avec nettoyage)...")
+    try:
+        # Commande d'import sur le serveur
+        import_cmd = f"export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python manage_db.py import --file {local_export_file} --clean"
+        run_command_remote(ssh, import_cmd, cwd=deployment_path)
+    except Exception as e:
+         print(f"❌ Erreur import distant: {e}")
+         sys.exit(1)
+    finally:
+        # 4. Nettoyage
+        print("  - Nettoyage des fichiers temporaires...")
+        try:
+            os.remove(local_export_file)  # Local
+            run_command_remote(ssh, f"rm {remote_export_file}") # Distant
+        except:
+            pass
+            
+    print("✅ Base de données synchronisée")
 
 
 def main():
@@ -685,19 +689,22 @@ def main():
         description='Déploiement production GN Manager (Local ou Remote)',
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="""
-Exemples:
-  # Déploiement complet avec systemd et données de test
-  export GNMANAGER_USER=gnmanager
-  export GNMANAGER_PWD=secret
-  python fresh_deploy.py /opt --systemd --create-test-db
+Exemple:
+    python fresh_deploy.py --prod --systemd --create-test-db
+    python fresh_deploy.py --dev --systemd
         """
     )
     
+    # Groupe d'environnement mutuellement exclusif et OBLIGATOIRE
+    env_group = parser.add_mutually_exclusive_group(required=True)
+    env_group.add_argument('--prod', action='store_true', help='Environnement PRODUCTION')
+    env_group.add_argument('--test', action='store_true', help='Environnement TEST')
+    env_group.add_argument('--dev', action='store_true', help='Environnement DÉVELOPPEMENT')
+
     parser.add_argument(
-        'target_dir',
-        nargs='?',
-        default='/opt',
-        help='Répertoire parent d\'installation (défaut: /opt)'
+        '--target-dir',
+        default=None, # On déduira du fichier de config ou par défaut /opt
+        help='Répertoire parent (Optionnel, surcharge la config)'
     )
     parser.add_argument(
         '--kill',
@@ -720,37 +727,72 @@ Exemples:
         help='Copier la base de données locale vers le serveur distant (écrase la base distante)'
     )
     parser.add_argument(
-        '--config',
-        default='./config/deploy_config.yaml',
-        help='Chemin vers deploy_config.yaml (défaut: ./config/deploy_config.yaml)'
-    )
-    parser.add_argument(
         '--keep-dev-db',
         action='store_true',
         help='Déployer la base de données de développement en l\'état courant (Alias de --copy-db)'
     )
     
-    # Legacy arguments removed: --local
-    
     args = parser.parse_args()
     
-    # Charger la configuration
-    config = load_config(args.config)
+    # Détermination de l'environnement
+    if args.prod:
+        env_name = "prod"
+        config_path = "./config/deploy_config_prod.yaml"
+        service_suffix = "" # gnmanager
+    elif args.test:
+        env_name = "test"
+        config_path = "./config/deploy_config_test.yaml"
+        service_suffix = "_test" # gnmanager_test
+    elif args.dev:
+        env_name = "dev"
+        config_path = "./config/deploy_config_dev.yaml"
+        service_suffix = "_dev" # gnmanager_dev
     
-    # Déterminer si local ou distant
+    service_name = f"gnmanager{service_suffix}.service"
+
+    print(f"🌍 Environnement sélectionné: {env_name.upper()}")
+    print(f"⚙️  Fichier config: {config_path}")
+    print(f"🔧 Service Systemd: {service_name}")
+
+    if not os.path.exists(config_path):
+        # Fallback si le fichier spécifique n'existe pas (compatibilité)
+        print(f"⚠️  Config {config_path} introuvable. Tentative avec deploy_config.yaml...")
+        config_path = "./config/deploy_config.yaml"
+
+    # Charger la configuration
+    config = load_config(config_path)
+    
     deploy_config = config.get('deploy', {})
     machine_name = deploy_config.get('machine_name')
     port = deploy_config.get('port', 5000)
     
+    # Détermination du dossier cible (deployment_path)
+    # Priorité: 1. Argument CLI --target-dir 2. Config YAML 'target_directory' 3. Défaut '/opt/gnmanager...'
+    
+    config_target_dir = deploy_config.get('target_directory')
+    
+    if args.target_dir:
+        # Si passé en argument, on suppose que c'est le parent (comme avant)
+        # OU on décide que c'est le path complet?
+        # Pour compatibilité, disons que si l'user force un dir, c'est le parent.
+        # MAIS avec les nouveaux envs, c'est flou.
+        # On va dire: si force target-dir, on append gnmanager{suffix}
+        deployment_path = os.path.join(args.target_dir, f"gnmanager{service_suffix}".replace('.service', ''))
+    elif config_target_dir:
+        # Chemin complet depuis la config
+        deployment_path = config_target_dir.rstrip('/')
+    else:
+        # Défaut absolu
+        deployment_path = f"/opt/gnmanager{service_suffix}".replace('.service', '')
+
+    print(f"📂 Chemin de déploiement: {deployment_path}")
+
     # Validation obligatoire pour le mode distant
     if not machine_name or machine_name in ['localhost', '127.0.0.1', '0.0.0.0']:
         print("❌ Erreur: Ce script est conçu pour le déploiement distant uniquement.")
-        print("   Veuillez configurer 'machine_name' dans deploy_config.yaml.")
+        print("   Veuillez configurer 'machine_name' dans le fichier yaml.")
         sys.exit(1)
         
-    is_remote = True
-
-    
     user = os.environ.get('GNMANAGER_USER')
     if not user:
         print("❌ Variable d'environnement GNMANAGER_USER non définie")
@@ -758,76 +800,61 @@ Exemples:
     
     sudo_password = os.environ.get('GNMANAGER_PWD')
     if not sudo_password:
-        print("⚠️  Variable d'environnement GNMANAGER_PWD non définie")
-        print("   Mode interactif pour sudo")
-
-    
-    ssh = None
-    if not sudo_password:
         print("❌ Pour le déploiement distant, GNMANAGER_PWD est obligatoire (connexion SSH).")
         sys.exit(1)
+        
     ssh = connect_ssh(machine_name, user, sudo_password)
 
-    
     print("=" * 70)
-    print("🚀 DÉPLOIEMENT PRODUCTION GN MANAGER")
+    print(f"🚀 DÉPLOIEMENT {env_name.upper()} GN MANAGER")
     print("=" * 70)
-    print("=" * 70)
-    print("🚀 DÉPLOIEMENT PRODUCTION GN MANAGER")
-    print("=" * 70)
-    print(f"🎯 Mode: REMOTE ({machine_name})")
-
-    print(f"📁 Répertoire cible: {os.path.join(args.target_dir, 'gnmanager')}")
+    print(f"🎯 Serveur: {machine_name}")
     print(f"👤 Utilisateur: {user}")
     print("=" * 70)
     
     try:
         # 1. Arrêt des services
         if args.systemd:
-            stop_systemd_service(sudo_password, ssh)
+            stop_systemd_service(service_name, sudo_password, ssh)
         
         if args.kill:
             kill_port_processes(port, sudo_password, ssh)
         
         # 2. Backup de l'ancien déploiement
-        rename_old_deployment(args.target_dir, ssh, sudo_password)
+        rename_old_deployment(deployment_path, ssh, sudo_password)
         
         # 3. Transfert des fichiers
-        transfer_files(args.target_dir, user, sudo_password, ssh)
+        transfer_files(deployment_path, user, sudo_password, ssh)
         
         # 4. Configuration de la propriété
-        setup_ownership(args.target_dir, user, sudo_password, ssh)
+        setup_ownership(deployment_path, user, sudo_password, ssh)
         
         # 5. Copie de la configuration
-        copy_config(args.config, args.target_dir, ssh)
+        copy_config(config_path, deployment_path, ssh)
         
         # 6. Installation des dépendances
-        # user=None car on ne veut PAS utiliser sudo (le dossier nous appartient et on veut garder le PATH)
-        install_dependencies(args.target_dir, None, sudo_password, ssh)
+        install_dependencies(deployment_path, None, sudo_password, ssh)
 
-        
         # 6.5 Création fichier version
-        create_version_file(args.target_dir, user, sudo_password, ssh)
+        create_version_file(deployment_path, user, sudo_password, ssh)
 
         # 7. Création du fichier .env
-        create_env_file(args.target_dir, config, None, sudo_password, ssh)
+        create_env_file(deployment_path, config, None, sudo_password, ssh)
         
         # 8. Création du compte admin
-        create_admin_user(args.target_dir, config, None, sudo_password, ssh)
+        create_admin_user(deployment_path, config, None, sudo_password, ssh)
         
         # 9. Sync DB (Optionnel)
         if args.copy_db or args.keep_dev_db:
-             sync_database(args.target_dir, user, sudo_password, ssh)
+             sync_database(deployment_path, user, sudo_password, ssh)
         
-        # 10. Import des données de test (optionnel - seulement si pas de copy_db pour éviter conflits ?)
-        # On autorise les deux, l'utilisateur gère.
+        # 10. Import des données de test
         if args.create_test_db:
-            import_test_data(args.target_dir, None, sudo_password, ssh)
+            import_test_data(deployment_path, None, sudo_password, ssh)
 
-        
         # 10. Démarrage du service (optionnel)
         if args.systemd:
-            start_systemd_service(sudo_password, ssh)
+            start_systemd_service(service_name, sudo_password, ssh)
         
         print("=" * 70)
         print("✅ DÉPLOIEMENT TERMINÉ AVEC SUCCÈS!")
@@ -839,8 +866,8 @@ Exemples:
     except Exception as e:
         print("=" * 70)
         print(f"❌ ERREUR LORS DU DÉPLOIEMENT: {e}")
-        # import traceback
-        # traceback.print_exc()
+        import traceback
+        traceback.print_exc()
         print("=" * 70)
         if ssh:
             ssh.close()

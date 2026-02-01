@@ -357,93 +357,13 @@
         </div>
 
         <script>
-            function copyToClipboard(text, element) {
-                if (!text) return;
-                navigator.clipboard.writeText(text).then(() => {
-                    const originalTitle = element.title;
-                    element.title = "Copié !";
-                    const tooltip = bootstrap.Tooltip.getOrCreateInstance(element);
-                    tooltip.show();
-                    setTimeout(() => {
-                        element.title = originalTitle;
-                        tooltip.hide();
-                    }, 1000);
-                }).catch(err => {
-                    console.error('Erreur de copie :', err);
-                });
-            }
-
-            document.addEventListener('DOMContentLoaded', function () {
-                // Init tooltips
-                const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
-                const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-                    return new bootstrap.Tooltip(tooltipTriggerEl)
-                });
-                const event_id = "{{ event.id }}";
-                const csrf_token = "{{ csrf_token() }}";
-                let baseUrl = "{{ config.APPLICATION_ROOT or '' }}";
-                if (baseUrl === '/') baseUrl = '';
-                if (baseUrl.endsWith('/')) baseUrl = baseUrl.slice(0, -1);
-
-                const updatePafInlineUrl = `${baseUrl}/event/${event_id}/participant/{p_id}/update_paf_inline`;
-
-                const gcModalEl = document.getElementById('globalCommentModal');
-                let gcModal = null;
-                if (gcModalEl) {
-                    gcModal = new bootstrap.Modal(gcModalEl);
-                }
-
-                let currentPId = null;
-
-                document.querySelectorAll('.gc-btn').forEach(btn => {
-                    btn.addEventListener('click', function () {
-                        currentPId = this.dataset.pId;
-                        document.getElementById('globalCommentParticipant').textContent = this.dataset.pName;
-                        document.getElementById('globalCommentTextarea').value = this.title === 'Aucun commentaire général' ? '' : this.title;
-                        if (gcModal) gcModal.show();
-                    });
-                });
-
-                const saveGcBtn = document.getElementById('saveGlobalCommentBtn');
-                if (saveGcBtn) {
-                    saveGcBtn.addEventListener('click', function () {
-                        const text = document.getElementById('globalCommentTextarea').value;
-
-                        fetch(updatePafInlineUrl.replace('{p_id}', currentPId), {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'X-CSRFToken': csrf_token
-                            },
-                            body: JSON.stringify({ global_comment: text })
-                        })
-                            .then(response => response.json())
-                            .then(result => {
-                                if (result.success) {
-                                    const gcBtn = document.querySelector(`.gc-btn[data-p-id="${currentPId}"]`);
-                                    if (gcBtn) {
-                                        if (result.global_comment_empty) {
-                                            gcBtn.classList.remove('btn-outline-danger');
-                                            gcBtn.classList.add('btn-outline-primary');
-                                            gcBtn.title = 'Aucun commentaire général';
-                                        } else {
-                                            gcBtn.classList.remove('btn-outline-primary');
-                                            gcBtn.classList.add('btn-outline-danger');
-                                            gcBtn.title = result.global_comment;
-                                        }
-                                    }
-                                    if (gcModal) gcModal.hide();
-                                } else {
-                                    alert('Erreur: ' + (result.error || 'Inconnue'));
-                                }
-                            })
-                            .catch(error => {
-                                console.error('Error:', error);
-                                alert('Une erreur est survenue.');
-                            });
-                    });
-                }
-            });
+            window.GN_CONTEXT = {
+                eventId: "{{ event.id }}",
+                csrfToken: "{{ csrf_token() }}",
+                baseUrl: "{{ config.APPLICATION_ROOT or '' }}"
+            };
+            if (window.GN_CONTEXT.baseUrl === '/') window.GN_CONTEXT.baseUrl = '';
+            if (window.GN_CONTEXT.baseUrl.endsWith('/')) window.GN_CONTEXT.baseUrl = window.GN_CONTEXT.baseUrl.slice(0, -1);
         </script>
 
         <!-- Groups Config Data (for JavaScript) -->
@@ -453,6 +373,7 @@
 
         <link rel="stylesheet" href="{{ url_for('static', filename='css/participants.css') }}">
         <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
+        <script src="{{ url_for('static', filename='js/manage_participants.js') }}"></script>
     </div> {# Close container-fluid #}
 </div> {# Close col-md-10 #}
 </div> {# Close row #}

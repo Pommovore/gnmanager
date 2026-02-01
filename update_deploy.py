@@ -47,27 +47,69 @@ def run_remote(ssh, cmd, sudo=False, password=None):
 
 def main():
     parser = argparse.ArgumentParser(description="Mise à jour rapide de GN Manager")
-    parser.add_argument("--config", default="config/deploy_config.yaml", help="Fichier de configuration")
+    
+    # Groupe d'environnement mutuellement exclusif et OBLIGATOIRE
+    env_group = parser.add_mutually_exclusive_group(required=True)
+    env_group.add_argument('--prod', action='store_true', help='Environnement PRODUCTION')
+    env_group.add_argument('--test', action='store_true', help='Environnement TEST')
+    env_group.add_argument('--dev', action='store_true', help='Environnement DÉVELOPPEMENT')
+
     parser.add_argument("--key", help="Chemin vers la clé SSH privée")
     parser.add_argument("--systemd", action="store_true", help="Redémarrer le service systemd")
     args = parser.parse_args()
 
+    # Détermination de l'environnement
+    if args.prod:
+        env_name = "prod"
+        config_path = "config/deploy_config_prod.yaml"
+        service_suffix = "" # gnmanager
+    elif args.test:
+        env_name = "test"
+        config_path = "config/deploy_config_test.yaml"
+        service_suffix = "_test" # gnmanager_test
+    elif args.dev:
+        env_name = "dev"
+        config_path = "config/deploy_config_dev.yaml"
+        service_suffix = "_dev" # gnmanager_dev
+    
+    service_name = f"gnmanager{service_suffix}" # systemctl prend le nom court ou long
+    
+    print(f"🌍 Environnement: {env_name.upper()}")
+    print(f"⚙️  Config: {config_path}")
+    print(f"🔧 Service: {service_name}")
+
     # Charger la config
-    if not os.path.exists(args.config):
-        print(f"❌ Config introuvable: {args.config}")
-        sys.exit(1)
+    if not os.path.exists(config_path):
+        # Fallback
+        if os.path.exists("config/deploy_config.yaml"):
+             print(f"⚠️  Config spécifique introuvable. Repli sur config/deploy_config.yaml")
+             config_path = "config/deploy_config.yaml"
+        else:
+            print(f"❌ Config introuvable: {config_path}")
+            sys.exit(1)
         
-    with open(args.config) as f:
+    with open(config_path) as f:
         config = yaml.safe_load(f)
 
     if config.get('location') != 'remote':
-        print("❌ Ce script est conçu pour le déploiement 'remote' uniquement.")
-        sys.exit(1)
+        # On est laxiste ici ? Non, le script est fait pour le remote update.
+        print("ℹ️  Note: config.location != 'remote'")
 
-    deploy_conf = config['deploy']
+    deploy_conf = config.get('deploy', {})
+    if not deploy_conf:
+        print("❌ Section 'deploy' manquante dans la config.")
+        sys.exit(1)
+        
     host = deploy_conf['machine_name']
-    target_dir = deploy_conf.get('target_directory', '/opt/gnmanager')
-    app_dir = target_dir # Correction: Déploiement direct dans le dossier cible, pas de sous-dossier gnmanager
+    
+    # Détermination du dossier cible
+    config_target_dir = deploy_conf.get('target_directory')
+    if config_target_dir:
+        app_dir = config_target_dir.rstrip('/')
+    else:
+        app_dir = f"/opt/gnmanager{service_suffix}"
+    
+    print(f"📂 Dossier cible: {app_dir}")
 
     # Credentials
     user = os.environ.get('GNMANAGER_USER', 'jack') # Default fallback
@@ -97,8 +139,8 @@ def main():
 
     # 2. Arrêt du service (Optionnel)
     if args.systemd:
-        print("🛑 Arrêt du service gnmanager...")
-        if not run_remote(ssh, "systemctl stop gnmanager", sudo=True, password=password):
+        print(f"🛑 Arrêt du service {service_name}...")
+        if not run_remote(ssh, f"systemctl stop {service_name}", sudo=True, password=password):
             print("⚠️  Le service n'a pas pu être arrêté (peut-être pas démarré ?)")
     else:
         print("ℹ️  Option systemd désactivée: le service ne sera pas arrêté.")
@@ -107,11 +149,10 @@ def main():
     print("📦 Création de l'archive locale (git tracked only)...")
     
     # 3.1 Générer fichier version temporaire
-    # 3.1 Générer fichier version temporaire
     version_str = "dev"
     try:
         # 0. Fetch tags
-        subprocess.run(["git", "fetch", "--tags"], check=False, stderr=subprocess.DEVNULL)
+        subprocess.run(["git", "fetch", "origin", "--tags"], check=False, stderr=subprocess.DEVNULL)
 
         # 1. Get last commit date formatted
         ts = subprocess.check_output(
@@ -121,8 +162,8 @@ def main():
         
         # 2. Get latest tag
         try:
-            # Utilisation de la méthode triée par date de création
-            tag_cmd = "git tag --sort=-creatordate | head -n 1"
+            # Utilisation de la méthode triée par version (semver)
+            tag_cmd = "git tag --sort=-version:refname | head -n 1"
             tag = subprocess.check_output(tag_cmd, shell=True, text=True).strip()
             if not tag:
                 tag = "dev"
@@ -144,29 +185,20 @@ def main():
         
     archive_name = "gnmanager_update.tar.gz"
     try:
-        # On archive HEAD + le fichier .deploy-version manuellement
-        # git archive ne prend que ce qui est commité.
-        # Astuce: on utilise tar pour combiner le résultat de git archive + le fichier version
-        
-        # 1. Archive git
+        # On archive HEAD + le fichier .deploy-version
         subprocess.run(
             f"git archive --format=tar --output=git_content.tar HEAD",
             shell=True, check=True
         )
-        
-        # 2. Ajouter le fichier version (append)
         subprocess.run(
             f"tar -rf git_content.tar .deploy-version",
             shell=True, check=True
         )
-        
-        # 3. Gzip
         subprocess.run(
             f"gzip -c git_content.tar > {archive_name}",
             shell=True, check=True
         )
         
-        # Clean temp tar and version file
         os.remove("git_content.tar")
         os.remove(".deploy-version")
         
@@ -195,33 +227,36 @@ def main():
         if not run_remote(ssh, f"mkdir -p {app_dir}", sudo=True, password=password):
              print("❌ Impossible de créer le dossier destination.")
              sys.exit(1)
-        # On s'assure que le dossier appartient à l'utilisateur qui va écrire (ou root via sudo)
-        # Ici on extrait avec sudo, donc root, mais pour l'appli on voudra peut-etre chown après
         
-    # On utilise tar pour extraire par dessus l'existant
-    # --no-same-owner pour éviter les problèmes de permissions si on n'est pas root
     cmd_extract = f"tar -xzf {remote_tmp} -C {app_dir} --overwrite"
     if not run_remote(ssh, cmd_extract, sudo=True, password=password):
         print("❌ Erreur lors de l'extraction.")
         ssh.close()
-        # os.remove(archive_name) # Keep for debug if needed? Nah
         sys.exit(1)
     
-    # Rétablir les permissions (au cas où on a créé le dossier ou écrasé des fichiers)
-    # On suppose que l'utilisateur du service est le même que le user SSH pour simplifier, 
-    # ou on chown vers le user spécifié dans la config s'il y en avait un.
-    # Dans le doute, on chown vers le user SSH connecté (souvent 'gnmanager' ou 'jack')
-    # Pour être propre, on devrait chown vers le user du service systemd, mais on ne le connait pas ici facilement.
-    # On va chown vers le user SSH pour garantir qu'on peut y retoucher plus tard.
+    # Rétablir les permissions
     run_remote(ssh, f"chown -R {user}:{user} {app_dir}", sudo=True, password=password)
         
     # Nettoyage remote
     run_remote(ssh, f"rm {remote_tmp}")
 
+    # 5.5 Copie de la config correspondante (car git archive n'a peut-être pas la bonne config spécifique copiée sous config/deploy_config.yaml)
+    # Dans une update rapide, on déploie le code, mais le fichier de config doit aussi être mis à jour si on a changé des trucs.
+    # On va uploader le fichier de config local spécifique vers config/deploy_config.yaml distant.
+    print(f"📋 Mise à jour de la configuration...")
+    sftp = ssh.open_sftp()
+    remote_config_path = os.path.join(app_dir, 'config', 'deploy_config.yaml')
+    try:
+        sftp.put(config_path, remote_config_path)
+        print("✅ Configuration mise à jour.")
+    except Exception as e:
+        print(f"⚠️ Erreur mise à jour config: {e}")
+    sftp.close()
+
     # 6. Relance service (Optionnel)
     if args.systemd:
         print("▶️  Redémarrage du service...")
-        if run_remote(ssh, "systemctl start gnmanager", sudo=True, password=password):
+        if run_remote(ssh, f"systemctl start {service_name}", sudo=True, password=password):
             print("✅ Service redémarré avec succès !")
         else:
             print("❌ Erreur lors du redémarrage du service.")
