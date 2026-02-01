@@ -260,7 +260,11 @@ def create_app(test_config=None):
         except Exception:
              pass
              
-        return dict(app_version=version)
+             
+        return dict(
+            app_version=version,
+            gn_environment=os.environ.get('GN_ENVIRONMENT', 'prod')
+        )
     
     @app.template_filter('from_json')
     def from_json_filter(s):

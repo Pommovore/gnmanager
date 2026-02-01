@@ -41,6 +41,24 @@
             margin-bottom: 0.75rem;
             color: var(--bs-primary);
         }
+
+        /* Bannière orange pour l'environnement de test */
+        .bg-orange {
+            background-color: #fd7e14 !important;
+            /* Bootstrap orange */
+        }
+
+        /* Bannière bleue pour l'environnement de développement */
+        .bg-blue {
+            background-color: #0d6efd !important;
+            /* Bootstrap primary blue */
+        }
+
+        /* Bannière verte pour l'environnement local */
+        .bg-green {
+            background-color: #198754 !important;
+            /* Bootstrap success green */
+        }
     </style>
 </head>
 
@@ -57,7 +75,8 @@
 
 
 <body class="d-flex flex-column min-vh-100">
-    <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <nav
+        class="navbar navbar-expand-lg {% if gn_environment == 'test' %}navbar-dark bg-orange{% elif gn_environment == 'dev' %}navbar-dark bg-blue{% elif gn_environment == 'local' %}navbar-dark bg-green{% else %}bg-body-tertiary{% endif %}">
         <div class="container">
             <a class="navbar-brand" href="{{ url_for('auth.index') }}">GN Manager</a>
             <button class="btn btn-link text-light ms-2 p-0" title="Guide Utilisateur" data-bs-toggle="modal"

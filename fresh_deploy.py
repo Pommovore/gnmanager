@@ -478,7 +478,7 @@ def create_version_file(deployment_path, user, sudo_password=None, ssh=None):
 
 
 # 2. Update definition
-def create_env_file(deployment_path, config, user, sudo_password=None, ssh=None, force_local=False):
+def create_env_file(deployment_path, config, user, env_name="prod", sudo_password=None, ssh=None, force_local=False):
     """Crée le fichier .env avec les variables d'environnement."""
     env_path = os.path.join(deployment_path, '.env')
     
@@ -509,7 +509,11 @@ FLASK_PORT={port}
 APP_PUBLIC_HOST={host}:{port}
 SECRET_KEY={secret_key}
 API_SECRET={api_secret}
+APP_PUBLIC_HOST={host}:{port}
+SECRET_KEY={secret_key}
+API_SECRET={api_secret}
 PYTHONUNBUFFERED=1
+GN_ENVIRONMENT={env_name}
 """
     if app_prefix and not force_local:
         env_content += f"APPLICATION_ROOT={app_prefix}\n"
@@ -839,7 +843,7 @@ Exemple:
         create_version_file(deployment_path, user, sudo_password, ssh)
 
         # 7. Création du fichier .env
-        create_env_file(deployment_path, config, None, sudo_password, ssh)
+        create_env_file(deployment_path, config, user, env_name=env_name, ssh=ssh)
         
         # 8. Création du compte admin
         create_admin_user(deployment_path, config, None, sudo_password, ssh)
