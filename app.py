@@ -48,6 +48,12 @@ class MagicPrefixMiddleware(object):
         # 1. Forcer SCRIPT_NAME pour la génération d'URL (HTML)
         environ['SCRIPT_NAME'] = self.prefix
         
+        # 1b. Si PATH_INFO commence par le préfixe (cas d'accès direct sans reverse proxy strippant le path),
+        # on doit l'enlever pour que le routing Flask fonctionne.
+        path_info = environ.get('PATH_INFO', '')
+        if path_info.startswith(self.prefix):
+            environ['PATH_INFO'] = path_info[len(self.prefix):]
+        
         def custom_start_response(status, headers, exc_info=None):
             # 2. Intercepter les headers pour nettoyer les redirections
             if status.startswith('3'): # Redirection (301, 302, etc.)
