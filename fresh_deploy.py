@@ -497,6 +497,14 @@ def create_env_file(deployment_path, config, user, env_name="prod", sudo_passwor
     app_prefix = deploy_config.get('app_prefix')
     flask_host = '0.0.0.0' 
     
+    # Détermination de l'hôte public (pour les liens emails)
+    # En local, on garde le port (ex: localhost:5000)
+    # En remote, on suppose qu'un reverse proxy gère ça (ex: domaine.com/prefixe) et on enlève le port interne
+    if force_local:
+        public_host = f"{host}:{port}"
+    else:
+        public_host = host
+
     env_content = f"""# Configuration générée automatiquement par fresh_deploy.py
 MAIL_SERVER={email_config.get('server', 'smtp-relay.brevo.com')}
 MAIL_PORT={email_config.get('port', 587)}
@@ -506,10 +514,7 @@ MAIL_PASSWORD={email_config.get('password', '')}
 MAIL_DEFAULT_SENDER={email_config.get('default_sender', '')}
 FLASK_HOST={flask_host}
 FLASK_PORT={port}
-APP_PUBLIC_HOST={host}:{port}
-SECRET_KEY={secret_key}
-API_SECRET={api_secret}
-APP_PUBLIC_HOST={host}:{port}
+APP_PUBLIC_HOST={public_host}
 SECRET_KEY={secret_key}
 API_SECRET={api_secret}
 PYTHONUNBUFFERED=1
