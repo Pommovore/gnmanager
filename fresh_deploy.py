@@ -747,17 +747,17 @@ Exemple:
     if args.prod:
         env_name = "prod"
         config_path = "./config/deploy_config_prod.yaml"
-        service_suffix = "" # gnmanager
+        service_suffix = "" # gnole
     elif args.test:
         env_name = "test"
         config_path = "./config/deploy_config_test.yaml"
-        service_suffix = "_test" # gnmanager_test
+        service_suffix = "_test" # gnole_test
     elif args.dev:
         env_name = "dev"
         config_path = "./config/deploy_config_dev.yaml"
-        service_suffix = "_dev" # gnmanager_dev
+        service_suffix = "_dev" # gnole_dev
     
-    service_name = f"gnmanager{service_suffix}.service"
+    service_name = f"gnole{service_suffix}.service"
 
     print(f"🌍 Environnement sélectionné: {env_name.upper()}")
     print(f"⚙️  Fichier config: {config_path}")
