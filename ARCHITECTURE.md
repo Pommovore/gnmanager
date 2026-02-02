@@ -1,8 +1,8 @@
-# Architecture et Organisation du Code - GN Manager
+# Architecture et Organisation du Code - GNôle
 
 ## Vue d'ensemble
 
-GN Manager est une application Flask pour la gestion d'événements de Grandeur Nature (GN). L'application suit une architecture MVC (Model-View-Controller) classique.
+GNôle est une application Flask pour la gestion d'événements de Grandeur Nature (GN). L'application suit une architecture MVC (Model-View-Controller) classique.
 
 ## Structure des fichiers
 

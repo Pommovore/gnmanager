@@ -59,6 +59,15 @@
             background-color: #198754 !important;
             /* Bootstrap success green */
         }
+
+        /* Logo theme switching */
+        [data-bs-theme="light"] .logo-dark {
+            display: none;
+        }
+
+        [data-bs-theme="dark"] .logo-light {
+            display: none;
+        }
     </style>
 </head>
 
@@ -78,7 +87,12 @@
     <nav
         class="navbar navbar-expand-lg {% if gn_environment == 'test' %}navbar-dark bg-orange{% elif gn_environment == 'dev' %}navbar-dark bg-blue{% elif gn_environment == 'local' %}navbar-dark bg-green{% else %}bg-body-tertiary{% endif %}">
         <div class="container">
-            <a class="navbar-brand" href="{{ url_for('auth.index') }}">GN Manager</a>
+            <a class="navbar-brand" href="{{ url_for('auth.index') }}">
+                <img src="{{ url_for('static', filename='gnole_titre_noir.png') }}" alt="GNôle" height="30"
+                    class="logo-light">
+                <img src="{{ url_for('static', filename='gnole_titre_blanc.png') }}" alt="GNôle" height="30"
+                    class="logo-dark">
+            </a>
             <button class="btn btn-link text-light ms-2 p-0" title="Guide Utilisateur" data-bs-toggle="modal"
                 data-bs-target="#guideModal" id="guideBtn">
                 <i class="bi bi-info-circle" style="font-size: 1.2rem;"></i>
@@ -404,7 +418,7 @@
         <div class="container">
             <div class="d-flex justify-content-center align-items-center">
                 <span class="text-muted">
-                    <strong>GN Manager</strong>
+                    <strong>GNôle</strong>
                     <span class="badge bg-secondary ms-1">{{ app_version }}</span>
                     <span class="mx-2">|</span>
                     <a href="https://github.com/Pommovore/gnmanager" target="_blank" rel="noopener noreferrer"

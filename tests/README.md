@@ -1,6 +1,6 @@
-# GN Manager Tests
+# GNôle Tests
 
-This directory contains the pytest test suite for GN Manager.
+This directory contains the pytest test suite for GNôle.
 
 ## Structure
 

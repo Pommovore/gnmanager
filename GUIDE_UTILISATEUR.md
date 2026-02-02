@@ -1,7 +1,7 @@
-# Guide Utilisateur - GN Manager
+# Guide Utilisateur - GNôle
 
 ## 1. But de l'application
-**GN Manager** est une plateforme web conçue pour faciliter l'organisation et la gestion de jeux de rôles grandeur nature (GN). Elle permet de centraliser :
+**GNôle** est une plateforme web conçue pour faciliter l'organisation et la gestion de jeux de rôles grandeur nature (GN). Elle permet de centraliser :
 
 - La gestion des événements (dates, lieux, descriptions).
 - L'inscription des participants (PJ, PNJ, Organisateurs).
@@ -31,7 +31,7 @@ Tout utilisateur connecté a accès aux menus suivants :
 
 ### A. Barre de Navigation (Haut de page)
 
-- **GN Manager (Logo)** : Retour à l'accueil / Tableau de bord.
+- **GNôle (Logo)** : Retour à l'accueil / Tableau de bord.
 - **Switch Thème** (🌙/☀️) : Permet de basculer entre le mode clair et le mode sombre.
 - **Mon Profil** (via le nom/avatar) : Ouvre une fenêtre modale pour :
     - Modifier ses informations personnelles (Nom, Prénom, Age, Genre).

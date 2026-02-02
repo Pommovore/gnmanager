@@ -1,6 +1,6 @@
-# Guide de Déploiement - GN Manager
+# Guide de Déploiement - GNôle
 
-Ce document détaille les scripts de déploiement de l'application GN Manager.
+Ce document détaille les scripts de déploiement de l'application GNôle.
 
 ## Scripts Disponibles
 

@@ -1,8 +1,8 @@
-# 📊 Monitoring Guide - GN Manager
+# 📊 Monitoring Guide - GNôle
 
 ## Overview
 
-GN Manager includes comprehensive monitoring capabilities to enable proactive issue detection, performance tracking, and operational visibility.
+GNôle includes comprehensive monitoring capabilities to enable proactive issue detection, performance tracking, and operational visibility.
 
 ## Components
 
