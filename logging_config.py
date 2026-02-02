@@ -63,15 +63,20 @@ def configure_logging(app):
     # Remove existing handlers
     root_logger.handlers.clear()
     
-    # Console handler for development
+    # Console handler for all environments (Systemd/Docker friendly)
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setLevel(log_level)
+    
     if app.debug:
-        console_handler = logging.StreamHandler(sys.stdout)
-        console_handler.setLevel(log_level)
         console_formatter = logging.Formatter(
             '[%(asctime)s] %(levelname)s in %(module)s: %(message)s'
         )
-        console_handler.setFormatter(console_formatter)
-        root_logger.addHandler(console_handler)
+    else:
+        # JSON format for console in production (or simple if preferred)
+        console_formatter = JsonFormatter()
+        
+    console_handler.setFormatter(console_formatter)
+    root_logger.addHandler(console_handler)
     
     # File handler for all environments (JSON format)
     file_handler = logging.handlers.TimedRotatingFileHandler(

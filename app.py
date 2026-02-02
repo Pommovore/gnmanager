@@ -14,7 +14,7 @@ Usage:
     app.run()
 """
 
-from flask import Flask, render_template
+from flask import Flask, render_template, request, session
 from models import db, User
 from flask_login import LoginManager
 from extensions import mail, migrate, csrf, limiter, oauth, cache
@@ -88,16 +88,36 @@ def create_app(test_config=None):
     """
     app = Flask(__name__)
     
+    # DEBUG: Diagnostic CSRF/Session - PLACÉ AU DÉBUT pour s'exécuter avant CSRFProtect
+    @app.before_request
+    def log_request_info():
+        # Ne logger que les requêtes intéressantes (pas les static)
+        if not request.path.startswith('/static'):
+            app.logger.info(f"🔍 REQUEST: {request.method} {request.url}")
+            app.logger.info(f"   Headers: Host={request.headers.get('Host')}, X-Forwarded-Proto={request.headers.get('X-Forwarded-Proto')}, Origin={request.headers.get('Origin')}, Referer={request.headers.get('Referer')}")
+            app.logger.info(f"   Cookies: {request.cookies.keys()}")
+            app.logger.info(f"   Session: {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
+            app.logger.info(f"   Scheme: {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
+
     # Gestion du préfixe d'URL (ex: /gnmanager)
     # Utilisation du middleware magique pour compatibilité Nginx force-redirect
     app_root = os.environ.get('APPLICATION_ROOT')
+    
+    # Configuration ProxyFix (Toujours nécessaire derrière un reverse proxy comme Nginx)
+    # x_for=1 : Prend le 1er header X-Forwarded-For pour l'IP client
+    # x_proto=1 : Prend le 1er header X-Forwarded-Proto pour savoir si HTTPS
+    # x_host=1 : Prend le 1er header X-Forwarded-Host pour le domaine
+    # x_prefix=1 : Prend le 1er header X-Forwarded-Prefix (si présent)
+    app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
+    
     if app_root:
+        # On applique MagicPrefixMiddleware *après* ProxyFix (donc ProxyFix traite la requête externe d'abord)
+        # Mais en python wsgi, on wrappe: Middleware(app). Donc app = ProxyFix(MagicPrefix(app)) si on veut que ProxyFix voie les headers bruts
+        # Erratum: ProxyFix doit être le PLUS EXTERNE pour lire les headers Nginx.
+        # Donc la requête entre dans ProxyFix -> nettoie environ -> passe à MagicPrefix -> passe à Flask
         app.wsgi_app = MagicPrefixMiddleware(app.wsgi_app, prefix=app_root)
         app.config['APPLICATION_ROOT'] = app_root
         print(f"✅ Application configurée avec MagicPrefixMiddleware: {app_root}")
-    else:
-        # Fallback local
-        app.wsgi_app = ProxyFix(app.wsgi_app, x_for=1, x_proto=1, x_host=1, x_prefix=1)
     
     # Appliquer la configuration de test si fournie
     if test_config:
@@ -106,6 +126,17 @@ def create_app(test_config=None):
     # Détection du mode test via variable d'environnement (pour limiter/csrf)
     if os.environ.get('TESTING') == '1':
         app.config['TESTING'] = True
+    
+    # Configuration Cookies Sécurisés (Indispensable pour Chrome/Safari modernes en HTTPS)
+    # On force la sécurité si on n'est PAS en debug/local simple
+    is_production = os.environ.get('GN_ENVIRONMENT') in ['prod', 'production']
+    if is_production or (app_root and 'https' in (os.environ.get('APP_PUBLIC_HOST', '') or '')):
+        app.config['SESSION_COOKIE_SECURE'] = True
+        app.config['SESSION_COOKIE_HTTPONLY'] = True
+        app.config['SESSION_COOKIE_SAMESITE'] = 'Lax'
+        app.config['REMEMBER_COOKIE_SECURE'] = True
+        app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+        app.config['REMEMBER_COOKIE_SAMESITE'] = 'Lax'
     
     # Configuration de sécurité - CRITIQUE: SECRET_KEY obligatoire en production!
     secret_key = app.config.get('SECRET_KEY') or os.environ.get('SECRET_KEY')
