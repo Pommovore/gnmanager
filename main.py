@@ -42,7 +42,7 @@ def main():
     port = int(os.environ.get('FLASK_PORT', 5000))
     
     # Démarrer le serveur
-    logger.info(f"Lancement de l'application sur {host}:{port}")
+    logger.debug(f"Lancement de l'application sur {host}:{port}")
     app.run(host=host, port=port, debug=False)
 
 

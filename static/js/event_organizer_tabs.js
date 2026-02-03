@@ -107,22 +107,37 @@ document.addEventListener('DOMContentLoaded', function () {
         if (pafTotalMissingEl) pafTotalMissingEl.textContent = totalMissing.toFixed(2) + ' €';
     }
 
-    if (pafTypeFilter) {
-        pafTypeFilter.addEventListener('change', function () {
-            const filterValue = this.value;
-            pafRows.forEach(row => {
-                const type = row.dataset.pafType;
-                if (filterValue === 'all' || type === filterValue) {
-                    row.style.display = '';
-                } else {
-                    row.style.display = 'none';
-                }
-            });
-            updatePafStats();
+    const pafStatusFilter = document.getElementById('pafStatusFilter');
+
+    function applyPafFilters() {
+        const typeValue = pafTypeFilter ? pafTypeFilter.value : 'all';
+        const statusValue = pafStatusFilter ? pafStatusFilter.value : 'all';
+
+        pafRows.forEach(row => {
+            const rowType = row.dataset.pafType;
+            const rowStatus = (row.dataset.pafStatus || '').toLowerCase();
+
+            const typeMatch = (typeValue === 'all' || rowType === typeValue);
+            const statusMatch = (statusValue === 'all' || rowStatus === statusValue);
+
+            if (typeMatch && statusMatch) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
         });
-        // Initial calc
         updatePafStats();
     }
+
+    if (pafTypeFilter) {
+        pafTypeFilter.addEventListener('change', applyPafFilters);
+    }
+    if (pafStatusFilter) {
+        pafStatusFilter.addEventListener('change', applyPafFilters);
+    }
+
+    // Initial calc
+    updatePafStats();
 
     const regenerateBtn = document.getElementById('regenerate-secret-btn');
     if (regenerateBtn) {

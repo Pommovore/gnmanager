@@ -93,11 +93,11 @@ def create_app(test_config=None):
     def log_request_info():
         # Ne logger que les requêtes intéressantes (pas les static)
         if not request.path.startswith('/static'):
-            app.logger.info(f"🔍 REQUEST: {request.method} {request.url}")
-            app.logger.info(f"   Headers: Host={request.headers.get('Host')}, X-Forwarded-Proto={request.headers.get('X-Forwarded-Proto')}, Origin={request.headers.get('Origin')}, Referer={request.headers.get('Referer')}")
-            app.logger.info(f"   Cookies: {request.cookies.keys()}")
-            app.logger.info(f"   Session: {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
-            app.logger.info(f"   Scheme: {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
+            app.logger.debug(f"🔍 REQUEST: {request.method} {request.url}")
+            app.logger.debug(f"   Headers: Host={request.headers.get('Host')}, X-Forwarded-Proto={request.headers.get('X-Forwarded-Proto')}, Origin={request.headers.get('Origin')}, Referer={request.headers.get('Referer')}")
+            app.logger.debug(f"   Cookies: {request.cookies.keys()}")
+            app.logger.debug(f"   Session: {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
+            app.logger.debug(f"   Scheme: {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
 
     # Gestion du préfixe d'URL (ex: /gnmanager)
     # Utilisation du middleware magique pour compatibilité Nginx force-redirect
@@ -235,7 +235,7 @@ def create_app(test_config=None):
             client_kwargs={'scope': 'openid email profile https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/drive.file'},
             jwks_uri='https://www.googleapis.com/oauth2/v3/certs'
         )
-        app.logger.info("✅ Google OAuth configuré")
+        app.logger.debug("✅ Google OAuth configuré")
     else:
         app.logger.warning("⚠️  Google OAuth non configuré (GOOGLE_CLIENT_ID/SECRET manquants)")
     
@@ -279,7 +279,7 @@ def create_app(test_config=None):
     app.register_blueprint(webhook_bp)
     app.register_blueprint(health_bp)
     
-    app.logger.info("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
+    app.logger.debug("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
     
     # Context processor pour rendre la version disponible dans tous les templates
     @app.context_processor

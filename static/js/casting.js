@@ -332,8 +332,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             // Participant info cell
             const participantCell = document.createElement('td');
+            let typeColorClass = 'text-muted';
+            if (p.type === 'PJ') typeColorClass = 'text-success';
+            else if (p.type === 'PNJ') typeColorClass = 'text-primary';
+            else if (p.type === 'Organisateur') typeColorClass = 'text-warning';
+
             participantCell.innerHTML = `
-                <strong>${p.nom} ${p.prenom}</strong> <small class="text-muted">(${p.type})</small>
+                <strong>${p.nom} ${p.prenom}</strong> <small class="${typeColorClass} fw-bold">(${p.type})</small>
             `;
             tr.appendChild(participantCell);
 

@@ -119,7 +119,7 @@ def configure_logging(app):
     if not app.debug:
         logging.getLogger('sqlalchemy.engine').setLevel(logging.WARNING)
     
-    app.logger.info(
+    app.logger.debug(
         f'Logging configured: level={log_level_str}, debug={app.debug}, log_dir={log_dir}'
     )
 
