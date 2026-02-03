@@ -321,10 +321,38 @@
             </button>
         </div>
         <div class="card-body">
+            {# Toolbar: Filters for Roles #}
+            <div class="row g-2 mb-3 align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label small mb-1 text-muted">Type</label>
+                    <select class="form-select form-select-sm" id="role-filter-type">
+                        <option value="">Peu importe</option>
+                        <option value="Organisateur">Organisateur</option>
+                        <option value="PJ">PJ</option>
+                        <option value="PNJ">PNJ</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label small mb-1 text-muted">Groupe</label>
+                    <select class="form-select form-select-sm" id="role-filter-group">
+                        <option value="">Peu importe</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label small mb-1 text-muted">Genre</label>
+                    <select class="form-select form-select-sm" id="role-filter-genre">
+                        <option value="">Tous</option>
+                        <option value="Homme">H</option>
+                        <option value="Femme">F</option>
+                        <option value="Autre">Autre</option>
+                    </select>
+                </div>
+            </div>
+
             {# Roles Table #}
             {% if roles and roles|length > 0 %}
             <div class="table-responsive">
-                <table class="table table-hover">
+                <table class="table table-hover" id="role-management-table">
                     <thead>
                         <tr>
                             <th>Nom</th>
@@ -338,7 +366,8 @@
                     </thead>
                     <tbody>
                         {% for role in roles %}
-                        <tr>
+                        <tr data-type="{{ role.type }}" data-group="{{ role.group or '' }}"
+                            data-genre="{{ role.genre or '' }}">
                             <td>
                                 {% if role.comment %}
                                 <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ role.comment }}">
@@ -536,6 +565,14 @@
                     <option value="PNJ">PNJ</option>
                     <option value="Organisateur">Organisateur</option>
                 </select>
+                <select class="form-select form-select-sm w-auto shadow-none border-secondary" id="pafStatusFilter">
+                    <option value="all">Tous les états</option>
+                    <option value="versée">Versée</option>
+                    <option value="partielle">Partielle</option>
+                    <option value="non versée">Non versée</option>
+                    <option value="dispensé(e)">Dispensé(e)</option>
+                    <option value="erreur">Erreur</option>
+                </select>
             </div>
             <div class="d-flex gap-2 flex-wrap justify-content-end">
                 <span class="badge bg-primary d-flex align-items-center" title="Nombre de participants affichés">
@@ -574,7 +611,8 @@
                         {% set p_due = paf_map.get(p.paf_type, 0) %}
                         {% set p_remaining = p_due - p.payment_amount %}
                         <tr class="paf-row paf-participant-row" data-paf-type="{{ p.type }}"
-                            data-paf-paid="{{ p.payment_amount }}" data-paf-remaining="{{ p_remaining }}">
+                            data-paf-status="{{ p.paf_status }}" data-paf-paid="{{ p.payment_amount }}"
+                            data-paf-remaining="{{ p_remaining }}">
                             <td>
                                 <div class="d-flex align-items-center justify-content-between">
                                     <div class="fw-bold me-2">{{ p.user.nom }} {{ p.user.prenom }}</div>
@@ -586,7 +624,9 @@
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
-                                <small class="text-muted">{{ p.type }}</small>
+                                {% set type_color = 'text-warning' if p.type == 'Organisateur' else ('text-success' if
+                                p.type == 'PJ' else 'text-primary') %}
+                                <small class="{{ type_color }} fw-bold">({{ p.type }})</small>
                             </td>
                             <td>
                                 {% set discord_val = p.participant_discord or p.user.discord %}

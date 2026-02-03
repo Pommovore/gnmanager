@@ -43,7 +43,7 @@ isateurs.
         
     # Optimisation N+1 avec joinedload
     participants = Participant.query.filter_by(event_id=event.id)\
-        .options(joinedload(Participant.user)).all()
+        .options(joinedload(Participant.user), joinedload(Participant.role), joinedload(Participant.assigned_role_ref)).all()
         
     groups_config = json.loads(event.groups_config or '{}')
     

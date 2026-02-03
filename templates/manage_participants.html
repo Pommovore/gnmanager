@@ -7,15 +7,11 @@
     {# Content Area #}
     <div class="col-md-10">
         <div class="container-fluid mt-3">
-            <div class="d-flex justify-content-between align-items-center mb-3 flex-column flex-md-row">
-                <h3 class="mb-3 mb-md-0">Gestion des Participants - {{ event.name }}</h3>
-                <div class="d-flex flex-column flex-md-row gap-2" style="min-width: 200px;">
+            <div class="d-flex justify-content-end mb-3 flex-column flex-md-row">
+                <div class="d-flex flex-column flex-md-row gap-2">
                     <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
                         class="btn btn-success flex-fill">
                         <i class="bi bi-download"></i> Exporter CSV
-                    </a>
-                    <a href="{{ url_for('event.detail', event_id=event.id) }}" class="btn btn-secondary flex-fill">
-                        <i class="bi bi-arrow-left"></i> Retour à l'événement
                     </a>
                 </div>
             </div>
@@ -24,34 +20,43 @@
                 <table class="table table-sm table-hover table-bordered small">
                     <thead class="table-dark">
                         <tr>
-                            <th class="text-center" style="width: 15%">Participant</th>
-                            <th class="text-center" style="width: 15%">Contact</th>
+                            <th class="text-center" style="width: 20%">Participant</th>
+                            <th class="text-center" style="width: 1%; white-space: nowrap;">Contact</th>
                             <th class="text-center" style="width: 10%">Statut</th>
-                            <th class="text-center" style="width: 10%">Type</th>
-                            <th class="text-center" style="width: 10%">Groupe</th>
+                            <th class="text-center">Rôle</th>
                             <th class="text-center" style="width: 10%">PAF</th>
-                            <th class="text-center" style="width: 25%">Actions</th>
-                            <th class="text-center" style="width: 5%"></th>
+                            <th class="text-center" style="width: 1%; white-space: nowrap;">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
                         {% for p in participants %}
-                        {% set row_class = "" %}
-                        {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
-                        {% set row_class = "table-warning" %}
-                        {% elif p.is_organizer %}
-                        {% set row_class = "table-secondary" %}
-                        {% elif p.is_pj %}
-                        {% set row_class = "table-info" %}
-                        {% elif p.is_pnj %}
-                        {% set row_class = "table-warning" %}
-                        {% endif %}
-
-                        <tr class="{{ row_class }}">
+                        <tr>
                             <!-- Participant -->
                             <td class="align-middle">
                                 <div class="d-flex align-items-center justify-content-between">
-                                    <strong class="me-2">{{ p.user.nom }} {{ p.user.prenom }}</strong>
+                                    <div class="d-flex flex-column">
+                                        <strong class="me-2">{{ p.user.nom }} {{ p.user.prenom }}</strong>
+                                        <div>
+                                            {% set type_color = 'text-warning' if p.is_organizer else
+                                            ('text-success' if p.is_pj else 'text-primary') %}
+                                            <span class="{{ type_color }} fw-bold" style="font-size: 0.85rem;">{{ p.type
+                                                }}</span>
+                                            {% if p.user.genre %}
+                                            {% set genre_letter = p.user.genre[0]|upper %}
+                                            {% set genre_color = '#87CEFA' if genre_letter == 'H' else ('#FFB6C1' if
+                                            genre_letter == 'F' else 'inherit') %}
+                                            <span
+                                                style="color: {{ genre_color }}; font-weight: bold; font-size: 0.85rem;">({{
+                                                genre_letter }})</span>
+                                            {% endif %}
+
+                                            {% if p.registration_status == 'En attente' or p.registration_status == 'À
+                                            valider' %}
+                                            <span class="badge bg-secondary opacity-75 ms-1"
+                                                style="font-size: 0.7rem;">En attente</span>
+                                            {% endif %}
+                                        </div>
+                                    </div>
                                     <button type="button"
                                         class="btn btn-sm gc-btn {{ 'btn-outline-danger' if p.global_comment else 'btn-outline-primary' }}"
                                         data-p-id="{{ p.id }}" data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
@@ -120,20 +125,23 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Type (READ-ONLY) -->
-                            <td class="align-middle text-center">
-                                {% set genre = p.user.genre[0] if p.user.genre else '?' %}
-                                {% if p.registration_status == 'En attente' or p.registration_status == 'À valider' %}
-                                <span class="badge bg-light text-dark border">{{ p.type }} ({{ genre }}) (En
-                                    Attente)</span>
-                                {% else %}
-                                {{ p.type }} ({{ genre }})
-                                {% endif %}
-                            </td>
 
-                            <!-- Groupe (READ-ONLY) -->
+                            <!-- Rôle (READ-ONLY) -->
                             <td class="align-middle text-center">
-                                {{ p.group or 'Peu importe' }}
+                                {% set active_role = p.role or (p.assigned_role_ref[0] if p.assigned_role_ref else None)
+                                %}
+                                {% if active_role %}
+                                {% set role_color = 'text-warning' if active_role.type == 'Organisateur' else
+                                ('text-success'
+                                if active_role.type == 'PJ' else 'text-primary') %}
+                                <span class="{{ role_color }} fw-bold">
+                                    {{ active_role.name }}{% if active_role.group and active_role.group != 'Peu importe'
+                                    %} / {{
+                                    active_role.group }}{% endif %}
+                                </span>
+                                {% else %}
+                                <span class="text-danger fw-bold">Non attribué</span>
+                                {% endif %}
                             </td>
 
                             <!-- PAF (READ-ONLY) -->
@@ -151,54 +159,47 @@
                                 {% endif %}
                             </td>
 
-                            <!-- Actions intelligentes -->
+                            <!-- Actions -->
                             <td class="align-middle">
-                                <div class="d-flex w-100 gap-1">
+                                <div class="d-flex justify-content-center gap-2">
                                     {% if p.registration_status != 'Validé' %}
                                     <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                        class="flex-fill">
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <input type="hidden" name="action" value="validate">
-                                        <button type="submit" class="btn btn-sm btn-success w-100 py-1" title="Valider">
-                                            <i class="bi bi-check-circle"></i> Valider
+                                        <button type="submit" class="btn btn-sm btn-success" title="Valider">
+                                            <i class="bi bi-check-circle"></i>
                                         </button>
                                     </form>
                                     {% endif %}
 
                                     {% if p.registration_status != 'En attente' %}
                                     <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                        class="flex-fill">
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <input type="hidden" name="action" value="pending">
-                                        <button type="submit" class="btn btn-sm btn-info w-100 py-1"
-                                            title="Mettre en attente">
-                                            <i class="bi bi-clock"></i> Attente
+                                        <button type="submit" class="btn btn-sm btn-info" title="Mettre en attente">
+                                            <i class="bi bi-clock"></i>
                                         </button>
                                     </form>
                                     {% endif %}
 
                                     {% if p.registration_status != 'Rejeté' %}
                                     <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}"
-                                        class="flex-fill">
+                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
                                         <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                         <input type="hidden" name="action" value="reject">
-                                        <button type="submit" class="btn btn-sm btn-danger w-100 py-1" title="Exclure">
-                                            <i class="bi bi-x-circle"></i> Exclure
+                                        <button type="submit" class="btn btn-sm btn-danger" title="Exclure">
+                                            <i class="bi bi-x-circle"></i>
                                         </button>
                                     </form>
                                     {% endif %}
-                                </div>
-                            </td>
 
-                            <!-- Édition -->
-                            <td class="align-middle text-center">
-                                <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
-                                    data-bs-target="#editModal{{ p.id }}" title="Éditer">
-                                    <i class="bi bi-gear-fill"></i>
-                                </button>
+                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
+                                        data-bs-target="#editModal{{ p.id }}" title="Éditer">
+                                        <i class="bi bi-gear-fill"></i>
+                                    </button>
+                                </div>
                             </td>
                         </tr>
 

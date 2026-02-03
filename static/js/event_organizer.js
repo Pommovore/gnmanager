@@ -63,4 +63,56 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Activation on hash change (useful if user clicks sidebar link on same page)
     window.addEventListener('hashchange', activateTabFromHash);
+
+    // Roles tab filtering logic
+    const roleFilterType = document.getElementById('role-filter-type');
+    const roleFilterGroup = document.getElementById('role-filter-group');
+    const roleFilterGenre = document.getElementById('role-filter-genre');
+    const roleTable = document.getElementById('role-management-table');
+
+    if (roleFilterType && roleFilterGroup && roleFilterGenre && roleTable) {
+        const rows = roleTable.querySelectorAll('tbody tr');
+
+        function applyFilters() {
+            const typeValue = roleFilterType.value;
+            const groupValue = roleFilterGroup.value;
+            const genreValue = roleFilterGenre.value;
+
+            rows.forEach(row => {
+                const rowType = row.dataset.type || '';
+                const rowGroup = row.dataset.group || '';
+                const rowGenre = row.dataset.genre || '';
+
+                const matchesType = !typeValue || rowType === typeValue;
+                const matchesGroup = !groupValue || rowGroup === groupValue;
+                const matchesGenre = !genreValue || rowGenre === genreValue;
+
+                if (matchesType && matchesGroup && matchesGenre) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+
+        roleFilterType.addEventListener('change', function () {
+            const selectedType = this.value;
+
+            // Update group filter options
+            roleFilterGroup.innerHTML = '<option value="">Peu importe</option>';
+            if (selectedType && groupsConfig[selectedType]) {
+                groupsConfig[selectedType].forEach(grp => {
+                    const option = document.createElement('option');
+                    option.value = grp;
+                    option.textContent = grp;
+                    roleFilterGroup.appendChild(option);
+                });
+            }
+
+            applyFilters();
+        });
+
+        roleFilterGroup.addEventListener('change', applyFilters);
+        roleFilterGenre.addEventListener('change', applyFilters);
+    }
 });
