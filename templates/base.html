@@ -68,6 +68,23 @@
         [data-bs-theme="dark"] .logo-light {
             display: none;
         }
+
+        /* Bannière d'en-tête stylisée */
+        .page-header-banner {
+            padding: 1rem 0;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid var(--bs-border-color-translucent);
+        }
+
+        [data-bs-theme="light"] .page-header-banner {
+            background-color: #f1f3f5;
+            /* Gris très clair entre blanc et-tertiary */
+        }
+
+        [data-bs-theme="dark"] .page-header-banner {
+            background-color: #1b1e21;
+            /* Gris sombre entre fond et navbar */
+        }
     </style>
 </head>
 
@@ -122,20 +139,25 @@
             {% endif %}
         </div>
     </nav>
-    <div class="container mt-4 mb-5 flex-grow-1">
-        {% if breadcrumbs %}
-        <nav aria-label="breadcrumb">
-            <ol class="breadcrumb">
-                {% for label, url in breadcrumbs %}
-                {% if loop.last %}
-                <li class="breadcrumb-item active" aria-current="page">{{ label }}</li>
+    {% if breadcrumbs %}
+    <div class="page-header-banner">
+        <div class="container text-center">
+            <h3 class="mb-0">
+                {% if breadcrumbs|length >= 2 %}
+                {% if breadcrumbs[1][0] == 'Administration' %}
+                Administration
                 {% else %}
-                <li class="breadcrumb-item"><a href="{{ url }}">{{ label }}</a></li>
+                {{ breadcrumbs[1][0] }}
                 {% endif %}
-                {% endfor %}
-            </ol>
-        </nav>
-        {% endif %}
+                {% else %}
+                {{ breadcrumbs[0][0] }}
+                {% endif %}
+            </h3>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="container mb-5 flex-grow-1">
 
         <!-- Modale de profil utilisateur -->
         {% if current_user.is_authenticated %}
