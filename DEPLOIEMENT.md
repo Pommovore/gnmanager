@@ -23,7 +23,7 @@ Pour le déploiement **DISTANT** (Production) :
 deploy:
   machine_name: "minimoi.mynetgear.com"  # Adresse du serveur
   port: 8880                             # Port d'écoute Flask
-  target_directory: "/opt/gnmanager"
+  target_directory: "/opt/gnole"
 ```
 
 > [!NOTE]
@@ -150,7 +150,7 @@ Ce script recalcule le prochain ID disponible pour chaque table.
 
 ```bash
 ssh $GNMANAGER_USER@machine_cible
-cd /opt/gnmanager
+cd /opt/gnole
 uv run python fix_sequences.py
 ```
 
@@ -174,7 +174,7 @@ Après une mise à jour du code qui modifie les modèles SQLAlchemy, les migrati
 ### Appliquer les migrations en production
 ```bash
 ssh $GNMANAGER_USER@machine_cible
-cd /opt/gnmanager
+cd /opt/gnole
 source .venv/bin/activate
 uv run flask db upgrade
 ```
@@ -236,7 +236,7 @@ sudo systemctl restart gnmanager.service
 
 **Test manuel du service :**
 ```bash
-cd /opt/gnmanager
+cd /opt/gnole
 source .venv/bin/activate
 uv run python main.py
 ```
