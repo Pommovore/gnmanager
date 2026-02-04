@@ -437,3 +437,81 @@ def mark_logs_viewed():
     db.session.commit()
     
     return jsonify({'success': True})
+
+
+@admin_bp.route('/deregister', methods=['POST'])
+@login_required
+def deregister():
+    """
+    Traite la désinscription d'un utilisateur.
+    
+    Actions effectuées:
+    1. Retrait de tous les événements
+    2. Notifications aux organisateurs  
+    3. Annulation des événements si organisateur unique
+    4. Soft delete ou hard delete selon l'option choisie
+    5. Déconnexion de l'utilisateur
+    """
+    delete_data = request.form.get('delete_data') == 'on'
+    
+    # Récupérer toutes les participations
+    participations = Participant.query.filter_by(user_id=current_user.id).all()
+    
+    # Traiter chaque participation
+    for participant in participations:
+        event = participant.event
+        
+        # Créer une notification pour les organisateurs de l'événement
+        from services.notification_service import create_notification
+        description = f"{current_user.prenom} {current_user.nom} s'est désinscrit(e) de l'événement ({participant.type})"
+        create_notification(
+            event_id=event.id,
+            user_id=current_user.id,
+            action_type='participant_left',
+            description=description
+        )
+        
+        # Si l'utilisateur est organisateur, vérifier s'il est le seul
+        if participant.type == 'Organisateur':
+            remaining_organizers = Participant.query.filter_by(
+                event_id=event.id,
+                type='Organisateur'
+            ).filter(Participant.user_id != current_user.id).count()
+            
+            # Si c'est le seul organisateur, annuler l'événement
+            if remaining_organizers == 0:
+                event.statut = 'Annulé'
+                db.session.add(event)
+        
+        # Retirer la participation
+        db.session.delete(participant)
+    
+    # Traiter le compte utilisateur selon l'option choisie
+    if delete_data:
+        # Hard delete: supprimer complètement l'utilisateur
+        # Supprimer les tokens associés
+        from models import AccountValidationToken, PasswordResetToken, EventNotification
+        AccountValidationToken.query.filter_by(email=current_user.email).delete()
+        PasswordResetToken.query.filter_by(email=current_user.email).delete()
+        
+        # Supprimer les notifications créées par cet utilisateur
+        EventNotification.query.filter_by(user_id=current_user.id).delete()
+        
+        # Supprimer l'utilisateur
+        user_email = current_user.email
+        db.session.delete(current_user)
+        db.session.commit()
+        
+        logout_user()
+        flash(f'Votre compte {user_email} a été complètement supprimé.', 'success')
+    else:
+        # Soft delete: marquer comme désinscrit
+        current_user.account_status = 'deregistered'
+        current_user.is_deleted = True
+        db.session.commit()
+        
+        logout_user()
+        flash('Vous avez été désinscrit. Vos données ont été conservées.', 'success')
+    
+    return redirect(url_for('index'))
+

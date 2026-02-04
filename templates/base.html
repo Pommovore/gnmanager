@@ -261,14 +261,70 @@
                             </div>
                         </form>
                     </div>
-                    <div class="modal-footer">
-                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                        <button type="submit" form="profileForm" class="btn btn-primary">Enregistrer</button>
+                    <div class="modal-footer d-flex justify-content-between">
+                        <button type="button" class="btn btn-danger" data-bs-toggle="modal"
+                            data-bs-target="#deregisterModal">
+                            <i class="bi bi-person-x"></i> Se désinscrire
+                        </button>
+                        <div>
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                            <button type="submit" form="profileForm" class="btn btn-primary">Enregistrer</button>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
         {% endif %}
+
+        <!-- Deregistration Confirmation Modal -->
+        <div class="modal fade" id="deregisterModal" tabindex="-1" aria-labelledby="deregisterModalLabel"
+            aria-hidden="true" style="z-index: 1060;">
+            <div class="modal-dialog">
+                <div class="modal-content border-danger shadow">
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="deregisterModalLabel">
+                            <i class="bi bi-exclamation-triangle-fill me-2"></i>Confirmer la désinscription
+                        </h5>
+                        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                            aria-label="Fermer"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="fw-bold text-danger">Êtes-vous sûr de vouloir vous désinscrire définitivement ?</p>
+                        <p>Cette action entraînera les conséquences suivantes :</p>
+                        <ul>
+                            <li>Vous serez retiré(e) de <strong>tous les événements</strong>.</li>
+                            <li>Les organisateurs seront immédiatement notifiés.</li>
+                            <li>Si vous êtes le <strong>seul organisateur</strong> d'un événement, celui-ci sera
+                                <strong>annulé</strong>.
+                            </li>
+                        </ul>
+
+                        <form method="POST" action="{{ url_for('admin.deregister') }}" id="deregisterForm">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+
+                            <div class="form-check p-3 border rounded bg-light mb-3">
+                                <input class="form-check-input ms-0 me-2" type="checkbox" name="delete_data"
+                                    id="deleteDataCheckbox">
+                                <label class="form-check-label fw-bold" for="deleteDataCheckbox">
+                                    Supprimer toutes mes données
+                                </label>
+                                <div class="form-text mt-1">
+                                    Si coché, votre compte et toutes vos données seront effacés de la base. Sinon, le
+                                    compte sera simplement désactivé.
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-toggle="modal"
+                            data-bs-target="#profileModal">Retour</button>
+                        <button type="submit" form="deregisterForm" class="btn btn-danger">
+                            <i class="bi bi-person-x-fill me-1"></i> Confirmer la désinscription
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <!-- Modal Guide Utilisateur -->
         <div class="modal fade" id="guideModal" tabindex="-1" aria-labelledby="guideModalLabel" aria-hidden="true">

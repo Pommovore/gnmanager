@@ -35,6 +35,11 @@
             %}data-bs-toggle="list" href="#list-paf" {% else
             %}href="{{ url_for('event.detail', event_id=event.id) }}#list-paf" {% endif %} role="tab"><i
                 class="bi bi-cash-coin"></i> P.A.F.</a>
+
+        <a class="list-group-item list-group-item-action" id="list-notifications-list" {% if is_detail_page
+            %}data-bs-toggle="list" href="#list-notifications" {% else
+            %}href="{{ url_for('event.detail', event_id=event.id) }}#list-notifications" {% endif %} role="tab"><i
+                class="bi bi-bell"></i> Notifications</a>
         {% endif %}
         {% if is_organizer or current_user.is_admin %}
         <hr class="my-1">

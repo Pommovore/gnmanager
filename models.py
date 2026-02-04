@@ -6,6 +6,7 @@ Ce module définit tous les modèles de la base de données:
 - Event: Événements GN
 - Role: Rôles disponibles pour un événement
 - Participant: Inscription d'un utilisateur à un événement
+- EventNotification: Notifications d'activité pour les événements
 - PasswordResetToken: Tokens de réinitialisation de mot de passe
 - AccountValidationToken: Tokens de validation de compte
 """
@@ -49,10 +50,13 @@ class User(UserMixin, db.Model):
     discord = db.Column(db.String(100))
     facebook = db.Column(db.String(200))
     
+    
     # Champs RBAC (Role-Based Access Control)
     role = db.Column(db.String(20), default='user')  # createur, sysadmin, user
     is_banned = db.Column(db.Boolean, default=False)
     is_deleted = db.Column(db.Boolean, default=False)  # Suppression logique
+    account_status = db.Column(db.String(20), default='active')  # active, deregistered
+
 
     @property
     def is_admin(self):
@@ -484,3 +488,37 @@ class FormResponse(db.Model):
     
     def __repr__(self):
         return f'<FormResponse {self.response_id} from {self.respondent_email}>'
+
+
+class EventNotification(db.Model):
+    """
+    Modèle pour les notifications d'événements.
+    
+    Permet de suivre les activités importantes liées à un événement :
+    - Demandes de participation
+    - Départs de participants
+    - Modifications effectuées par les organisateurs
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement concerné
+        user_id: ID de l'utilisateur qui a effectué l'action
+        action_type: Type d'action (participant_join_request, participant_left, event_updated)
+        description: Description détaillée de la notification
+        created_at: Date de création de la notification
+        is_read: Indicateur de lecture (pour les organisateurs)
+    """
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
+    action_type = db.Column(db.String(50), nullable=False)
+    description = db.Column(db.Text, nullable=False)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow, nullable=False)
+    is_read = db.Column(db.Boolean, default=False)
+    
+    # Relations
+    event = db.relationship('Event', backref='notifications')
+    user = db.relationship('User')
+    
+    def __repr__(self):
+        return f'<EventNotification {self.action_type} for Event {self.event_id}>'

@@ -170,6 +170,12 @@ def detail(event_id):
         paf_config = []
     
     paf_map = {item['name']: item['amount'] for item in paf_config if 'name' in item and 'amount' in item}
+    
+    # Récupérer les notifications pour les organisateurs
+    notifications = []
+    if is_organizer:
+        from services.notification_service import get_event_notifications
+        notifications = get_event_notifications(event_id)
 
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
@@ -178,7 +184,7 @@ def detail(event_id):
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
                           count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role,
-                          paf_config=paf_config, paf_map=paf_map)
+                          paf_config=paf_config, paf_map=paf_map, notifications=notifications)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
@@ -323,6 +329,22 @@ def update_general(event_id):
         )
         db.session.add(log)
         db.session.commit()
+        
+        # Créer une notification pour les organisateurs
+        from services.notification_service import create_notification
+        changed_fields = []
+        if name and name != event.name: changed_fields.append('nom')
+        if location and location != event.location: changed_fields.append('lieu')
+        if date_start_str: changed_fields.append('dates')
+        if description is not None: changed_fields.append('description')
+        
+        if changed_fields:
+            create_notification(
+                event_id=event.id,
+                user_id=current_user.id,
+                action_type='event_updated',
+                description=f"{current_user.prenom} {current_user.nom} a modifié: {', '.join(changed_fields)}"
+            )
 
         flash('Informations générales mises à jour.', 'success')
     except (ValueError, TypeError) as e:
@@ -613,6 +635,15 @@ def join(event_id):
         )
         db.session.add(log)
         db.session.commit()
+        
+        # Créer une notification pour les organisateurs
+        from services.notification_service import create_notification
+        create_notification(
+            event_id=event.id,
+            user_id=current_user.id,
+            action_type='participant_join_request',
+            description=f"{current_user.prenom} {current_user.nom} a demandé à participer en tant que {registration_type}"
+        )
         
         # Notification Discord
         if event.discord_webhook_url:
@@ -1068,6 +1099,28 @@ def auto_assign_casting(event_id):
         'assigned_count': assigned_count,
         'total_roles': n_roles
     })
+
+
+@event_bp.route('/event/<int:event_id>/notification/<int:notif_id>/mark_read', methods=['POST'])
+@login_required
+@organizer_required
+def mark_notification_read(event_id, notif_id):
+    """
+    Marque une notification comme lue.
+    
+    Accès réservé aux organisateurs.
+    """
+    from models import EventNotification
+    from services.notification_service import mark_as_read
+    
+    notification = EventNotification.query.get_or_404(notif_id)
+    
+    # Vérifier que la notification appartient bien à cet événement
+    if notification.event_id != event_id:
+        return jsonify({'success': False, 'error': 'Notification not found'}), 403
+    
+    success = mark_as_read(notif_id)
+    return jsonify({'success': success})
 
 
 @event_bp.route('/event/<int:event_id>/casting/reset_main', methods=['POST'])
