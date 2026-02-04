@@ -144,6 +144,7 @@
             {% endif %}
         </div>
     </nav>
+    {% block banner %}
     {% if breadcrumbs %}
     <div class="page-header-banner">
         <div class="container text-center">
@@ -161,6 +162,7 @@
         </div>
     </div>
     {% endif %}
+    {% endblock %}
 
     <div class="container mb-5 flex-grow-1">
 

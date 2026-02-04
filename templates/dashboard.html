@@ -1,19 +1,30 @@
 {% extends "base.html" %}
-{% block content %}
-<div class="d-flex justify-content-between align-items-center mb-3">
-    <h3>Événements</h3>
-    <div class="d-flex gap-2">
-        <form action="{{ url_for('admin.dashboard') }}" method="GET" class="d-flex align-items-center">
-            <select name="filter" class="form-select me-2" onchange="this.form.submit()">
-                <option value="all" {% if current_filter=='all' %}selected{% endif %}>Tous les Événements</option>
-                <option value="mine" {% if current_filter=='mine' %}selected{% endif %}>Mes Événements</option>
-                <option value="future" {% if current_filter=='future' %}selected{% endif %}>Événements à venir</option>
-                <option value="past" {% if current_filter=='past' %}selected{% endif %}>Événements passés</option>
-            </select>
-        </form>
-        <a href="{{ url_for('event.create_event') }}" class="btn btn-primary">Créer</a>
+{% block banner %}
+<div class="page-header-banner">
+    <div class="container">
+        <div class="d-flex justify-content-between align-items-center">
+            <h3 class="mb-0">Événements</h3>
+            <div class="d-flex gap-2">
+                <form action="{{ url_for('admin.dashboard') }}" method="GET" class="d-flex align-items-center">
+                    <select name="filter" class="form-select me-2" onchange="this.form.submit()">
+                        <option value="all" {% if current_filter=='all' %}selected{% endif %}>Tous les Événements
+                        </option>
+                        <option value="mine" {% if current_filter=='mine' %}selected{% endif %}>Mes Événements</option>
+                        <option value="future" {% if current_filter=='future' %}selected{% endif %}>Événements à venir
+                        </option>
+                        <option value="past" {% if current_filter=='past' %}selected{% endif %}>Événements passés
+                        </option>
+                    </select>
+                </form>
+                <a href="{{ url_for('event.create_event') }}" class="btn btn-primary" data-bs-toggle="tooltip"
+                    title="Ajouter un événement">Créer</a>
+            </div>
+        </div>
     </div>
 </div>
+{% endblock %}
+
+{% block content %}
 
 <div class="d-flex flex-column gap-2">
     {% for e in events %}
@@ -115,4 +126,13 @@
     <p class="text-muted text-center mt-4">Aucun événement trouvé pour ce filtre.</p>
     {% endfor %}
 </div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+        var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl)
+        })
+    });
+</script>
 {% endblock %}
