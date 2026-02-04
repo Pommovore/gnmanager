@@ -93,11 +93,11 @@ def create_app(test_config=None):
     def log_request_info():
         # Ne logger que les requêtes intéressantes (pas les static)
         if not request.path.startswith('/static'):
-            app.logger.debug(f"🔍 REQUEST: {request.method} {request.url}")
-            app.logger.debug(f"   Headers: Host={request.headers.get('Host')}, X-Forwarded-Proto={request.headers.get('X-Forwarded-Proto')}, Origin={request.headers.get('Origin')}, Referer={request.headers.get('Referer')}")
-            app.logger.debug(f"   Cookies: {request.cookies.keys()}")
-            app.logger.debug(f"   Session: {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
-            app.logger.debug(f"   Scheme: {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
+            print(f"!!! DEBUG REQUEST !!! {request.method} {request.url}")
+            print(f"!!! HEADERS !!! {dict(request.headers)}")
+            print(f"!!! COOKIES !!! {request.cookies}")
+            print(f"!!! SESSION !!! {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
+            print(f"!!! SCHEME !!! {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
 
     # Gestion du préfixe d'URL (ex: /gnmanager)
     # Utilisation du middleware magique pour compatibilité Nginx force-redirect
