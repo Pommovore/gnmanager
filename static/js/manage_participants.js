@@ -98,4 +98,93 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
         });
     }
+
+    // --- Filtering Logic ---
+    const filterType = document.getElementById('participant-filter-type');
+    const filterGenre = document.getElementById('participant-filter-genre');
+    const filterStatus = document.getElementById('participant-filter-status');
+    const filterPaf = document.getElementById('participant-filter-paf');
+    const tableRows = document.querySelectorAll('#participants-table tbody tr');
+
+    function applyFilters() {
+        const typeVal = filterType ? filterType.value : '';
+        const genreVal = filterGenre ? filterGenre.value : '';
+        const statusVal = filterStatus ? filterStatus.value : '';
+        const pafVal = filterPaf ? filterPaf.value : '';
+
+        tableRows.forEach(row => {
+            const rType = row.dataset.type || '';
+            const rGenre = row.dataset.genre || '';
+            const rStatus = row.dataset.status || '';
+            const rPaf = row.dataset.paf || '';
+
+            let show = true;
+            if (typeVal && rType !== typeVal) show = false;
+            if (genreVal && rGenre !== genreVal) show = false;
+            if (statusVal && rStatus !== statusVal) show = false;
+            if (pafVal && rPaf !== pafVal) show = false;
+
+            row.style.display = show ? '' : 'none';
+        });
+    }
+
+    if (filterType) filterType.addEventListener('change', applyFilters);
+    if (filterGenre) filterGenre.addEventListener('change', applyFilters);
+    if (filterStatus) filterStatus.addEventListener('change', applyFilters);
+    if (filterPaf) filterPaf.addEventListener('change', applyFilters);
+
+    // --- Sorting Logic ---
+    const sortBtns = document.querySelectorAll('.participant-sort-btn');
+    const tableBody = document.querySelector('#participants-table tbody');
+
+    sortBtns.forEach(btn => {
+        btn.addEventListener('click', function () {
+            const sortKey = this.dataset.sort;
+            console.log('Sorting by:', sortKey); // Debug
+
+            // Get current direction (toggle it)
+            // We use 'asc' as default if not set, so first click becomes 'asc' (if coming from nothing) or 'desc' depending on implementation.
+            // Let's standardise: default state -> click -> asc -> click -> desc
+            let currentDir = this.dataset.dir || 'none';
+            let newDir = currentDir === 'asc' ? 'desc' : 'asc';
+
+            // Reset other buttons
+            sortBtns.forEach(b => {
+                b.dataset.dir = 'none';
+                b.querySelector('i').className = 'bi bi-arrow-down-up';
+            });
+
+            // Update this button
+            this.dataset.dir = newDir;
+            const icon = this.querySelector('i');
+            icon.className = newDir === 'asc' ? 'bi bi-arrow-up' : 'bi bi-arrow-down';
+
+            // Sort rows
+            const rows = Array.from(tableBody.querySelectorAll('tr'));
+
+            rows.sort((a, b) => {
+                let valA = a.dataset[`sort${sortKey.charAt(0).toUpperCase() + sortKey.slice(1)}`];
+                let valB = b.dataset[`sort${sortKey.charAt(0).toUpperCase() + sortKey.slice(1)}`];
+
+                // Handle potential missing values
+                valA = valA ? valA.toLowerCase() : '';
+                valB = valB ? valB.toLowerCase() : '';
+
+                // Contact score is numeric
+                if (sortKey === 'contact') {
+                    valA = parseInt(valA) || 0;
+                    valB = parseInt(valB) || 0;
+                    return newDir === 'asc' ? valA - valB : valB - valA;
+                }
+
+                // Default string sort
+                if (valA < valB) return newDir === 'asc' ? -1 : 1;
+                if (valA > valB) return newDir === 'asc' ? 1 : -1;
+                return 0;
+            });
+
+            // Re-append rows
+            rows.forEach(row => tableBody.appendChild(row));
+        });
+    });
 });

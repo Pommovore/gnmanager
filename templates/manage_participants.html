@@ -7,206 +7,323 @@
     {# Content Area #}
     <div class="col-md-10">
         <div class="container-fluid mt-3">
-            <div class="d-flex justify-content-end mb-3 flex-column flex-md-row">
-                <div class="d-flex flex-column flex-md-row gap-2">
-                    <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
-                        class="btn btn-success flex-fill">
-                        <i class="bi bi-download"></i> Exporter CSV
-                    </a>
+            <div class="card">
+                <div class="card-header d-flex justify-content-between align-items-center">
+                    <span class="fw-bold">Gestion des Participants</span>
+                    <div class="d-flex gap-2">
+                        <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
+                            class="btn btn-sm btn-success" title="Exporter en CSV">
+                            <i class="bi bi-download"></i> CSV
+                        </a>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
+                            data-bs-target="#exportModal" title="Plus d'options d'export">
+                            <i class="bi bi-three-dots"></i>
+                        </button>
+                    </div>
                 </div>
-            </div>
+                <div class="card-body">
+                    {# Toolbar: Filters #}
+                    <div class="row g-2 mb-3 align-items-end">
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1 text-muted">Type</label>
+                            <select class="form-select form-select-sm" id="participant-filter-type">
+                                <option value="">Tous</option>
+                                <option value="Organisateur">Organisateur</option>
+                                <option value="PJ">PJ</option>
+                                <option value="PNJ">PNJ</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2">
+                            <label class="form-label small mb-1 text-muted">Genre</label>
+                            <select class="form-select form-select-sm" id="participant-filter-genre">
+                                <option value="">Tous</option>
+                                <option value="H">Homme</option>
+                                <option value="F">Femme</option>
+                                <option value="Autre">Autre</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1 text-muted">Statut</label>
+                            <select class="form-select form-select-sm" id="participant-filter-status">
+                                <option value="">Tous</option>
+                                <option value="Validé">Validé</option>
+                                <option value="En attente">En attente</option>
+                                <option value="Rejeté">Rejeté</option>
+                                <option value="À valider">À valider</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3">
+                            <label class="form-label small mb-1 text-muted">PAF</label>
+                            <select class="form-select form-select-sm" id="participant-filter-paf">
+                                <option value="">Tous</option>
+                                <option value="versée">Versée</option>
+                                <option value="partielle">Partielle</option>
+                                <option value="non versée">Non versée</option>
+                                <option value="dispensé(e)">Dispensé(e)</option>
+                                <option value="erreur">Erreur</option>
+                            </select>
+                        </div>
+                    </div>
 
-            <div class="table-responsive">
-                <table class="table table-sm table-hover table-bordered small">
-                    <thead class="table-dark">
-                        <tr>
-                            <th class="text-center" style="width: 20%">Participant</th>
-                            <th class="text-center" style="width: 1%; white-space: nowrap;">Contact</th>
-                            <th class="text-center" style="width: 10%">Statut</th>
-                            <th class="text-center">Rôle</th>
-                            <th class="text-center" style="width: 10%">PAF</th>
-                            <th class="text-center" style="width: 1%; white-space: nowrap;">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for p in participants %}
-                        <tr>
-                            <!-- Participant -->
-                            <td class="align-middle">
-                                <div class="d-flex align-items-center justify-content-between">
-                                    <div class="d-flex flex-column">
-                                        <strong class="me-2">{{ p.user.nom }} {{ p.user.prenom }}</strong>
-                                        <div>
-                                            {% set type_color = 'text-warning' if p.is_organizer else
-                                            ('text-success' if p.is_pj else 'text-primary') %}
-                                            <span class="{{ type_color }} fw-bold" style="font-size: 0.85rem;">{{ p.type
-                                                }}</span>
-                                            {% if p.user.genre %}
-                                            {% set genre_letter = p.user.genre[0]|upper %}
-                                            {% set genre_color = '#87CEFA' if genre_letter == 'H' else ('#FFB6C1' if
-                                            genre_letter == 'F' else 'inherit') %}
-                                            <span
-                                                style="color: {{ genre_color }}; font-weight: bold; font-size: 0.85rem;">({{
-                                                genre_letter }})</span>
-                                            {% endif %}
-
-                                            {% if p.registration_status == 'En attente' or p.registration_status == 'À
-                                            valider' %}
-                                            <span class="badge bg-secondary opacity-75 ms-1"
-                                                style="font-size: 0.7rem;">En attente</span>
-                                            {% endif %}
+                    <div class="table-responsive">
+                        <table class="table table-hover small" id="participants-table">
+                            <thead class="table-dark">
+                                <tr>
+                                    <th class="align-middle" style="min-width: 200px;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Participant</span>
+                                            <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
+                                                data-sort="participant">
+                                                <i class="bi bi-arrow-down-up"></i>
+                                            </button>
                                         </div>
-                                    </div>
-                                    <button type="button"
-                                        class="btn btn-sm gc-btn {{ 'btn-outline-danger' if p.global_comment else 'btn-outline-primary' }}"
-                                        data-p-id="{{ p.id }}" data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
-                                        title="{{ p.global_comment or 'Aucun commentaire général' }}">
-                                        <i class="bi bi-info-circle"></i>
-                                    </button>
-                                </div>
-                            </td>
-
-                            <!-- Contact -->
-                            <td class="align-middle">
-                                {% set discord_val = p.participant_discord or p.user.discord %}
-                                {% set facebook_val = p.participant_facebook or p.user.facebook %}
-                                {% set phone_val = p.participant_phone or p.user.phone %}
-
-                                {% set show_discord = discord_val if p.share_discord else None %}
-                                {% set show_facebook = facebook_val if p.share_facebook else None %}
-                                {% set show_phone = phone_val if p.share_phone else None %}
-
-                                <div
-                                    style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: fit-content; margin: 0 auto;">
-                                    <!-- Email -->
-                                    <div class="d-flex justify-content-center">
-                                        <i class="bi bi-envelope cursor-pointer contact-icon fw-bold text-primary"
-                                            title="{{ p.user.email }}"
-                                            onclick="copyToClipboard('{{ p.user.email }}', this)"
-                                            style="font-size: 1.1rem;"></i>
-                                    </div>
-
-                                    <!-- Discord -->
-                                    <div class="d-flex justify-content-center">
-                                        <i class="bi bi-discord cursor-pointer contact-icon {{ 'text-primary' if show_discord else '' }}"
-                                            title="{{ show_discord or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_discord %}copyToClipboard('{{ show_discord }}', this){% endif %}"
-                                            style="font-size: 1.1rem; opacity: {{ 1 if show_discord else 0.3 }};"></i>
-                                    </div>
-
-                                    <!-- Facebook -->
-                                    <div class="d-flex justify-content-center">
-                                        <i class="bi bi-facebook cursor-pointer contact-icon {{ 'text-primary' if show_facebook else '' }}"
-                                            title="{{ show_facebook or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_facebook %}copyToClipboard('{{ show_facebook }}', this){% endif %}"
-                                            style="font-size: 1.1rem; opacity: {{ 1 if show_facebook else 0.3 }};"></i>
-                                    </div>
-
-                                    <!-- Phone -->
-                                    <div class="d-flex justify-content-center">
-                                        <i class="bi bi-telephone cursor-pointer contact-icon {{ 'text-success' if show_phone else '' }}"
-                                            title="{{ show_phone or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_phone %}copyToClipboard('{{ show_phone }}', this){% endif %}"
-                                            style="font-size: 1.1rem; opacity: {{ 1 if show_phone else 0.3 }};"></i>
-                                    </div>
-                                </div>
-                            </td>
-
-                            <!-- Statut (READ-ONLY) -->
-                            <td class="align-middle text-center">
-                                {% if p.registration_status == 'Validé' %}
-                                <span class="badge bg-success">✓ Validé</span>
-                                {% elif p.registration_status == 'Rejeté' %}
-                                <span class="badge bg-danger">✗ Rejeté</span>
-                                {% elif p.registration_status == 'En attente' %}
-                                <span class="badge bg-info">⏳ Attente</span>
-                                {% else %}
-                                <span class="badge bg-warning text-dark">⚠ À valider</span>
+                                    </th>
+                                    <th class="align-middle" style="white-space: nowrap;">Contact</th>
+                                    <th class="align-middle" style="min-width: 110px;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Statut</span>
+                                            <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
+                                                data-sort="status">
+                                                <i class="bi bi-arrow-down-up"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="align-middle" style="min-width: 150px;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Rôle</span>
+                                            <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
+                                                data-sort="role">
+                                                <i class="bi bi-arrow-down-up"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="align-middle" style="min-width: 110px;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>PAF</span>
+                                            <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
+                                                data-sort="paf">
+                                                <i class="bi bi-arrow-down-up"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="text-center align-middle" style="width: 1%; white-space: nowrap;">Actions
+                                    </th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in participants %}
+                                {% set genre_code = 'Autre' %}
+                                {% if p.user.genre and p.user.genre|length > 0 %}
+                                {% if p.user.genre[0]|upper == 'H' %}{% set genre_code = 'H' %}
+                                {% elif p.user.genre[0]|upper == 'F' %}{% set genre_code = 'F' %}
                                 {% endif %}
-                            </td>
+                                {% endif %}
 
-
-                            <!-- Rôle (READ-ONLY) -->
-                            <td class="align-middle text-center">
                                 {% set active_role = p.role or (p.assigned_role_ref[0] if p.assigned_role_ref else None)
                                 %}
-                                {% if active_role %}
-                                {% set role_color = 'text-warning' if active_role.type == 'Organisateur' else
-                                ('text-success'
-                                if active_role.type == 'PJ' else 'text-primary') %}
-                                <span class="{{ role_color }} fw-bold">
-                                    {{ active_role.name }}{% if active_role.group and active_role.group != 'Peu importe'
-                                    %} / {{
-                                    active_role.group }}{% endif %}
-                                </span>
-                                {% else %}
-                                <span class="text-danger fw-bold">Non attribué</span>
-                                {% endif %}
-                            </td>
+                                {% set role_name = active_role.name if active_role else '' %}
 
-                            <!-- PAF (READ-ONLY) -->
-                            <td class="align-middle text-center">
-                                {% if p.paf_status == 'versée' %}
-                                <span class="badge bg-success">Versée</span>
-                                {% elif p.paf_status == 'partielle' %}
-                                <span class="badge bg-warning text-dark">Partielle</span>
-                                {% elif p.paf_status == 'dispensé(e)' %}
-                                <span class="badge bg-info">Dispensé(e)</span>
-                                {% elif p.paf_status == 'erreur' %}
-                                <span class="badge bg-danger">Erreur</span>
-                                {% else %}
-                                <span class="badge bg-secondary">Non versée</span>
-                                {% endif %}
-                            </td>
+                                {% set contact_score = 0 %}
+                                {% if p.user.email %}{% set contact_score = contact_score + 1 %}{% endif %}
+                                {% if p.share_discord and (p.participant_discord or p.user.discord) %}{% set
+                                contact_score = contact_score + 1 %}{% endif %}
+                                {% if p.share_facebook and (p.participant_facebook or p.user.facebook) %}{% set
+                                contact_score = contact_score + 1 %}{% endif %}
+                                {% if p.share_phone and (p.participant_phone or p.user.phone) %}{% set contact_score =
+                                contact_score + 1 %}{% endif %}
 
-                            <!-- Actions -->
-                            <td class="align-middle">
-                                <div class="d-flex justify-content-center gap-2">
-                                    {% if p.registration_status != 'Validé' %}
-                                    <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                        <input type="hidden" name="action" value="validate">
-                                        <button type="submit" class="btn btn-sm btn-success" title="Valider">
-                                            <i class="bi bi-check-circle"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                                <tr data-type="{{ p.type }}" data-genre="{{ genre_code }}"
+                                    data-status="{% if p.registration_status == 'Validé' %}Validé{% elif p.registration_status == 'Rejeté' %}Rejeté{% elif p.registration_status == 'En attente' %}En attente{% else %}À valider{% endif %}"
+                                    data-paf="{{ p.paf_status }}"
+                                    data-sort-participant="{{ p.user.nom }} {{ p.user.prenom }}"
+                                    data-sort-contact="{{ contact_score }}"
+                                    data-sort-status="{{ p.registration_status }}" data-sort-role="{{ role_name }}">
+                                    <!-- Participant -->
+                                    <td class="align-middle">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <div class="d-flex flex-column">
+                                                <strong class="me-2">{{ p.user.nom }} {{ p.user.prenom }}</strong>
+                                                <div>
+                                                    {% set type_color = 'text-warning' if p.is_organizer else
+                                                    ('text-success' if p.is_pj else 'text-primary') %}
+                                                    <span class="{{ type_color }} fw-bold"
+                                                        style="font-size: 0.85rem;">{{ p.type
+                                                        }}</span>
+                                                    {% if p.user.genre %}
+                                                    {% set genre_letter = p.user.genre[0]|upper %}
+                                                    {% set genre_color = '#87CEFA' if genre_letter == 'H' else
+                                                    ('#FFB6C1' if
+                                                    genre_letter == 'F' else 'inherit') %}
+                                                    <span
+                                                        style="color: {{ genre_color }}; font-weight: bold; font-size: 0.85rem;">({{
+                                                        genre_letter }})</span>
+                                                    {% endif %}
 
-                                    {% if p.registration_status != 'En attente' %}
-                                    <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                        <input type="hidden" name="action" value="pending">
-                                        <button type="submit" class="btn btn-sm btn-info" title="Mettre en attente">
-                                            <i class="bi bi-clock"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                                                    {% if p.registration_status == 'En attente' or p.registration_status
+                                                    == 'À
+                                                    valider' %}
+                                                    <span class="badge bg-secondary opacity-75 ms-1"
+                                                        style="font-size: 0.7rem;">En attente</span>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                            <button type="button"
+                                                class="btn btn-sm gc-btn {{ 'btn-outline-danger' if p.global_comment else 'btn-outline-primary' }}"
+                                                data-p-id="{{ p.id }}"
+                                                data-p-name="{{ p.user.nom }} {{ p.user.prenom }}"
+                                                title="{{ p.global_comment or 'Aucun commentaire général' }}">
+                                                <i class="bi bi-info-circle"></i>
+                                            </button>
+                                        </div>
+                                    </td>
 
-                                    {% if p.registration_status != 'Rejeté' %}
-                                    <form method="POST"
-                                        action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
-                                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                                        <input type="hidden" name="action" value="reject">
-                                        <button type="submit" class="btn btn-sm btn-danger" title="Exclure">
-                                            <i class="bi bi-x-circle"></i>
-                                        </button>
-                                    </form>
-                                    {% endif %}
+                                    <!-- Contact -->
+                                    <td class="align-middle">
+                                        {% set discord_val = p.participant_discord or p.user.discord %}
+                                        {% set facebook_val = p.participant_facebook or p.user.facebook %}
+                                        {% set phone_val = p.participant_phone or p.user.phone %}
 
-                                    <button type="button" class="btn btn-sm btn-secondary" data-bs-toggle="modal"
-                                        data-bs-target="#editModal{{ p.id }}" title="Éditer">
-                                        <i class="bi bi-gear-fill"></i>
-                                    </button>
-                                </div>
-                            </td>
-                        </tr>
+                                        {% set show_discord = discord_val if p.share_discord else None %}
+                                        {% set show_facebook = facebook_val if p.share_facebook else None %}
+                                        {% set show_phone = phone_val if p.share_phone else None %}
+
+                                        <div
+                                            style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: fit-content; margin: 0 auto;">
+                                            <!-- Email -->
+                                            <div class="d-flex justify-content-center">
+                                                <i class="bi bi-envelope cursor-pointer contact-icon fw-bold text-primary"
+                                                    title="{{ p.user.email }}"
+                                                    onclick="copyToClipboard('{{ p.user.email }}', this)"
+                                                    style="font-size: 1.1rem;"></i>
+                                            </div>
+
+                                            <!-- Discord -->
+                                            <div class="d-flex justify-content-center">
+                                                <i class="bi bi-discord cursor-pointer contact-icon {{ 'text-primary' if show_discord else '' }}"
+                                                    title="{{ show_discord or 'Non renseigné ou privé' }}"
+                                                    onclick="{% if show_discord %}copyToClipboard('{{ show_discord }}', this){% endif %}"
+                                                    style="font-size: 1.1rem; opacity: {{ 1 if show_discord else 0.3 }};"></i>
+                                            </div>
+
+                                            <!-- Facebook -->
+                                            <div class="d-flex justify-content-center">
+                                                <i class="bi bi-facebook cursor-pointer contact-icon {{ 'text-primary' if show_facebook else '' }}"
+                                                    title="{{ show_facebook or 'Non renseigné ou privé' }}"
+                                                    onclick="{% if show_facebook %}copyToClipboard('{{ show_facebook }}', this){% endif %}"
+                                                    style="font-size: 1.1rem; opacity: {{ 1 if show_facebook else 0.3 }};"></i>
+                                            </div>
+
+                                            <!-- Phone -->
+                                            <div class="d-flex justify-content-center">
+                                                <i class="bi bi-telephone cursor-pointer contact-icon {{ 'text-success' if show_phone else '' }}"
+                                                    title="{{ show_phone or 'Non renseigné ou privé' }}"
+                                                    onclick="{% if show_phone %}copyToClipboard('{{ show_phone }}', this){% endif %}"
+                                                    style="font-size: 1.1rem; opacity: {{ 1 if show_phone else 0.3 }};"></i>
+                                            </div>
+                                        </div>
+                                    </td>
+
+                                    <!-- Statut (READ-ONLY) -->
+                                    <td class="align-middle text-center">
+                                        {% if p.registration_status == 'Validé' %}
+                                        <span class="badge bg-success">✓ Validé</span>
+                                        {% elif p.registration_status == 'Rejeté' %}
+                                        <span class="badge bg-danger">✗ Rejeté</span>
+                                        {% elif p.registration_status == 'En attente' %}
+                                        <span class="badge bg-info">⏳ Attente</span>
+                                        {% else %}
+                                        <span class="badge bg-warning text-dark">⚠ À valider</span>
+                                        {% endif %}
+                                    </td>
 
 
-                        {% endfor %}
-                    </tbody>
-                </table>
+                                    <!-- Rôle (READ-ONLY) -->
+                                    <td class="align-middle text-center">
+                                        {% set active_role = p.role or (p.assigned_role_ref[0] if p.assigned_role_ref
+                                        else None)
+                                        %}
+                                        {% if active_role %}
+                                        {% set role_color = 'text-warning' if active_role.type == 'Organisateur' else
+                                        ('text-success'
+                                        if active_role.type == 'PJ' else 'text-primary') %}
+                                        <span class="{{ role_color }} fw-bold">
+                                            {{ active_role.name }}{% if active_role.group and active_role.group != 'Peu
+                                            importe'
+                                            %} / {{
+                                            active_role.group }}{% endif %}
+                                        </span>
+                                        {% else %}
+                                        <span class="text-danger fw-bold">Non attribué</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- PAF (READ-ONLY) -->
+                                    <td class="align-middle text-center">
+                                        {% if p.paf_status == 'versée' %}
+                                        <span class="badge bg-success">Versée</span>
+                                        {% elif p.paf_status == 'partielle' %}
+                                        <span class="badge bg-warning text-dark">Partielle</span>
+                                        {% elif p.paf_status == 'dispensé(e)' %}
+                                        <span class="badge bg-info">Dispensé(e)</span>
+                                        {% elif p.paf_status == 'erreur' %}
+                                        <span class="badge bg-danger">Erreur</span>
+                                        {% else %}
+                                        <span class="badge bg-secondary">Non versée</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Actions -->
+                                    <td class="align-middle">
+                                        <div class="d-flex justify-content-center gap-2">
+                                            {% if p.registration_status != 'Validé' %}
+                                            <form method="POST"
+                                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <input type="hidden" name="action" value="validate">
+                                                <button type="submit" class="btn btn-sm btn-success" title="Valider">
+                                                    <i class="bi bi-check-circle"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+
+                                            {% if p.registration_status != 'En attente' %}
+                                            <form method="POST"
+                                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <input type="hidden" name="action" value="pending">
+                                                <button type="submit" class="btn btn-sm btn-info"
+                                                    title="Mettre en attente">
+                                                    <i class="bi bi-clock"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+
+                                            {% if p.registration_status != 'Rejeté' %}
+                                            <form method="POST"
+                                                action="{{ url_for('participant.change_status', event_id=event.id, p_id=p.id) }}">
+                                                <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
+                                                <input type="hidden" name="action" value="reject">
+                                                <button type="submit" class="btn btn-sm btn-danger" title="Exclure">
+                                                    <i class="bi bi-x-circle"></i>
+                                                </button>
+                                            </form>
+                                            {% endif %}
+
+                                            <button type="button" class="btn btn-sm btn-secondary"
+                                                data-bs-toggle="modal" data-bs-target="#editModal{{ p.id }}"
+                                                title="Éditer">
+                                                <i class="bi bi-gear-fill"></i>
+                                            </button>
+                                        </div>
+                                    </td>
+                                </tr>
+
+
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
             </div>
         </div>
 

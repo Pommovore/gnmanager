@@ -315,7 +315,7 @@
 <div class="tab-pane fade" id="list-roles" role="tabpanel">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Gestion des Rôles</span>
+            <span>Gestion des Rôles <!-- TEST_MARKER_20260204_V2 --></span>
             <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addRoleModal">
                 <i class="bi bi-plus"></i> Ajouter un rôle
             </button>
@@ -352,16 +352,44 @@
             {# Roles Table #}
             {% if roles and roles|length > 0 %}
             <div class="table-responsive">
-                <table class="table table-hover" id="role-management-table">
-                    <thead>
+                <table class="table table-hover small" id="role-management-table">
+                    <thead class="table-dark">
                         <tr>
-                            <th>Nom</th>
-                            <th>Type</th>
-                            <th>Genre</th>
-                            <th>Groupe</th>
-                            <th>GDoc</th>
-                            <th>PDF</th>
-                            <th class="text-center">Actions</th>
+                            <th style="min-width: 200px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Nom</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light role-sort-btn" data-sort="name">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Type</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light role-sort-btn" data-sort="type">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Genre</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light role-sort-btn" data-sort="genre">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Groupe</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light role-sort-btn" data-sort="group">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th class="align-middle">GDoc</th>
+                            <th class="align-middle">PDF</th>
+                            <th class="text-center align-middle">Actions</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -442,7 +470,7 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-3">
-                <span><i class="bi bi-person-video2"></i> Casting</span>
+                <span>Gestion de l'attribution des rôles</span>
                 {# Validation Switch #}
                 <div class="d-flex align-items-center">
                     <div class="form-check form-switch">
@@ -592,17 +620,68 @@
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-hover align-middle">
-                    <thead>
+                <table class="table table-hover align-middle small" id="paf-management-table">
+                    <thead class="table-dark">
                         <tr>
-                            <th>Participant</th>
-                            <th>Contact</th>
-                            <th>État</th>
-                            <th>Versé</th>
-                            <th>Type PAF (Sélection)</th>
-                            <th>Moyen</th>
-                            <th>Dû</th>
-                            <th>Reste</th>
+                            <th style="min-width: 200px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Participant</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn"
+                                        data-sort="participant">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th class="align-middle">Contact</th>
+                            <th style="min-width: 110px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>État</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn" data-sort="status">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th style="min-width: 110px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Versé</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn" data-sort="paid">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th style="min-width: 160px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Type PAF</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn" data-sort="type">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th style="min-width: 140px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Moyen</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn" data-sort="method">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th style="min-width: 110px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Dû</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn" data-sort="due">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
+                            <th style="min-width: 110px;" class="align-middle">
+                                <div class="d-flex align-items-center justify-content-between">
+                                    <span>Reste</span>
+                                    <button class="btn btn-sm btn-link p-0 text-light paf-sort-btn"
+                                        data-sort="remaining">
+                                        <i class="bi bi-arrow-down-up"></i>
+                                    </button>
+                                </div>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>

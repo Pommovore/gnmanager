@@ -17,6 +17,9 @@ document.addEventListener('DOMContentLoaded', function () {
         genre: ''
     };
 
+    // Sorting state
+    let roleSortOrder = 'none'; // 'none', 'asc', 'desc'
+
     // Get CSRF token from meta tag
     function getCsrfToken() {
         return document.querySelector('meta[name="csrf-token"]')?.getAttribute('content');
@@ -81,12 +84,19 @@ document.addEventListener('DOMContentLoaded', function () {
     // Render Roles Table (Tab 1)
     function renderRolesView() {
         // Apply filters
-        const filteredRoles = roles.filter(role => {
+        let filteredRoles = roles.filter(role => {
             const matchesType = !filters.type || role.type === filters.type;
             const matchesGroup = !filters.group || role.group === filters.group;
             const matchesGenre = !filters.genre || role.genre === filters.genre;
             return matchesType && matchesGroup && matchesGenre;
         });
+
+        // Apply sorting
+        if (roleSortOrder === 'asc') {
+            filteredRoles.sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+        } else if (roleSortOrder === 'desc') {
+            filteredRoles.sort((a, b) => (b.name || '').localeCompare(a.name || ''));
+        }
 
         const container = document.getElementById('roles-table-container');
         const template = document.getElementById('roles-table-template');
@@ -168,6 +178,25 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
 
+        // Sorting event listener
+        const sortBtn = clone.querySelector('#sort-role-btn');
+        if (sortBtn) {
+            // Update icon based on current sort order
+            const sortIcon = sortBtn.querySelector('i');
+            if (roleSortOrder === 'asc') sortIcon.className = 'bi bi-sort-alpha-down';
+            else if (roleSortOrder === 'desc') sortIcon.className = 'bi bi-sort-alpha-up';
+            else sortIcon.className = 'bi bi-arrow-down-up';
+
+            sortBtn.addEventListener('click', function () {
+                if (roleSortOrder === 'asc') {
+                    roleSortOrder = 'desc';
+                } else {
+                    roleSortOrder = 'asc';
+                }
+                renderCastingTable();
+            });
+        }
+
         // Add proposal columns to header
         const headerRow = clone.querySelector('thead tr');
         castingData.proposals.forEach(proposal => {
@@ -202,7 +231,7 @@ document.addEventListener('DOMContentLoaded', function () {
             th.innerHTML = `
                 ${proposal.name}
                 <small class="text-muted ms-2">(${formatCounters(remainingPJ, remainingPNJ, remainingOrga)})</small>
-                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn" data-proposal-id="${proposal.id}">
+                <button class="btn btn-sm btn-outline-danger ms-2 delete-proposal-btn p-0 px-1" data-proposal-id="${proposal.id}" style="font-size: 0.8rem;">
                     <i class="bi bi-trash"></i>
                 </button>
             `;

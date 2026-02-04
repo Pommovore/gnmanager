@@ -167,6 +167,9 @@ def create_app(test_config=None):
     if 'SQLALCHEMY_DATABASE_URI' not in app.config:
         app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///gnmanager.db'
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+    
+    # Force template reloading in development (no server restart needed)
+    app.config['TEMPLATES_AUTO_RELOAD'] = True
 
     # Optimisations SQLite pour la concurrence (WAL mode + timeout)
     if 'sqlite' in app.config['SQLALCHEMY_DATABASE_URI']:
