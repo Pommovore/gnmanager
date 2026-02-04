@@ -513,5 +513,5 @@ def deregister():
         logout_user()
         flash('Vous avez été désinscrit. Vos données ont été conservées.', 'success')
     
-    return redirect(url_for('index'))
+    return redirect(url_for('auth.index'))
 
