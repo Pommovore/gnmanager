@@ -154,7 +154,15 @@
         {% elif participant.paf_status == 'non versée' %}{% set paf_class = "bg-danger" %}
         {% endif %}
 
-        <div class="border border-3 rounded p-3 mt-3">
+        <div class="border border-3 rounded p-3 mt-3 shadow-sm">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h6 class="mb-0"><i class="bi bi-person-check-fill me-2"></i>Ma participation</h6>
+                <button type="button" class="btn btn-outline-danger btn-sm" data-bs-toggle="modal"
+                    data-bs-target="#leaveEventModal">
+                    <i class="bi bi-box-arrow-right"></i> Quitter l'événement
+                </button>
+            </div>
+
             <p class="mb-1">
                 <strong>Mon rôle :</strong>
                 <span class="badge {{ badge_class }} ms-2">
@@ -257,7 +265,52 @@
             </div>
             {% endif %}
         </div>
+
+        <!-- Modal Quitter l'événement -->
+        <div class="modal fade" id="leaveEventModal" tabindex="-1">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header bg-warning text-dark">
+                        <h5 class="modal-title"><i class="bi bi-exclamation-triangle-fill"></i> Quitter l'événement ?
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        {% if participant.is_organizer %}
+                        {% set other_orgs_count = 0 %}
+                        {% for p in event.participants if p.is_organizer and p.id != participant.id %}
+                        {% set other_orgs_count = other_orgs_count + 1 %}
+                        {% endfor %}
+
+                        {% if other_orgs_count == 0 %}
+                        <div class="alert alert-danger">
+                            <strong>ATTENTION :</strong> Vous êtes le SEUL organisateur de cet événement.<br>
+                            Si vous quittez, l'événement sera automatiquement passé en statut <strong>"Annulé"</strong>
+                            !
+                        </div>
+                        {% else %}
+                        <p>Vous êtes organisateur. Votre départ n'annulera pas l'événement car il reste d'autres
+                            organisateurs.</p>
+                        {% endif %}
+                        {% endif %}
+
+                        <p>Êtes-vous sûr de vouloir retirer votre participation à <strong>{{ event.name }}</strong> ?
+                        </p>
+                        <p class="text-muted small">Vous perdrez votre rôle assigné (le cas échéant) et votre statut
+                            d'inscription.</p>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <form action="{{ url_for('participant.leave', event_id=event.id) }}" method="POST">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-danger">Confirmer le départ</button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
         {% endif %}
+
         {% else %}
         {# Cas: Utilisateur ne participe pas encore #}
         {% if event.statut == 'Inscriptions ouvertes' %}
@@ -278,6 +331,10 @@
         <button class="btn btn-secondary" disabled>Événement annulé</button>
         {% elif event.statut == 'Terminé' %}
         <button class="btn btn-secondary" disabled>Événement clôturé</button>
+        {% elif event.statut == 'Reporté' %}
+        <button class="btn btn-secondary" disabled>Événement reporté</button>
+        {% elif event.statut == 'Événement en cours' %}
+        <button class="btn btn-success" disabled>Événement en cours</button>
         {% endif %}
         {% endif %}
         {% endif %}

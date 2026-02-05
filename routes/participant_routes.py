@@ -20,6 +20,7 @@ from flask import Response, session
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import datetime
+from services.notification_service import create_notification, count_unread_notifications
 
 participant_bp = Blueprint('participant', __name__)
 
@@ -47,13 +48,17 @@ isateurs.
         
     groups_config = json.loads(event.groups_config or '{}')
     
+    groups_config = json.loads(event.groups_config or '{}')
+    
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
         (event.name, url_for('event.detail', event_id=event.id)),
         ('Gestion des Participants', '#')
     ]
         
-    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs, is_organizer=True)
+    unread_count = count_unread_notifications(event.id)
+    
+    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs, is_organizer=True, unread_count=unread_count)
 
 
 @participant_bp.route('/event/<int:event_id>/participants/export')
@@ -667,3 +672,55 @@ def export_google(event_id):
              return redirect(url_for('auth.login_google'))
              
     return redirect(url_for('participant.manage', event_id=event_id))
+
+
+@participant_bp.route('/event/<int:event_id>/leave', methods=['POST'])
+@login_required
+def leave(event_id):
+    """
+    Permet à un utilisateur de quitter un événement.
+    """
+    event = Event.query.get_or_404(event_id)
+    participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
+    
+    if not participant:
+        flash('Vous ne participez pas à cet événement.', 'warning')
+        return redirect(url_for('event.detail', event_id=event_id))
+    
+    # Gestion du cas "Organisateur unique"
+    if participant.is_organizer:
+        other_organizers = Participant.query.filter(
+            Participant.event_id == event.id,
+            Participant.is_organizer == True,
+            Participant.id != participant.id
+        ).count()
+        
+        if other_organizers == 0:
+            # C'est le dernier organisateur -> Annulation de l'événement
+            event.statut = 'Annulé'
+            flash("L'événement a été annulé car vous étiez le seul organisateur.", 'warning')
+            
+            # Notification spéciale (auto-adressée ou pour l'historique)
+            create_notification(
+                event_id=event.id,
+                user_id=current_user.id,
+                action_type='event_cancelled',
+                description=f"L'événement a été annulé suite au départ de l'unique organisateur: {current_user.prenom} {current_user.nom}"
+            )
+    
+    # Création de la notification pour les autres organisateurs (s'il y en a)
+    # ou pour l'historique de l'événement
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='participant_left',
+        description=f"{current_user.prenom} {current_user.nom} a quitté l'événement."
+    )
+    
+    # Suppression de la participation
+    db.session.delete(participant)
+    db.session.commit()
+    
+    flash("Vous avez quitté l'événement.", 'success')
+    return redirect(url_for('event.detail', event_id=event_id))
+

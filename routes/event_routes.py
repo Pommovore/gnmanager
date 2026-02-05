@@ -173,9 +173,11 @@ def detail(event_id):
     
     # Récupérer les notifications pour les organisateurs
     notifications = []
+    unread_count = 0
     if is_organizer:
-        from services.notification_service import get_event_notifications
+        from services.notification_service import get_event_notifications, count_unread_notifications
         notifications = get_event_notifications(event_id)
+        unread_count = count_unread_notifications(event_id)
 
     breadcrumbs = [
         ('GN Manager', url_for('admin.dashboard')),
@@ -184,7 +186,7 @@ def detail(event_id):
 
     return render_template('event_detail.html', event=event, participant=participant, is_organizer=is_organizer, groups_config=groups_config, breadcrumbs=breadcrumbs,
                           count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role,
-                          paf_config=paf_config, paf_map=paf_map, notifications=notifications)
+                          paf_config=paf_config, paf_map=paf_map, notifications=notifications, unread_count=unread_count)
 
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
