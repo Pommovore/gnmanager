@@ -559,16 +559,7 @@
 
 
 
-<script>
-    window.GN_CONTEXT = {
-        eventId: "{{ event.id }}",
-        csrfToken: "{{ csrf_token() }}",
-        baseUrl: "{{ config.APPLICATION_ROOT or '' }}"
-    };
-    // Sanitization logic for baseUrl
-    if (window.GN_CONTEXT.baseUrl === '/') window.GN_CONTEXT.baseUrl = '';
-    if (window.GN_CONTEXT.baseUrl.endsWith('/')) window.GN_CONTEXT.baseUrl = window.GN_CONTEXT.baseUrl.slice(0, -1);
-</script>
+
 
 {# Groups configuration data - passed as JSON for external JavaScript #}
 <script type="application/json" id="groups-config-data">{{ groups_config | tojson }}</script>
@@ -721,29 +712,28 @@
                                     style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 4px; width: fit-content; margin: 0 auto;">
                                     <div class="d-flex justify-content-center">
                                         <i class="bi bi-envelope cursor-pointer contact-icon fw-bold text-primary"
-                                            title="{{ p.user.email }}"
-                                            onclick="copyToClipboard('{{ p.user.email }}', this)"
+                                            title="{{ p.user.email }}" data-copy-text="{{ p.user.email }}"
                                             style="font-size: 1rem;"></i>
                                     </div>
 
                                     <div class="d-flex justify-content-center">
                                         <i class="bi bi-discord cursor-pointer contact-icon {{ 'text-primary' if show_discord else '' }}"
                                             title="{{ show_discord or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_discord %}copyToClipboard('{{ show_discord }}', this){% endif %}"
+                                            data-copy-text="{{ show_discord or 'Non renseigné ou privé' }}"
                                             style="font-size: 1rem; opacity: {{ 1 if show_discord else 0.3 }};"></i>
                                     </div>
 
                                     <div class="d-flex justify-content-center">
                                         <i class="bi bi-facebook cursor-pointer contact-icon {{ 'text-primary' if show_facebook else '' }}"
                                             title="{{ show_facebook or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_facebook %}copyToClipboard('{{ show_facebook }}', this){% endif %}"
+                                            data-copy-text="{{ show_facebook or 'Non renseigné ou privé' }}"
                                             style="font-size: 1rem; opacity: {{ 1 if show_facebook else 0.3 }};"></i>
                                     </div>
 
                                     <div class="d-flex justify-content-center">
                                         <i class="bi bi-telephone cursor-pointer contact-icon {{ 'text-success' if show_phone else '' }}"
                                             title="{{ show_phone or 'Non renseigné ou privé' }}"
-                                            onclick="{% if show_phone %}copyToClipboard('{{ show_phone }}', this){% endif %}"
+                                            data-copy-text="{{ show_phone or 'Non renseigné ou privé' }}"
                                             style="font-size: 1rem; opacity: {{ 1 if show_phone else 0.3 }};"></i>
                                     </div>
                                 </div>
@@ -890,27 +880,28 @@
         document.querySelectorAll('.mark-read-btn').forEach(btn => {
             btn.addEventListener('click', function () {
                 const notifId = this.dataset.notifId;
-                const eventId = {{ event.id }};
-        const csrfToken = '{{ csrf_token() }}';
+                const eventId = {{ event.id }
+            };
+            const csrfToken = '{{ csrf_token() }}';
 
-        fetch(`/event/${eventId}/notification/${notifId}/mark_read`, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    // Remove highlight and button
-                    const item = this.closest('.list-group-item');
-                    item.classList.remove('notification-unread');
-                    this.remove();
+            fetch(`/event/${eventId}/notification/${notifId}/mark_read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
                 }
             })
-            .catch(error => console.error('Error marking notification as read:', error));
-    });
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove highlight and button
+                        const item = this.closest('.list-group-item');
+                        item.classList.remove('notification-unread');
+                        this.remove();
+                    }
+                })
+                .catch(error => console.error('Error marking notification as read:', error));
+        });
     });
 });
 </script>
