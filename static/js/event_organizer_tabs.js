@@ -377,4 +377,29 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Notification Mark as Read functionality ---
+    document.querySelectorAll('.mark-read-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const notifId = this.dataset.notifId;
+
+            fetch(`${baseUrl}/event/${eventId}/notification/${notifId}/mark_read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        // Remove highlight and button
+                        const item = this.closest('.list-group-item');
+                        item.classList.remove('notification-unread');
+                        this.remove();
+                    }
+                })
+                .catch(error => console.error('Error marking notification as read:', error));
+        });
+    });
+
 });

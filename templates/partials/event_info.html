@@ -1,65 +1,13 @@
 {# Event information card - extracted from event_detail.html #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/event_info.css') }}">
 <style>
-    #event-info-card {
-        background-size: cover;
-        background-position: top center;
-        background-repeat: no-repeat;
-    }
-
+    /* Dynamic background images - must remain inline due to template variables */
     [data-bs-theme="light"] #event-info-card {
         background-image: url("{{ url_for('static', filename=event.background_image_light if event.background_image_light else 'fond_clair.jpg') }}");
     }
 
     [data-bs-theme="dark"] #event-info-card {
         background-image: url("{{ url_for('static', filename=event.background_image_dark if event.background_image_dark else 'fond_sombre.jpg') }}");
-    }
-
-    /* Styles pour le guide utilisateur (Markdown) */
-    #guideContent ul {
-        list-style-type: disc;
-        padding-left: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    #guideContent ol {
-        list-style-type: decimal;
-        padding-left: 2rem;
-        margin-bottom: 1rem;
-    }
-
-    #guideContent li {
-        margin-bottom: 0.25rem;
-    }
-
-    #guideContent h2 {
-        margin-top: 1.5rem;
-        margin-bottom: 1rem;
-        border-bottom: 1px solid var(--bs-border-color);
-        padding-bottom: 0.5rem;
-    }
-
-    #guideContent h3 {
-        margin-top: 1.25rem;
-        margin-bottom: 0.75rem;
-        color: var(--bs-primary);
-    }
-
-    .organizer-box {
-        border: 2px solid #C5A028;
-        background-color: rgba(197, 160, 40, 0.2);
-        /* 75% transparent (25% opacity) */
-        padding: 0.75rem 1.25rem;
-        margin-bottom: 1rem;
-        border-radius: 0.375rem;
-        font-weight: 500;
-    }
-
-    [data-bs-theme="dark"] .organizer-box {
-        color: #ffda6a;
-    }
-
-    [data-bs-theme="light"] .organizer-box {
-        color: #856404;
     }
 </style>
 

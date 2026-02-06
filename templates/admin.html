@@ -163,8 +163,7 @@
                             <div class="modal-footer">
                                 {% if not is_readonly and u.id != current_user.id %}
                                 <form action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" method="POST"
-                                    class="me-auto"
-                                    onsubmit="return confirm('Êtes-vous sûr de vouloir supprimer cet utilisateur ? Cette action est irréversible et effacera toutes ses données.');">
+                                    class="me-auto">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                     <button type="submit" class="btn btn-danger">Supprimer</button>
                                 </form>
@@ -236,16 +235,8 @@
         {% endif %}
     </div>
 </div>
-{% if request.args.get('open_edit') %}
-<script>
-    document.addEventListener('DOMContentLoaded', function () {
-        var modalId = 'editUserModal' + '{{ request.args.get("open_edit") }}';
-        var modalEl = document.getElementById(modalId);
-        if (modalEl) {
-            var modal = new bootstrap.Modal(modalEl);
-            modal.show();
-        }
-    });
-</script>
-{% endif %}
+{% endblock %}{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/admin.js') }}"></script>
 {% endblock %}
