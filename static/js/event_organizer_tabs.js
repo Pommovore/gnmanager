@@ -25,14 +25,30 @@ function copyToClipboard(text, element) {
 
 document.addEventListener('DOMContentLoaded', function () {
     // Check for context
-    if (!window.GN_CONTEXT) {
-        console.error('GN_CONTEXT is missing. Defaulting to empty values.');
-        window.GN_CONTEXT = { eventId: '', csrfToken: '', baseUrl: '' };
+    let context = window.GN_CONTEXT;
+
+    // Fallback: Check for data attribute implementation
+    if (!context) {
+        const dataEl = document.getElementById('event-context-data');
+        if (dataEl) {
+            context = {
+                eventId: dataEl.dataset.eventId,
+                csrfToken: dataEl.dataset.csrfToken,
+                baseUrl: dataEl.dataset.baseUrl
+            };
+            // Sanitization: Ensure eventId is used correctly if it ends up being a string
+        }
     }
 
-    const { eventId, csrfToken } = window.GN_CONTEXT;
-    // BaseURL is already sanitized in the HTML script block before this file runs
-    const baseUrl = window.GN_CONTEXT.baseUrl || '';
+    if (!context || !context.eventId) {
+        console.error('GN_CONTEXT is missing or incomplete.');
+        alert("Erreur technique: L'identifiant de l'événement est manquant. Veuillez rafraîchir la page.");
+        // Prevent crashes by defaulting but logging error
+        context = { eventId: '', csrfToken: '', baseUrl: '' };
+    }
+
+    const { eventId, csrfToken } = context;
+    const baseUrl = context.baseUrl || '';
 
     // Init tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))
@@ -143,27 +159,45 @@ document.addEventListener('DOMContentLoaded', function () {
     if (regenerateBtn) {
         regenerateBtn.addEventListener('click', function () {
             if (confirm('Êtes-vous sûr de vouloir régénérer la clé API ? L\'ancienne clé ne fonctionnera plus immédiatement.')) {
-                fetch(regenerateSecretUrl, {
+                // Use the explicit URL from context to avoid any ambiguity
+                const finalRegenerateUrl = context.regenerateUrl;
+
+                if (!finalRegenerateUrl) {
+                    alert('Erreur technique: L\'URL de régénération est manquante. Veuillez rafraîchir la page (CTRL+F5).');
+                    console.error('Missing regenerateUrl in context', context);
+                    return;
+                }
+
+                fetch(finalRegenerateUrl, {
                     method: 'POST',
                     headers: {
-                        'X-CSRFToken': csrfToken,
+                        'X-CSRFToken': context.csrfToken,
                         'Content-Type': 'application/json'
                     }
                 })
-                    .then(response => response.json())
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error(`HTTP error! Status: ${response.status}`);
+                        }
+                        return response.json();
+                    })
                     .then(data => {
                         if (data.success) {
                             const valEl = document.getElementById('webhook-secret-value');
-                            valEl.textContent = data.new_secret;
-                            valEl.classList.add('text-success', 'fw-bold');
-                            setTimeout(() => valEl.classList.remove('text-success', 'fw-bold'), 2000);
+                            if (valEl) {
+                                valEl.textContent = data.new_secret;
+                                valEl.classList.add('text-success', 'fw-bold');
+                                setTimeout(() => valEl.classList.remove('text-success', 'fw-bold'), 2000);
+                            } else {
+                                console.warn("Element 'webhook-secret-value' not found to update.");
+                            }
                         } else {
-                            alert('Erreur lors de la régénération.');
+                            alert('Erreur lors de la régénération: ' + (data.error || 'Erreur inconnue'));
                         }
                     })
                     .catch(error => {
-                        console.error('Error:', error);
-                        alert('Une erreur est survenue.');
+                        console.error('Error regenerating secret:', error);
+                        alert('Une erreur est survenue lors de la communication avec le serveur.');
                     });
             }
         });

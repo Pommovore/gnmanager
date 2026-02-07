@@ -570,7 +570,21 @@
 {# Casting JavaScript - Loaded from external file #}
 <script src="{{ url_for('static', filename='js/casting.js') }}"></script>
 {# Tabs Logic JavaScript - Refactored #}
-<script src="{{ url_for('static', filename='js/event_organizer_tabs.js') }}"></script>
+{# Context Data for JS #}
+<div id="event-context-data" data-event-id="{{ event.id }}" data-csrf-token="{{ csrf_token() }}"
+    data-base-url="{{ config.APPLICATION_ROOT or '' }}"
+    data-regenerate-url="{{ url_for('event.regenerate_secret', event_id=event.id) }}" style="display: none;"></div>
+
+<script>
+    // Robust initialization of global context
+    window.GN_CONTEXT = {
+        eventId: "{{ event.id }}",
+        csrfToken: "{{ csrf_token() }}",
+        baseUrl: "{{ config.APPLICATION_ROOT or '' }}",
+        regenerateUrl: "{{ url_for('event.regenerate_secret', event_id=event.id) }}"
+    };
+</script>
+<script src="{{ url_for('static', filename='js/event_organizer_tabs.js') }}?v=fixed_v2"></script>
 {% include "partials/casting_templates.html" %}
 
 {# P.A.F. Management Tab Content #}
