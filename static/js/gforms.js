@@ -57,6 +57,14 @@ document.addEventListener('DOMContentLoaded', function () {
         btn.addEventListener('click', () => loadAllData(eventId));
     });
 
+    // Export button
+    const exportBtn = document.getElementById('export-gforms-btn');
+    if (exportBtn) {
+        exportBtn.addEventListener('click', function () {
+            window.location.href = `${baseUrl}/event/${eventId}/gforms/export`;
+        });
+    }
+
     // --- Data Loading ---
 
     function loadAllData(eventId) {

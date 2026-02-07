@@ -10,7 +10,9 @@ Ce module gère :
 
 import json
 import logging
-from flask import Blueprint, render_template, request, jsonify, current_app
+import csv
+from io import StringIO
+from flask import Blueprint, render_template, request, jsonify, current_app, Response
 from flask_login import login_required, current_user
 from datetime import datetime
 
@@ -322,3 +324,95 @@ def save_field_mappings(event_id):
         db.session.rollback()
         logger.error(f"Error saving field mappings for event {event_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@gforms_bp.route('/event/<int:event_id>/gforms/export')
+@login_required
+@organizer_required
+def export_gforms_data(event_id):
+    """
+    Export CSV fusionnant les données de Participant et les données GForms.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    # 1. Récupérer toutes les soumissions GForms
+    submissions = GFormsSubmission.query.filter_by(event_id=event_id).all()
+    sub_map = {}
+    for s in submissions:
+        try:
+            sub_map[s.email.lower()] = json.loads(s.raw_data) if s.raw_data else {}
+        except:
+            sub_map[s.email.lower()] = {}
+            
+    # 2. Récupérer tous les participants de l'événement
+    participants = Participant.query.filter_by(event_id=event_id).all()
+    
+    # 3. Collecter tous les champs dynamiques de GForms
+    dynamic_fields = set()
+    for data in sub_map.values():
+        dynamic_fields.update(data.keys())
+    
+    # Trier les champs pour la consistance
+    sorted_dynamic_fields = sorted(list(dynamic_fields))
+    
+    # 4. Définir les en-têtes CSV
+    headers = [
+        "Email", "Nom", "Prénom", "Type Participant", "Statut Inscription", 
+        "Statut PAF", "Montant Payé", "Méthode Paiement", "Téléphone", 
+        "Discord", "Facebook", "Commentaire Global"
+    ] + sorted_dynamic_fields
+    
+    # 5. Construire les lignes
+    rows = []
+    processed_emails = set()
+    
+    for p in participants:
+        email_key = p.user.email.lower()
+        processed_emails.add(email_key)
+        form_data = sub_map.get(email_key, {})
+        
+        row = [
+            p.user.email,
+            p.user.nom,
+            p.user.prenom,
+            p.type,
+            p.registration_status,
+            p.paf_status,
+            p.payment_amount,
+            p.payment_method,
+            p.participant_phone or p.user.phone or "",
+            p.participant_discord or p.user.discord or "",
+            p.participant_facebook or p.user.facebook or "",
+            p.global_comment or ""
+        ]
+        
+        # Ajouter les données du formulaire
+        for field in sorted_dynamic_fields:
+            row.append(form_data.get(field, ""))
+            
+        rows.append(row)
+        
+    # Ajouter les soumissions qui n'ont pas (encore) de participant lié
+    # (par exemple si un formulaire arrive mais l'utilisateur n'est pas encore créé/lié)
+    for email, form_data in sub_map.items():
+        if email not in processed_emails:
+            row = [email, "(No Participant)", "", "", "", "", "", "", "", "", "", ""]
+            for field in sorted_dynamic_fields:
+                row.append(form_data.get(field, ""))
+            rows.append(row)
+            
+    # 6. Générer le CSV (format Excel compatible avec BOM UTF-8 et point-virgule)
+    output = StringIO()
+    output.write('\ufeff') # BOM for Excel
+    writer = csv.writer(output, delimiter=';', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+    
+    writer.writerow(headers)
+    writer.writerows(rows)
+    
+    filename = f"export_gforms_{event.name.replace(' ', '_')}_{datetime.now().strftime('%Y%m%d_%H%M')}.csv"
+    
+    return Response(
+        output.getvalue(),
+        mimetype="text/csv",
+        headers={"Content-disposition": f"attachment; filename={filename}"}
+    )

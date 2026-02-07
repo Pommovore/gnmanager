@@ -170,11 +170,10 @@ def gform_webhook():
         
         # 1. Créer/Mettre à jour GFormsSubmission
         if email:
-            # Check if submission already exists for this form_response? 
-            # Ideally 1-to-1 with FormResponse, or we just create a new one every time?
-            # Let's align with FormResponse lifecycle.
+            # Use email + event_id to find existing submission to allow merging
+            g_submission = GFormsSubmission.query.filter_by(event_id=event.id, email=email).first()
+            new_answers = data.get('answers', {})
             
-            g_submission = GFormsSubmission.query.filter_by(form_response_id=form_response.id).first()
             if not g_submission:
                  g_submission = GFormsSubmission(
                     event_id=event.id,
@@ -183,13 +182,28 @@ def gform_webhook():
                     timestamp=datetime.utcnow(),
                     type_ajout=type_ajout,
                     form_response_id=form_response.id,
-                    raw_data=json.dumps(data.get('answers', {}))
+                    raw_data=json.dumps(new_answers)
                 )
                  db.session.add(g_submission)
             else:
-                g_submission.raw_data = json.dumps(data.get('answers', {}))
-                g_submission.type_ajout = type_ajout # Update type if needed
-                g_submission.timestamp = datetime.utcnow() # Update timestamp on update
+                # Merge logic: replace only if new data is not empty
+                try:
+                    current_data = json.loads(g_submission.raw_data) if g_submission.raw_data else {}
+                except:
+                    current_data = {}
+                
+                if isinstance(new_answers, dict):
+                    for key, val in new_answers.items():
+                        # check for "empty" values: None, empty string, empty list, empty dict
+                        if val is not None and val != "" and val != [] and val != {}:
+                            current_data[key] = val
+                            
+                g_submission.raw_data = json.dumps(current_data)
+                g_submission.type_ajout = type_ajout
+                g_submission.timestamp = datetime.utcnow()
+                g_submission.form_response_id = form_response.id # Link to latest response
+                if not g_submission.user_id and user:
+                    g_submission.user_id = user.id
         
         # 2. Auto-detect fields and create mappings
         answers = data.get('answers', {})
