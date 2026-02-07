@@ -87,7 +87,10 @@ def count_unread_notifications(event_id):
     Returns:
         int: Nombre de notifications non lues
     """
-    return EventNotification.query.filter_by(
+    count = EventNotification.query.filter_by(
         event_id=event_id,
         is_read=False
     ).count()
+    from flask import current_app
+    current_app.logger.debug(f"Unread notifications for event {event_id}: {count}")
+    return count

@@ -424,6 +424,20 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     // --- Notification Mark as Read functionality ---
+    function updateNotificationBadge() {
+        const unreadCount = document.querySelectorAll('.notification-unread').length;
+        const bellIcon = document.querySelector('#list-notifications-list i.bi-bell');
+        if (bellIcon) {
+            if (unreadCount > 0) {
+                bellIcon.classList.add('text-danger');
+                bellIcon.style.setProperty('color', '#d35400', 'important');
+            } else {
+                bellIcon.classList.remove('text-danger');
+                bellIcon.style.color = '';
+            }
+        }
+    }
+
     document.querySelectorAll('.mark-read-btn').forEach(btn => {
         btn.addEventListener('click', function () {
             const notifId = this.dataset.notifId;
@@ -442,10 +456,39 @@ document.addEventListener('DOMContentLoaded', function () {
                         const item = this.closest('.list-group-item');
                         item.classList.remove('notification-unread');
                         this.remove();
+                        updateNotificationBadge();
                     }
                 })
                 .catch(error => console.error('Error marking notification as read:', error));
         });
     });
+
+    const markAllReadBtn = document.getElementById('mark-all-read-btn');
+    if (markAllReadBtn) {
+        markAllReadBtn.addEventListener('click', function () {
+            if (!confirm('Voulez-vous marquer toutes les notifications comme lues ?')) return;
+
+            fetch(`${baseUrl}/event/${eventId}/notifications/mark_all_read`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        document.querySelectorAll('.notification-unread').forEach(item => {
+                            item.classList.remove('notification-unread');
+                            const btn = item.querySelector('.mark-read-btn');
+                            if (btn) btn.remove();
+                        });
+                        markAllReadBtn.remove();
+                        updateNotificationBadge();
+                    }
+                })
+                .catch(error => console.error('Error marking all notifications as read:', error));
+        });
+    }
 
 });

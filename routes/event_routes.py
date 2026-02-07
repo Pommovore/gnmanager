@@ -1125,6 +1125,21 @@ def mark_notification_read(event_id, notif_id):
     return jsonify({'success': success})
 
 
+@event_bp.route('/event/<int:event_id>/notifications/mark_all_read', methods=['POST'])
+@login_required
+@organizer_required
+def mark_all_notifications_read(event_id):
+    """
+    Marque toutes les notifications d'un événement comme lues.
+    """
+    from models import EventNotification
+    notifications = EventNotification.query.filter_by(event_id=event_id, is_read=False).all()
+    for notif in notifications:
+        notif.is_read = True
+    db.session.commit()
+    return jsonify({'success': True, 'count': len(notifications)})
+
+
 @event_bp.route('/event/<int:event_id>/casting/reset_main', methods=['POST'])
 @login_required
 @organizer_required
