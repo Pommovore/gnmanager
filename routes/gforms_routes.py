@@ -99,38 +99,46 @@ def get_submissions(event_id):
     page = request.args.get('page', 1, type=int)
     per_page = request.args.get('per_page', 50, type=int)
     
-    # Récupérer les soumissions
-    submissions_query = GFormsSubmission.query.filter_by(event_id=event_id).order_by(GFormsSubmission.timestamp.desc())
-    submissions_paginated = submissions_query.paginate(page=page, per_page=per_page, error_out=False)
-    
-    # Récupérer les mappings de champs pour connaître tous les champs disponibles
-    field_mappings = GFormsFieldMapping.query.filter_by(event_id=event_id).all()
-    field_mapping_dict = {fm.field_name: fm for fm in field_mappings}
-    
-    # Construire la réponse JSON
-    submissions_data = []
-    for sub in submissions_paginated.items:
-        raw_data = json.loads(sub.raw_data) if sub.raw_data else {}
+    try:
+        # Récupérer les soumissions
+        submissions_query = GFormsSubmission.query.filter_by(event_id=event_id).order_by(GFormsSubmission.timestamp.desc())
+        submissions_paginated = submissions_query.paginate(page=page, per_page=per_page, error_out=False)
         
-        submissions_data.append({
-            'id': sub.id,
-            'email': sub.email,
-            'timestamp': sub.timestamp.strftime('%Y/%m/%d %H:%M'),
-            'type_ajout': sub.type_ajout,
-            'raw_data': raw_data
+        # Récupérer les mappings de champs pour connaître tous les champs disponibles
+        field_mappings = GFormsFieldMapping.query.filter_by(event_id=event_id).all()
+        field_mapping_dict = {fm.field_name: fm for fm in field_mappings}
+        
+        # Construire la réponse JSON
+        submissions_data = []
+        for sub in submissions_paginated.items:
+            try:
+                raw_data = json.loads(sub.raw_data) if sub.raw_data else {}
+                
+                submissions_data.append({
+                    'id': sub.id,
+                    'email': sub.email,
+                    'timestamp': sub.timestamp.strftime('%Y/%m/%d %H:%M') if sub.timestamp else "N/A",
+                    'type_ajout': sub.type_ajout,
+                    'raw_data': raw_data
+                })
+            except Exception as e:
+                logger.error(f"Error processing submission {sub.id}: {e}")
+                continue
+        
+        return jsonify({
+            'submissions': submissions_data,
+            'pagination': {
+                'page': page,
+                'per_page': per_page,
+                'total': submissions_paginated.total,
+                'pages': submissions_paginated.pages,
+                'has_prev': submissions_paginated.has_prev,
+                'has_next': submissions_paginated.has_next
+            }
         })
-    
-    return jsonify({
-        'submissions': submissions_data,
-        'pagination': {
-            'page': page,
-            'per_page': per_page,
-            'total': submissions_paginated.total,
-            'pages': submissions_paginated.pages,
-            'has_prev': submissions_paginated.has_prev,
-            'has_next': submissions_paginated.has_next
-        }
-    })
+    except Exception as e:
+        logger.error(f"Error in get_submissions_data: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @gforms_bp.route('/event/<int:event_id>/gforms/categories', methods=['GET'])
@@ -237,44 +245,53 @@ def get_fields(event_id):
     """
     event = Event.query.get_or_404(event_id)
     
-    # Récupérer tous les champs détectés à partir des soumissions
-    submissions = GFormsSubmission.query.filter_by(event_id=event_id).all()
-    detected_fields = set()
-    
-    # Champs système toujours présents
-    detected_fields.add('timestamp')
-    detected_fields.add('type_ajout')
-    
-    for sub in submissions:
-        raw_data = json.loads(sub.raw_data) if sub.raw_data else {}
-        detected_fields.update(raw_data.keys())
-    
-    # Récupérer les mappings existants
-    mappings = GFormsFieldMapping.query.filter_by(event_id=event_id).all()
-    mapping_dict = {m.field_name: m for m in mappings}
-    
-    # Récupérer les catégories pour inclure les infos de couleur
-    categories = GFormsCategory.query.filter_by(event_id=event_id).all()
-    category_dict = {cat.id: cat for cat in categories}
-    
-    # Construire la réponse
-    fields_data = []
-    for field_name in sorted(detected_fields):
-        mapping = mapping_dict.get(field_name)
-        category = category_dict.get(mapping.category_id) if mapping else None
+    try:
+        # Récupérer tous les champs détectés à partir des soumissions
+        submissions = GFormsSubmission.query.filter_by(event_id=event_id).all()
+        detected_fields = set()
         
-        fields_data.append({
-            'field_name': field_name,
-            'field_alias': mapping.field_alias if mapping else None,
-            'category_id': mapping.category_id if mapping else None,
-            'category': {
-                'id': category.id,
-                'name': category.name,
-                'color': category.color
-            } if category else None
-        })
-    
-    return jsonify({'fields': fields_data})
+        # Champs système toujours présents
+        detected_fields.add('timestamp')
+        detected_fields.add('type_ajout')
+        
+        for sub in submissions:
+            try:
+                raw_data = json.loads(sub.raw_data) if sub.raw_data else {}
+                detected_fields.update(raw_data.keys())
+            except:
+                continue
+        
+        # Récupérer les mappings existants
+        mappings = GFormsFieldMapping.query.filter_by(event_id=event_id).all()
+        mapping_dict = {m.field_name: m for m in mappings}
+        
+        # Récupérer les catégories pour inclure les infos de couleur
+        categories = GFormsCategory.query.filter_by(event_id=event_id).all()
+        category_dict = {cat.id: cat for cat in categories}
+        
+        # Construire la réponse JSON
+        fields_data = []
+        for field_name in sorted(detected_fields):
+            mapping = mapping_dict.get(field_name)
+            category = None
+            if mapping and mapping.category_id:
+                category = category_dict.get(mapping.category_id)
+            
+            fields_data.append({
+                'field_name': field_name,
+                'field_alias': mapping.field_alias if mapping else None,
+                'category_id': mapping.category_id if mapping else None,
+                'category': {
+                    'id': category.id,
+                    'name': category.name,
+                    'color': category.color
+                } if category else None
+            })
+        
+        return jsonify({'fields': fields_data})
+    except Exception as e:
+        logger.error(f"Error in get_fields: {e}", exc_info=True)
+        return jsonify({'error': str(e)}), 500
 
 
 @gforms_bp.route('/event/<int:event_id>/gforms/field-mappings', methods=['POST'])

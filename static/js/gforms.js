@@ -36,6 +36,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
     const { eventId, csrfToken } = context;
     const baseUrl = context.baseUrl || '';
+    console.log(`GForms Init: eventId=${eventId}, baseUrl=${baseUrl}`);
 
     // --- State ---
     let categories = [];
@@ -88,13 +89,19 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function loadFieldMappings(eventId) {
         return fetch(`${baseUrl}/event/${eventId}/gforms/fields`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.json();
+            })
             .then(data => {
-                fieldMappings = data.fields;
+                fieldMappings = data.fields || [];
                 renderFieldMappings();
                 return fieldMappings;
             })
-            .catch(err => console.error('Error loading fields:', err));
+            .catch(err => {
+                console.error('Error loading fields:', err);
+                fieldMappings = [];
+            });
     }
 
     function loadSubmissions(eventId, page) {
@@ -113,7 +120,7 @@ document.addEventListener('DOMContentLoaded', function () {
             })
             .catch(err => {
                 console.error('Error loading submissions:', err);
-                tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erreur lors du chargement des données</td></tr>';
+                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur: ${err.message || 'Problème réseau ou serveur'}</td></tr>`;
             });
     }
 
@@ -138,7 +145,11 @@ document.addEventListener('DOMContentLoaded', function () {
         // But for the table headers, we need to be consistent.
 
         // Let's use the fieldMappings which contains all detected fields
-        const dynamicFields = fieldMappings.map(f => f.field_name);
+        // Exclude hardcoded columns from dynamic fields
+        const dynamicFields = (fieldMappings || []).map(f => f.field_name).filter(name => {
+            const lower = name.toLowerCase();
+            return lower !== 'email' && lower !== 'timestamp' && lower !== 'type_ajout' && lower !== 'type d\'ajout';
+        });
 
         // Update Header
         let headerHTML = `
