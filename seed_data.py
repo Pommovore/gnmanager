@@ -10,7 +10,8 @@ sys.path.append(os.path.abspath(os.path.dirname(__file__)))
 from app import create_app
 from models import (User, Event, Participant, Role, EventLink,
                     PasswordResetToken, AccountValidationToken,
-                    ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                    ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                    EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
 
 # Configuration
 OUTPUT_FILE = 'config/seed_data.json'
@@ -52,7 +53,11 @@ def export_db_to_seed():
             'activity_logs': [serialize_model(i) for i in ActivityLog.query.all()],
             'casting_proposals': [serialize_model(i) for i in CastingProposal.query.all()],
             'casting_assignments': [serialize_model(i) for i in CastingAssignment.query.all()],
-            'form_responses': [serialize_model(i) for i in FormResponse.query.all()]
+            'form_responses': [serialize_model(i) for i in FormResponse.query.all()],
+            'event_notifications': [serialize_model(i) for i in EventNotification.query.all()],
+            'gforms_categories': [serialize_model(i) for i in GFormsCategory.query.all()],
+            'gforms_field_mappings': [serialize_model(i) for i in GFormsFieldMapping.query.all()],
+            'gforms_submissions': [serialize_model(i) for i in GFormsSubmission.query.all()]
         }
         
         # S'assurer que le dossier config existe

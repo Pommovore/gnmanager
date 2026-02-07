@@ -9,7 +9,8 @@ def main():
     from app import create_app
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -49,6 +50,14 @@ def main():
         
         # Form responses linked to event
         form_responses = FormResponse.query.filter(FormResponse.event_id.in_(target_event_ids)).all()
+        
+        # GForms data linked to event
+        gforms_categories = GFormsCategory.query.filter(GFormsCategory.event_id.in_(target_event_ids)).all()
+        gforms_mappings = GFormsFieldMapping.query.filter(GFormsFieldMapping.event_id.in_(target_event_ids)).all()
+        gforms_submissions = GFormsSubmission.query.filter(GFormsSubmission.event_id.in_(target_event_ids)).all()
+        
+        # Notifications linked to event
+        notifications = EventNotification.query.filter(EventNotification.event_id.in_(target_event_ids)).all()
 
         # Construire le dictionnaire de données
         data = {
@@ -62,6 +71,10 @@ def main():
             'casting_proposals': [serialize_model(i) for i in casting_proposals],
             'casting_assignments': [serialize_model(i) for i in casting_assignments],
             'form_responses': [serialize_model(i) for i in form_responses],
+            'gforms_categories': [serialize_model(i) for i in gforms_categories],
+            'gforms_field_mappings': [serialize_model(i) for i in gforms_mappings],
+            'gforms_submissions': [serialize_model(i) for i in gforms_submissions],
+            'event_notifications': [serialize_model(i) for i in notifications],
             
             # Tables vidées volontairement
             'activity_logs': [],

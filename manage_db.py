@@ -41,7 +41,11 @@ def fix_sequences_logic(db, app):
         'participant',
         'password_reset_token',
         'account_validation_token',
-        'event_link'
+        'event_link',
+        'event_notification',
+        'gforms_category',
+        'gforms_field_mapping',
+        'gforms_submission'
     ]
     
     try:
@@ -217,7 +221,7 @@ def export_data(args):
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
                         ActivityLog, CastingProposal, CastingAssignment, FormResponse,
-                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
+                        EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -234,6 +238,7 @@ def export_data(args):
             'casting_proposals': [serialize_model(i) for i in CastingProposal.query.all()],
             'casting_assignments': [serialize_model(i) for i in CastingAssignment.query.all()],
             'form_responses': [serialize_model(i) for i in FormResponse.query.all()],
+            'event_notifications': [serialize_model(i) for i in EventNotification.query.all()],
             'gforms_categories': [serialize_model(i) for i in GFormsCategory.query.all()],
             'gforms_field_mappings': [serialize_model(i) for i in GFormsFieldMapping.query.all()],
             'gforms_submissions': [serialize_model(i) for i in GFormsSubmission.query.all()]
@@ -263,7 +268,7 @@ def import_data(args):
     from models import (db, User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
                         ActivityLog, CastingProposal, CastingAssignment, FormResponse,
-                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
+                        EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -284,6 +289,7 @@ def import_data(args):
             ('casting_proposals', CastingProposal),
             ('casting_assignments', CastingAssignment),
             ('form_responses', FormResponse),
+            ('event_notifications', EventNotification),
             ('gforms_categories', GFormsCategory),
             ('gforms_field_mappings', GFormsFieldMapping),
             ('gforms_submissions', GFormsSubmission)
@@ -337,7 +343,7 @@ def export_data_csv(args):
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
                         ActivityLog, CastingProposal, CastingAssignment, FormResponse,
-                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
+                        EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -355,6 +361,7 @@ def export_data_csv(args):
         export_model_to_csv(GFormsCategory, dir_path, 'gforms_categories.csv')
         export_model_to_csv(GFormsFieldMapping, dir_path, 'gforms_field_mappings.csv')
         export_model_to_csv(GFormsSubmission, dir_path, 'gforms_submissions.csv')
+        export_model_to_csv(EventNotification, dir_path, 'event_notifications.csv')
         
     logger.info("Export CSV terminé.")
 
@@ -417,6 +424,7 @@ def import_data_csv(args):
         import_model_from_csv(GFormsCategory, dir_path, 'gforms_categories.csv', db)
         import_model_from_csv(GFormsFieldMapping, dir_path, 'gforms_field_mappings.csv', db)
         import_model_from_csv(GFormsSubmission, dir_path, 'gforms_submissions.csv', db)
+        import_model_from_csv(EventNotification, dir_path, 'event_notifications.csv', db)
         
         fix_sequences_logic(db, app)
 
@@ -432,6 +440,7 @@ def clean_database(db):
                         
     logger.info("Nettoyage complet de la base...")
     try:
+        db.session.query(EventNotification).delete()
         db.session.query(GFormsSubmission).delete()
         db.session.query(GFormsFieldMapping).delete()
         db.session.query(GFormsCategory).delete()
@@ -502,13 +511,19 @@ def reset_db(args):
              # Copie de la logique originale de suppression sélective
             from models import (CastingAssignment, CastingProposal, ActivityLog, 
                               AccountValidationToken, PasswordResetToken, Participant, 
-                              Role, Event, EventLink, FormResponse)
+                              Role, Event, EventLink, FormResponse, EventNotification,
+                              GFormsCategory, GFormsFieldMapping, GFormsSubmission)
                               
+            db.session.query(EventNotification).delete()
+            db.session.query(GFormsSubmission).delete()
+            db.session.query(GFormsFieldMapping).delete()
+            db.session.query(GFormsCategory).delete()
             db.session.query(CastingAssignment).delete()
             db.session.query(CastingProposal).delete()
             db.session.query(ActivityLog).delete()
             db.session.query(AccountValidationToken).delete()
             db.session.query(PasswordResetToken).delete()
+            db.session.query(FormResponse).delete()
             db.session.query(Participant).delete()
             db.session.query(Role).delete()
             db.session.query(EventLink).delete()
