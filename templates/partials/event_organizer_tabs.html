@@ -243,8 +243,15 @@
                     <div class="mb-3">
                         <div class="alert alert-secondary p-2 d-flex align-items-center justify-content-between">
                             <div>
-                                <strong>API_SECRET : </strong> <code class="user-select-all"
-                                    id="webhook-secret-value">{{ event.webhook_secret or 'Non généré' }}</code>
+                                <strong>API_SECRET : </strong>
+                                <span class="d-inline-flex align-items-center">
+                                    <code class="user-select-all me-2"
+                                        id="webhook-secret-value">{{ event.webhook_secret or 'Non généré' }}</code>
+                                    <button type="button" class="btn btn-sm btn-outline-secondary p-1 lh-1"
+                                        id="copy-secret-btn" title="Copier la clé" data-bs-toggle="tooltip">
+                                        <i class="bi bi-clipboard"></i>
+                                    </button>
+                                </span>
                                 <div class="mt-1">
                                     <a href="{{ url_for('static', filename='GOOGLE_APPS_SCRIPT.js') }}" target="_blank"
                                         class="small">

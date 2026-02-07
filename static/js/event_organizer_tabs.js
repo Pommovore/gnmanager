@@ -203,6 +203,18 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Copy Secret Button Logic
+    const copySecretBtn = document.getElementById('copy-secret-btn');
+    if (copySecretBtn) {
+        copySecretBtn.addEventListener('click', function () {
+            const secretVal = document.getElementById('webhook-secret-value');
+            if (secretVal) {
+                // Ensure text is trimmed to avoid copying surrounding whitespace
+                copyToClipboard(secretVal.textContent.trim(), this);
+            }
+        });
+    }
+
     // Dynamic PAF Configuration Rows
     const pafConfigContainer = document.getElementById('paf-config-container');
     const addPafBtn = document.getElementById('add-paf-btn');

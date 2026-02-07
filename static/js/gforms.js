@@ -8,8 +8,33 @@ document.addEventListener('DOMContentLoaded', function () {
     const gformsTab = document.getElementById('list-gforms');
     if (!gformsTab) return;
 
-    const eventId = document.querySelector('[data-event-id]')?.dataset.eventId;
-    if (!eventId) return;
+    // Check for context
+    let context = window.GN_CONTEXT;
+
+    // Fallback: Check for data attribute implementation
+    if (!context) {
+        const dataEl = document.getElementById('event-context-data');
+        if (dataEl) {
+            context = {
+                eventId: dataEl.dataset.eventId,
+                csrfToken: dataEl.dataset.csrfToken,
+                baseUrl: dataEl.dataset.baseUrl
+            };
+        }
+    }
+
+    if (!context || !context.eventId) {
+        // If we are on the tab but context is missing, show error
+        console.error('GN_CONTEXT is missing or incomplete for GForms.');
+        const tbody = document.getElementById('gforms-table-body');
+        if (tbody) {
+            tbody.innerHTML = '<tr><td colspan="5" class="text-center text-danger">Erreur technique: Contexte manquant</td></tr>';
+        }
+        return;
+    }
+
+    const { eventId, csrfToken } = context;
+    const baseUrl = context.baseUrl || '';
 
     // --- State ---
     let categories = [];
@@ -41,7 +66,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function loadCategories(eventId) {
-        return fetch(`/event/${eventId}/gforms/categories`)
+        return fetch(`${baseUrl}/event/${eventId}/gforms/categories`)
             .then(response => response.json())
             .then(data => {
                 categories = data.categories;
@@ -53,7 +78,7 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     function loadFieldMappings(eventId) {
-        return fetch(`/event/${eventId}/gforms/fields`)
+        return fetch(`${baseUrl}/event/${eventId}/gforms/fields`)
             .then(response => response.json())
             .then(data => {
                 fieldMappings = data.fields;
@@ -69,7 +94,7 @@ document.addEventListener('DOMContentLoaded', function () {
 
         tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"></div></td></tr>';
 
-        fetch(`/event/${eventId}/gforms/submissions?page=${page}&per_page=50`)
+        fetch(`${baseUrl}/event/${eventId}/gforms/submissions?page=${page}&per_page=50`)
             .then(response => response.json())
             .then(data => {
                 renderSubmissionsTable(data.submissions);
@@ -170,10 +195,10 @@ document.addEventListener('DOMContentLoaded', function () {
         let html = `
             <span class="me-3">Page ${pagination.page} sur ${pagination.pages} (${pagination.total} résultats)</span>
             <div class="btn-group">
-                <button class="btn btn-outline-secondary btn-sm" ${!pagination.has_prev ? 'disabled' : ''} onclick="loadSubmissions('${eventId}', ${pagination.page - 1})">
+                <button class="btn btn-outline-secondary btn-sm" ${!pagination.has_prev ? 'disabled' : ''} onclick="loadSubmissions(window.GN_CONTEXT.eventId, ${pagination.page - 1})">
                     <i class="bi bi-chevron-left"></i> Précédent
                 </button>
-                <button class="btn btn-outline-secondary btn-sm" ${!pagination.has_next ? 'disabled' : ''} onclick="loadSubmissions('${eventId}', ${pagination.page + 1})">
+                <button class="btn btn-outline-secondary btn-sm" ${!pagination.has_next ? 'disabled' : ''} onclick="loadSubmissions(window.GN_CONTEXT.eventId, ${pagination.page + 1})">
                     Suivant <i class="bi bi-chevron-right"></i>
                 </button>
             </div>
@@ -363,11 +388,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 }
             });
 
-            fetch(`/event/${eventId}/gforms/categories`, {
+            fetch(`${baseUrl}/event/${eventId}/gforms/categories`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ categories: categoriesData })
             })
@@ -399,11 +424,11 @@ document.addEventListener('DOMContentLoaded', function () {
                 });
             });
 
-            fetch(`/event/${eventId}/gforms/field-mappings`, {
+            fetch(`${baseUrl}/event/${eventId}/gforms/field-mappings`, {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
-                    'X-CSRFToken': document.querySelector('input[name="csrf_token"]')?.value
+                    'X-CSRFToken': csrfToken
                 },
                 body: JSON.stringify({ mappings: mappingsData })
             })
