@@ -148,12 +148,22 @@ document.addEventListener('DOMContentLoaded', function () {
         `;
 
         dynamicFields.forEach(field => {
-            // Find category for color
+            // Find mapping for alias and color
             const mapping = fieldMappings.find(m => m.field_name === field);
             const category = mapping && mapping.category ? mapping.category : null;
             const colorClass = category ? `text-${category.color}-emphasis bg-${category.color}-subtle` : '';
 
-            headerHTML += `<th class="${colorClass}">${field}</th>`;
+            // Use alias if available
+            const displayName = (mapping && mapping.field_alias) ? mapping.field_alias : field;
+            const hasAlias = !!(mapping && mapping.field_alias);
+
+            let labelHTML = displayName;
+            if (hasAlias) {
+                // Add info icon for full name
+                labelHTML = `${displayName} <i class="bi bi-info-circle small ms-1" style="cursor:help; opacity: 0.7;" title="${field.replace(/"/g, '&quot;')}"></i>`;
+            }
+
+            headerHTML += `<th class="${colorClass}">${labelHTML}</th>`;
         });
 
         headerHTML += '</tr>';
@@ -308,10 +318,13 @@ document.addEventListener('DOMContentLoaded', function () {
 
             tr.innerHTML = `
                 <td>
-                    <span class="badge bg-secondary text-wrap text-start" style="font-size: 0.9em;">${field.field_name}</span>
+                    <span class="badge bg-secondary text-wrap text-start w-100" style="font-size: 0.85em; font-weight: normal;">${field.field_name}</span>
                 </td>
                 <td>
-                    <select class="form-select mapping-category-select" data-field="${field.field_name}">
+                    <input type="text" class="form-control form-control-sm mapping-alias-input" value="${field.field_alias || ''}" placeholder="Alias court...">
+                </td>
+                <td>
+                    <select class="form-select form-select-sm mapping-category-select" data-field="${field.field_name}">
                         <option value="">-- Non catégorisé --</option>
                         ${getCategoryOptions(field.category_id)}
                     </select>
@@ -422,14 +435,19 @@ document.addEventListener('DOMContentLoaded', function () {
     const saveMappingsBtn = document.getElementById('save-mappings-btn');
     if (saveMappingsBtn) {
         saveMappingsBtn.addEventListener('click', function () {
-            const selects = document.querySelectorAll('.mapping-category-select');
+            const rows = document.querySelectorAll('#field-mappings-body tr');
             const mappingsData = [];
 
-            selects.forEach(select => {
-                mappingsData.push({
-                    field_name: select.dataset.field,
-                    category_id: select.value ? parseInt(select.value) : null
-                });
+            rows.forEach(row => {
+                const select = row.querySelector('.mapping-category-select');
+                const aliasInput = row.querySelector('.mapping-alias-input');
+                if (select && aliasInput) {
+                    mappingsData.push({
+                        field_name: select.dataset.field,
+                        category_id: select.value ? parseInt(select.value) : null,
+                        field_alias: aliasInput.value.trim() || null
+                    });
+                }
             });
 
             fetch(`${baseUrl}/event/${eventId}/gforms/field-mappings`, {

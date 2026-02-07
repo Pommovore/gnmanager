@@ -3,7 +3,7 @@ import json
 import logging
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
-from models import db, FormResponse, Event, User, Participant, GFormsSubmission, GFormsCategory, GFormsFieldMapping
+from models import db, FormResponse, Event, User, Participant, GFormsSubmission, GFormsCategory, GFormsFieldMapping, EventNotification
 from extensions import csrf
 from werkzeug.security import generate_password_hash
 import secrets
@@ -144,25 +144,46 @@ def gform_webhook():
                  logger.info(f"Found existing Participant ID: {participant.id}") # DEBUG LOG
                  type_ajout = "mis à jour" # Si participant existe déjà
             
-            # 3. Traitement des réponses pour global_comment (Legacy support)
+            # 3. Traitement de l'identité (Nom/Prénom)
             answers = data.get('answers', {})
-            formatted_answers = []
-            
+            nom_form = None
+            prenom_form = None
+
+            # Chercher dans les réponses
             if isinstance(answers, dict):
-                for key, value in answers.items():
-                    val_str = str(value) if value is not None else ""
-                    formatted_answers.append(f"{key}: {val_str}")
-            else:
-                formatted_answers.append(str(answers))
+                for key, val in answers.items():
+                    key_lower = key.lower().strip()
+                    if key_lower in ['nom', 'nom de famille', 'family name', 'lastname', 'last name']:
+                        nom_form = str(val).strip()
+                    elif key_lower in ['prénom', 'prenom', 'first name', 'firstname']:
+                        prenom_form = str(val).strip()
             
-            new_comment_content = "\n".join(formatted_answers)
-            timestamp_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M')
-            header = f"\n\n--- Import GForm ({timestamp_str}) ---\n"
+            # Heuristique si non trouvé
+            if not nom_form or not prenom_form:
+                email_part = email.split('@')[0]
+                if '.' in email_part:
+                    parts = email_part.split('.')
+                    if not prenom_form: prenom_form = parts[0].capitalize()
+                    if not nom_form: nom_form = " ".join(parts[1:]).capitalize()
+                else:
+                    if not prenom_form: prenom_form = email_part.capitalize()
+                    if not nom_form: nom_form = "Utilisateur"
+
+            # Mise à jour de l'utilisateur
+            if prenom_form: user.prenom = prenom_form
+            if nom_form: user.nom = nom_form
             
-            if participant.global_comment:
-                participant.global_comment += header + new_comment_content
-            else:
-                participant.global_comment = header.strip() + "\n" + new_comment_content
+            # 4. Création d'une Notification (uniquement pour les nouveaux ou ajouts)
+            if type_ajout in ["créé", "ajouté"]:
+                notif = EventNotification(
+                    event_id=event.id,
+                    user_id=user.id,
+                    action_type="participant_join_request", # Utilisation d'un type existant pour compatibilité
+                    description=f"Nouvelle inscription via Google Form: {user.prenom} {user.nom} ({email})",
+                    created_at=datetime.utcnow(),
+                    is_read=False
+                )
+                db.session.add(notif)
 
         # ---------------------------------------------------------
         # Nouvelle logique : GFormsSubmission & Field Mappings

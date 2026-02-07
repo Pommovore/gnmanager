@@ -573,6 +573,7 @@ class GFormsFieldMapping(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
     field_name = db.Column(db.String(200), nullable=False)
+    field_alias = db.Column(db.String(100), nullable=True) # Nom court pour l'affichage
     category_id = db.Column(db.Integer, db.ForeignKey('gforms_category.id'), nullable=True)
     
     # Contrainte d'unicité : un champ par événement

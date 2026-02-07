@@ -265,6 +265,7 @@ def get_fields(event_id):
         
         fields_data.append({
             'field_name': field_name,
+            'field_alias': mapping.field_alias if mapping else None,
             'category_id': mapping.category_id if mapping else None,
             'category': {
                 'id': category.id,
@@ -282,7 +283,7 @@ def get_fields(event_id):
 def save_field_mappings(event_id):
     """
     API: Sauvegarde les associations champ → catégorie.
-    Payload: { "mappings": [{"field_name": "...", "category_id": 1}, ...] }
+    Payload: { "mappings": [{"field_name": "...", "category_id": 1, "field_alias": "..."}, ...] }
     """
     event = Event.query.get_or_404(event_id)
     
@@ -293,6 +294,7 @@ def save_field_mappings(event_id):
         for mapping_data in mappings_input:
             field_name = mapping_data.get('field_name')
             category_id = mapping_data.get('category_id')
+            field_alias = mapping_data.get('field_alias')
             
             if not field_name:
                 continue
@@ -306,12 +308,14 @@ def save_field_mappings(event_id):
             if mapping:
                 # Update
                 mapping.category_id = category_id
+                mapping.field_alias = field_alias
             else:
                 # Create
                 mapping = GFormsFieldMapping(
                     event_id=event_id,
                     field_name=field_name,
-                    category_id=category_id
+                    category_id=category_id,
+                    field_alias=field_alias
                 )
                 db.session.add(mapping)
         
