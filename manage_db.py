@@ -216,7 +216,8 @@ def export_data(args):
     from app import create_app
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -232,7 +233,10 @@ def export_data(args):
             'activity_logs': [serialize_model(i) for i in ActivityLog.query.all()],
             'casting_proposals': [serialize_model(i) for i in CastingProposal.query.all()],
             'casting_assignments': [serialize_model(i) for i in CastingAssignment.query.all()],
-            'form_responses': [serialize_model(i) for i in FormResponse.query.all()]
+            'form_responses': [serialize_model(i) for i in FormResponse.query.all()],
+            'gforms_categories': [serialize_model(i) for i in GFormsCategory.query.all()],
+            'gforms_field_mappings': [serialize_model(i) for i in GFormsFieldMapping.query.all()],
+            'gforms_submissions': [serialize_model(i) for i in GFormsSubmission.query.all()]
         }
         
     with open(file_path, 'w', encoding='utf-8') as f:
@@ -258,7 +262,8 @@ def import_data(args):
     from app import create_app
     from models import (db, User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -278,7 +283,10 @@ def import_data(args):
             ('activity_logs', ActivityLog),
             ('casting_proposals', CastingProposal),
             ('casting_assignments', CastingAssignment),
-            ('form_responses', FormResponse)
+            ('form_responses', FormResponse),
+            ('gforms_categories', GFormsCategory),
+            ('gforms_field_mappings', GFormsFieldMapping),
+            ('gforms_submissions', GFormsSubmission)
         ]
         
         # 1. Importation principale
@@ -328,7 +336,8 @@ def export_data_csv(args):
     from app import create_app
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -343,6 +352,9 @@ def export_data_csv(args):
         export_model_to_csv(CastingProposal, dir_path, 'casting_proposals.csv')
         export_model_to_csv(CastingAssignment, dir_path, 'casting_assignments.csv')
         export_model_to_csv(FormResponse, dir_path, 'form_responses.csv')
+        export_model_to_csv(GFormsCategory, dir_path, 'gforms_categories.csv')
+        export_model_to_csv(GFormsFieldMapping, dir_path, 'gforms_field_mappings.csv')
+        export_model_to_csv(GFormsSubmission, dir_path, 'gforms_submissions.csv')
         
     logger.info("Export CSV terminé.")
 
@@ -360,7 +372,8 @@ def import_data_csv(args):
     from app import create_app
     from models import (db, User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
     
     app = create_app()
     with app.app_context():
@@ -401,6 +414,9 @@ def import_data_csv(args):
         import_model_from_csv(CastingProposal, dir_path, 'casting_proposals.csv', db)
         import_model_from_csv(CastingAssignment, dir_path, 'casting_assignments.csv', db)
         import_model_from_csv(FormResponse, dir_path, 'form_responses.csv', db)
+        import_model_from_csv(GFormsCategory, dir_path, 'gforms_categories.csv', db)
+        import_model_from_csv(GFormsFieldMapping, dir_path, 'gforms_field_mappings.csv', db)
+        import_model_from_csv(GFormsSubmission, dir_path, 'gforms_submissions.csv', db)
         
         fix_sequences_logic(db, app)
 
@@ -411,10 +427,14 @@ def clean_database(db):
     """Vide la base de données dans l'ordre correct."""
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
-                        ActivityLog, CastingProposal, CastingAssignment, FormResponse)
+                        ActivityLog, CastingProposal, CastingAssignment, FormResponse,
+                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
                         
     logger.info("Nettoyage complet de la base...")
     try:
+        db.session.query(GFormsSubmission).delete()
+        db.session.query(GFormsFieldMapping).delete()
+        db.session.query(GFormsCategory).delete()
         db.session.query(CastingAssignment).delete()
         db.session.query(CastingProposal).delete()
         db.session.query(ActivityLog).delete()
