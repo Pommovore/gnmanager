@@ -194,9 +194,13 @@ def gform_webhook():
         # 2. Auto-detect fields and create mappings
         answers = data.get('answers', {})
         if isinstance(answers, dict):
-            # Get default category
-            default_cat = GFormsCategory.query.filter_by(event_id=event.id, name='Généralités').first()
+            # Get default category (case-insensitive)
+            default_cat = GFormsCategory.query.filter(
+                GFormsCategory.event_id == event.id,
+                db.func.lower(GFormsCategory.name) == 'généralités'
+            ).first()
             if not default_cat:
+                # Default creation should use nice capitalization
                 default_cat = GFormsCategory(event_id=event.id, name='Généralités', color='neutral', position=0)
                 db.session.add(default_cat)
                 db.session.flush()

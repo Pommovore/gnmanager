@@ -37,10 +37,10 @@ def gforms_menu(event_id):
         # Menu grisé/désactivé sera géré dans le template
         pass
     
-    # Initialiser la catégorie par défaut si elle n'existe pas
-    default_category = GFormsCategory.query.filter_by(
-        event_id=event_id,
-        name='Généralités'
+    # Initialiser la catégorie par défaut si elle n'existe pas (insensible à la casse)
+    default_category = GFormsCategory.query.filter(
+        GFormsCategory.event_id == event_id,
+        db.func.lower(GFormsCategory.name) == 'généralités'
     ).first()
     
     if not default_category:
@@ -177,10 +177,16 @@ def save_categories(event_id):
         for idx, cat_data in enumerate(categories_input):
             cat_id = cat_data.get('id')
             name = cat_data.get('name', '').strip()
-            color = cat_data.get('color', 'neutral')
-            
             if not name:
                 continue  # Skip empty names
+            
+            # Normalisation : Majuscule au début si possible
+            if len(name) > 1:
+                name = name[0].upper() + name[1:]
+            elif len(name) == 1:
+                name = name.upper()
+            
+            color = cat_data.get('color', 'neutral')
             
             if color not in valid_colors:
                 color = 'neutral'
