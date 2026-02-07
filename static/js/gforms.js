@@ -4,6 +4,7 @@
  */
 
 document.addEventListener('DOMContentLoaded', function () {
+    console.log("GForms JS V2 Loaded");
     // Only initialize if we are on the GForms tab or if the partial is loaded
     const gformsTab = document.getElementById('list-gforms');
     if (!gformsTab) return;
