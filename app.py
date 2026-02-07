@@ -274,6 +274,7 @@ def create_app(test_config=None):
     # Note: Architecture modulaire complète - tous les blueprints sont maintenant séparés
     from routes import auth_bp, admin_bp, event_bp, participant_bp, webhook_bp
     from routes.health_routes import health_bp
+    from routes.gforms_routes import gforms_bp
     
     app.register_blueprint(auth_bp)
     app.register_blueprint(admin_bp)
@@ -281,8 +282,10 @@ def create_app(test_config=None):
     app.register_blueprint(participant_bp)
     app.register_blueprint(webhook_bp)
     app.register_blueprint(health_bp)
+    app.register_blueprint(gforms_bp)
     
-    app.logger.debug("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant)")
+    app.logger.debug("✅ Tous les blueprints modulaires enregistrés (auth, admin, event, participant, gforms)")
+
     
     # Context processor pour rendre la version disponible dans tous les templates
     @app.context_processor

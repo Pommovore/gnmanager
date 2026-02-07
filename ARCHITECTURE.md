@@ -15,6 +15,13 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - **`auth.py`** : Utilitaires d'authentification et d'email
 - **`extensions.py`** : Extensions Flask (db, login_manager)
 
+### Routes par Domaine (routes/)
+- `auth_routes.py` : Connexion, Inscription
+- `event_routes.py` : Gestion événement, Casting, Participants
+- `gforms_routes.py` : Intégration Google Forms (Webhook & UI)
+- `admin_routes.py` : Administration globale
+- `webhook_routes.py` : Point d'entrée des webhooks
+
 ### Scripts utilitaires
 
 - **`fresh_deploy.py`** : Premier déploiement complet (remote via SSH uniquement)
@@ -95,6 +102,24 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 ### PasswordResetToken
 - Tokens pour la réinitialisation de mot de passe
 - Expire après 1h
+
+### GForms Integration
+Modèles dédiés au stockage structuré des réponses Google Forms.
+
+#### GFormsCategory
+- Catégories pour trier les champs (ex: "HRP", "Généralités")
+- **`color`** : Code couleur pour l'affichage (blue, red, green...)
+- **`position`** : Ordre de tri
+
+#### GFormsFieldMapping
+- Association entre un champ du formulaire (nom exact) et une catégorie
+- Permet l'auto-catégorisation des nouvelles soumissions
+
+#### GFormsSubmission
+- Stockage d'une soumission complète
+- **`raw_data`** : JSON complet des réponses
+- **`type_ajout`** : "créé" (nouveau user), "ajouté" (participant seul), "mis à jour"
+- Relation vers `FormResponse` (stockage brut historique)
 
 ## Flux d'authentification
 

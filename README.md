@@ -23,6 +23,13 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Inscription des participants avec statuts (À valider, En attente, Validé, Rejeté)
 - Attribution des rôles (casting)
 
+### Intégration Google Forms
+- **Synchronisation automatique** des réponses via Webhook
+- **Catégorisation des champs** (Généralités, HRP, etc.)
+- **Code couleur** personnalisable par catégorie
+- **Gestion des soumissions** : Création de compte user et fiche participant automatique
+- Interface dédiée pour les organisateurs (tableaux, tris, recherches)
+
 ### Système de Casting avancé
 - Matrice dynamique Rôles/Participants
 - Algorithme d'attribution automatique optimal (Hongrois/Kuhn-Munkres)

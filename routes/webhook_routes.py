@@ -3,13 +3,15 @@ import json
 import logging
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
-from models import db, FormResponse
+from models import db, FormResponse, Event, User, Participant, GFormsSubmission, GFormsCategory, GFormsFieldMapping
+from extensions import csrf
+from werkzeug.security import generate_password_hash
+import secrets
+from constants import RegistrationStatus, ParticipantType
 
 # Création du Blueprint
 webhook_bp = Blueprint('webhook', __name__)
 logger = logging.getLogger(__name__)
-
-from models import db, FormResponse, Event
 
 def verify_token():
     """
@@ -35,8 +37,6 @@ def verify_token():
         
     # Fallback legacy (env var) si besoin, mais on passe au per-event.
     return None
-
-from extensions import csrf
 
 @webhook_bp.route('/api/webhook/gform', methods=['POST'])
 @csrf.exempt
@@ -66,7 +66,7 @@ def gform_webhook():
         if not response_id:
             return jsonify({"error": "Missing responseId"}), 400
             
-        # 2. Upsert Logic
+        # 2. Upsert Logic (FormResponse - Legacy)
         form_response = FormResponse.query.filter_by(response_id=response_id).first()
         
         if form_response:
@@ -92,21 +92,23 @@ def gform_webhook():
             db.session.add(form_response)
             action = "created"
             
+        db.session.flush() # Ensure ID is available
+            
         # ---------------------------------------------------------
         # Nouvelle logique : Inscription/Mise à jour du Participant
         # ---------------------------------------------------------
-        from models import User, Participant
-        from constants import RegistrationStatus, ParticipantType
-        from werkzeug.security import generate_password_hash
-        import secrets
-
         email = data.get('email')
+        user = None
+        participant = None
+        type_ajout = "inconnu"
+        
         if email:
             logger.info(f"Processing email: {email}") # DEBUG LOG
             # 1. Identifier ou Créer l'Utilisateur
             user = User.query.filter_by(email=email).first()
             if not user:
                 logger.info(f"Creating new User for email {email}")
+                type_ajout = "créé"
                 # Mot de passe aléatoire (l'utilisateur devra le reset)
                 temp_password = secrets.token_urlsafe(12)
                 user = User(
@@ -122,6 +124,7 @@ def gform_webhook():
                 db.session.flush() # Pour avoir l'ID
             else:
                  logger.info(f"Found existing User ID: {user.id}") # DEBUG LOG
+                 type_ajout = "ajouté" # Par défaut si user existe
             
             # 2. Identifier ou Créer le Participant
             participant = Participant.query.filter_by(user_id=user.id, event_id=event.id).first()
@@ -139,18 +142,14 @@ def gform_webhook():
                 db.session.flush()
             else:
                  logger.info(f"Found existing Participant ID: {participant.id}") # DEBUG LOG
+                 type_ajout = "mis à jour" # Si participant existe déjà
             
-            # 3. Traitement des réponses pour global_comment
+            # 3. Traitement des réponses pour global_comment (Legacy support)
             answers = data.get('answers', {})
-            logger.info(f"Processing {len(answers) if answers else 0} answers") # DEBUG LOG
-
             formatted_answers = []
             
-            # On essaie d'être malin : si c'est un dict, on formate Key: Value
-            # Si c'est une liste (cas rare via webhook GForm?), on join
             if isinstance(answers, dict):
                 for key, value in answers.items():
-                    # Nettoyage basique
                     val_str = str(value) if value is not None else ""
                     formatted_answers.append(f"{key}: {val_str}")
             else:
@@ -160,40 +159,82 @@ def gform_webhook():
             timestamp_str = datetime.utcnow().strftime('%Y-%m-%d %H:%M')
             header = f"\n\n--- Import GForm ({timestamp_str}) ---\n"
             
-            logger.info(f"Updating global_comment for Participant {participant.id}") # DEBUG LOG
-
             if participant.global_comment:
                 participant.global_comment += header + new_comment_content
             else:
                 participant.global_comment = header.strip() + "\n" + new_comment_content
-        else:
-            logger.warning("No email found in webhook payload - skipping User/Participant processing") # DEBUG LOG
-        
-        db.session.commit()
-        logger.info("Transaction committed successfully") # DEBUG LOG
 
         # ---------------------------------------------------------
-        # Nouvelle logique : Notification Discord
+        # Nouvelle logique : GFormsSubmission & Field Mappings
         # ---------------------------------------------------------
-        if event.discord_webhook_url:
+        
+        # 1. Créer/Mettre à jour GFormsSubmission
+        if email:
+            # Check if submission already exists for this form_response? 
+            # Ideally 1-to-1 with FormResponse, or we just create a new one every time?
+            # Let's align with FormResponse lifecycle.
+            
+            g_submission = GFormsSubmission.query.filter_by(form_response_id=form_response.id).first()
+            if not g_submission:
+                 g_submission = GFormsSubmission(
+                    event_id=event.id,
+                    user_id=user.id if user else None,
+                    email=email,
+                    timestamp=datetime.utcnow(),
+                    type_ajout=type_ajout,
+                    form_response_id=form_response.id,
+                    raw_data=json.dumps(data.get('answers', {}))
+                )
+                 db.session.add(g_submission)
+            else:
+                g_submission.raw_data = json.dumps(data.get('answers', {}))
+                g_submission.type_ajout = type_ajout # Update type if needed
+                g_submission.timestamp = datetime.utcnow() # Update timestamp on update
+        
+        # 2. Auto-detect fields and create mappings
+        answers = data.get('answers', {})
+        if isinstance(answers, dict):
+            # Get default category
+            default_cat = GFormsCategory.query.filter_by(event_id=event.id, name='Généralités').first()
+            if not default_cat:
+                default_cat = GFormsCategory(event_id=event.id, name='Généralités', color='neutral', position=0)
+                db.session.add(default_cat)
+                db.session.flush()
+            
+            existing_mappings = {m.field_name for m in GFormsFieldMapping.query.filter_by(event_id=event.id).all()}
+            
+            for field_name in answers.keys():
+                if field_name not in existing_mappings:
+                    new_mapping = GFormsFieldMapping(
+                        event_id=event.id,
+                        field_name=field_name,
+                        category_id=default_cat.id
+                    )
+                    db.session.add(new_mapping)
+                    existing_mappings.add(field_name) # Avoid duplicates in same transaction
+
+        db.session.commit()
+        logger.info("Transaction committed successfully")
+
+        # ---------------------------------------------------------
+        # Notification Discord
+        # ---------------------------------------------------------
+        if event.discord_webhook_url and email: # Only if email/user logic ran
              try:
                 from services.discord_service import send_discord_notification
                 
                 # Préparer les champs pour Discord
                 discord_fields = []
-                # Limiter le nombre de champs pour éviter les limites Discord (25 champs max)
-                answers = data.get('answers', {})
+                # Limiter le nombre de champs pour éviter les limites Discord
                 if isinstance(answers, dict):
                     for i, (q, a) in enumerate(answers.items()):
-                        if i >= 20: # Garder une marge
-                            break
-                        # Tronquer les réponses trop longues
+                        if i >= 20: break
                         val_str = str(a) if a is not None else ""
                         if len(val_str) > 1024:
                             val_str = val_str[:1021] + "..."
                         
                         discord_fields.append({
-                            "name": q[:256], # Titre max 256 chars
+                            "name": q[:256],
                             "value": val_str,
                             "inline": False 
                         })
@@ -211,7 +252,6 @@ def gform_webhook():
                     registration_type="Inscription via Google Form",
                     extra_fields=discord_fields
                 )
-                logger.info("Discord notification sent")
              except Exception as e_discord:
                  logger.error(f"Failed to send Discord notification: {e_discord}")
 
@@ -226,3 +266,4 @@ def gform_webhook():
         logger.error(f"Error processing webhook: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+

@@ -522,3 +522,111 @@ class EventNotification(db.Model):
     
     def __repr__(self):
         return f'<EventNotification {self.action_type} for Event {self.event_id}>'
+
+
+class GFormsCategory(db.Model):
+    """
+    Catégorie pour organiser les champs de formulaire Google Forms.
+    
+    Permet de grouper et colorer les champs du formulaire pour une meilleure
+    lisibilité dans l'interface organisateur.
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement associé
+        name: Nom de la catégorie (ex: "Généralités", "Coordonnées", "Préférences")
+        color: Couleur d'affichage (neutral/blue/green/red/yellow/purple/orange/pink/teal)
+        position: Position d'affichage pour le tri
+        created_at: Date de création
+    """
+    __tablename__ = 'gforms_category'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    name = db.Column(db.String(100), nullable=False)
+    color = db.Column(db.String(20), default='neutral')
+    position = db.Column(db.Integer, default=0)
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    
+    # Relations
+    event = db.relationship('Event', backref=db.backref('gforms_categories', cascade='all, delete-orphan'))
+    
+    def __repr__(self):
+        return f'<GFormsCategory {self.name} - Event {self.event_id}>'
+
+
+class GFormsFieldMapping(db.Model):
+    """
+    Association entre un champ de formulaire Google Forms et une catégorie.
+    
+    Permet de définir quelle catégorie (et donc quelle couleur) s'applique
+    à chaque champ détecté dans les soumissions du formulaire.
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement associé
+        field_name: Nom du champ dans le formulaire (ex: "Prénom", "Régime alimentaire")
+        category_id: ID de la catégorie associée (nullable pour "non catégorisé")
+    """
+    __tablename__ = 'gforms_field_mapping'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    field_name = db.Column(db.String(200), nullable=False)
+    category_id = db.Column(db.Integer, db.ForeignKey('gforms_category.id'), nullable=True)
+    
+    # Contrainte d'unicité : un champ par événement
+    __table_args__ = (
+        db.UniqueConstraint('event_id', 'field_name', name='uq_event_field'),
+    )
+    
+    # Relations
+    event = db.relationship('Event', backref=db.backref('gforms_field_mappings', cascade='all, delete-orphan'))
+    category = db.relationship('GFormsCategory', backref='field_mappings')
+    
+    def __repr__(self):
+        return f'<GFormsFieldMapping {self.field_name} - Event {self.event_id}>'
+
+
+class GFormsSubmission(db.Model):
+    """
+    Données enrichies d'une soumission de formulaire Google Forms.
+    
+    Stocke les informations traitées issues du webhook, incluant la détection
+    automatique du type d'ajout (créé/ajouté/mis à jour).
+    
+    Attributes:
+        id: Identifiant unique
+        event_id: ID de l'événement associé
+        user_id: ID de l'utilisateur (si identifié par email)
+        email: Email du répondant
+        timestamp: Date/heure de réception du formulaire
+        type_ajout: Type d'ajout ("créé"/"ajouté"/"mis à jour")
+        form_response_id: Référence vers FormResponse (données brutes)
+        raw_data: Données JSON du formulaire (réponses)
+    """
+    __tablename__ = 'gforms_submission'
+    
+    id = db.Column(db.Integer, primary_key=True)
+    event_id = db.Column(db.Integer, db.ForeignKey('event.id'), nullable=False)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
+    email = db.Column(db.String(120), nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    type_ajout = db.Column(db.String(20))  # créé, ajouté, mis à jour
+    form_response_id = db.Column(db.Integer, db.ForeignKey('form_response.id'))
+    raw_data = db.Column(db.Text)  # JSON
+    
+    # Database indexes for performance
+    __table_args__ = (
+        db.Index('idx_gforms_submission_event', 'event_id'),
+        db.Index('idx_gforms_submission_email', 'email'),
+        db.Index('idx_gforms_submission_timestamp', 'timestamp'),
+    )
+    
+    # Relations
+    event = db.relationship('Event', backref=db.backref('gforms_submissions', cascade='all, delete-orphan'))
+    user = db.relationship('User', backref='gforms_submissions')
+    form_response = db.relationship('FormResponse', backref='gforms_submissions')
+    
+    def __repr__(self):
+        return f'<GFormsSubmission {self.email} - Event {self.event_id}>'

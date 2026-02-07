@@ -1,17 +1,18 @@
-# 🔗 Intégration Google Forms (Webhook)
+# 🔗 Intégration Google Forms
 
-Ce document explique comment connecter un formulaire **Google Forms** à **GNôle** pour importer automatiquement les inscriptions.
+Ce document explique comment connecter un formulaire **Google Forms** à **GNôle** pour importer automatiquement les inscriptions et gérer les données via l'interface dédiée.
 
 ## 1. Concept 💡
 
 L'intégration permet d'automatiser le flux suivant :
 1.  Un participant remplit votre Google Form.
 2.  Un script (Apps Script) hébergé sur le formulaire détecte la soumission.
-3.  Le script envoie les réponses (JSON) sécurisées à votre instance GNôle.
+3.  Le script envoie les réponses (JSON) sécurisées à votre instance GNôle via un Webhook.
 4.  **GNôle** traite les données :
     *   Identifie ou crée l'**Utilisateur** (basé sur l'email).
     *   Crée une inscription **Participant** avec le statut `"À valider"`.
-    *   Stocke toutes les réponses du formulaire dans le champ "Commentaire Global" du participant.
+    *   Stocke la soumission dans une base de données structurée (`GFormsSubmission`).
+5.  Les organisateurs peuvent visualiser, trier et colorer les réponses dans l'onglet **GForms** de l'événement.
 
 ## 2. Prérequis ✅
 
@@ -19,81 +20,67 @@ L'intégration permet d'automatiser le flux suivant :
 *   Vous devez être **Organisateur** de l'événement concerné.
 *   Vous devez avoir les droits d'édition sur le Google Form.
 
-## 3. Configuration Côté GNôle 🛠️
+## 3. Configuration Initiale 🛠️
 
-1.  Accédez à l'onglet **"Généralités"** de votre événement.
-2.  Repérez la section **"Intégration Google Forms"**.
-3.  Notez l'**URL du Webhook** (ex: `https://votre-gn.com/api/webhook/gform`).
-4.  Cliquez sur **"Générer un Secret"** (si ce n'est pas déjà fait).
-5.  Copiez ce **Secret Webhook** (une chaîne de caractères unique). 
-    *   ⚠️ **Important** : Ce secret est unique pour *cet* événement. Il permet à GNôle de savoir à quel événement rattacher les inscriptions.
+### A. Côté GNôle
+1.  Allez dans l'onglet **"Généralités"** de votre événement (Gestion Organisateur).
+2.  Dans la section **"Formulaire Google & Webhook"** :
+    *   Cliquez sur **"Générer"** si le secret n'existe pas.
+    *   Notez le **Secret Webhook** (ex: `e4f5a...`).
+    *   Notez l'URL de votre instance (ex: `https://mon-gn.com/api/webhook/gform`).
 
-## 4. Configuration Côté Google Forms 📝
-
-### A. Paramètres du formulaire
+### B. Côté Google Forms (Installation du Script)
 1.  Ouvrez votre formulaire en modification.
-2.  Allez dans **Paramètres**.
-3.  **Activez "Collecter les adresses e-mail"** (Option "Vérifiée" ou "Saisie par le répondant").
-    *   ⚠️ **Crucial** : Sans email, GNôle ne peut pas créer de compte utilisateur.
+2.  Allez dans **Paramètres** et activez **"Collecter les adresses e-mail"**.
+3.  Cliquez sur les **3 points verticaux** (en haut à droite) → **Apps Script**.
+4.  Copiez le contenu du fichier [`static/GOOGLE_APPS_SCRIPT.js`](../static/GOOGLE_APPS_SCRIPT.js).
+5.  Collez-le dans l'éditeur Apps Script (remplacez tout le contenu existant).
+6.  **Configurez les variables** au début du fichier :
+    ```javascript
+    var API_URL = "https://votre-site.com/api/webhook/gform";
+    var API_SECRET = "votre_secret_copié_depuis_gnole";
+    ```
+7.  Sauvegardez (`Ctrl + S`).
 
-### B. Installation du Script
-1.  Cliquez sur les **3 points verticaux** (en haut à droite) → **Apps Script**.
-2.  Un nouvel onglet s'ouvre (Apps Script).
-3.  Copiez le contenu du fichier `static/GOOGLE_APPS_SCRIPT.js` fourni par GNôle (ou ci-dessous).
-4.  Remplacez **tout** le code existant dans l'éditeur par ce contenu.
+### C. Activation du Déclencheur (Trigger) ⏰
+1.  Dans Apps Script, menu de gauche : **Déclencheurs** (icône réveil).
+2.  **Ajouter un déclencheur** (bouton bleu en bas à droite).
+3.  Configuration :
+    *   Fonction : `sendToWebapp`
+    *   Source de l'événement : `Dans le formulaire`
+    *   Type d'événement : `Lors de l'envoi du formulaire`
+4.  **Enregistrer** et autoriser l'accès (si demandé, cliquez sur "Advanced" -> "Go to... (unsafe)").
 
-### C. Configuration du Script
-Dans le code collé, modifiez les deux premières variables :
+## 4. Gestion des Données (Interface GForms) 📊
 
-```javascript
-// URL de votre instance GNôle
-var API_URL = "https://votre-site.com/api/webhook/gform";
+Une fois les données reçues, l'onglet **"GForms"** de votre événement (à côté de Casting, Participants...) devient votre centre de contrôle.
 
-// Votre secret API (copié depuis GNôle)
-var API_SECRET = "votre_secret_xxx_yyy_zzz";
-```
+### A. Onglet "Formulaires"
+Affiche la liste de toutes les soumissions reçues.
+- **Tableau** : Voir qui a répondu et quand.
+- **Détails** : Cliquez sur une ligne pour voir toutes les réponses.
+- **Type d'ajout** : Indique si c'est une création de compte ("créé") ou une mise à jour ("mis à jour").
 
-Sauvegardez avec `Ctrl + S`. Nommez le projet "Webhook GNôle" si demandé.
+### B. Onglet "Catégories"
+Permet de définir des catégories pour organiser les champs du formulaire.
+- Créez des catégories (ex: "HRP", "Généralités", "Logistique").
+- Assignez une **couleur** à chaque catégorie.
+- Ordonnez-les par glisser-déposer (ou numéro de position).
 
-### D. Activation du Déclencheur (Trigger)
-1.  Dans la **barre latérale verticale tout à gauche** de l'éditeur, cliquez sur l'icône **Déclencheurs (Réveil / Horloge)** ⏰ (souvent la 3ème ou 4ème icône en partant du haut).
-2.  Cliquez sur **"Ajouter un déclencheur"** (bouton bleu en bas à droite).
-3.  Configurez comme suit :
-    *   **Fonction à exécuter** : `sendToWebapp`
-    *   **Déploiement** : `Tête (Head)`
-    *   **Source de l'événement** : `Dans le formulaire`
-    *   **Type d'événement** : `Lors de l'envoi du formulaire`
-4.  Cliquez sur **Enregistrer**.
-5.  Google va vous demander des **autorisations**.
-    *   Choisissez votre compte.
-    *   Si l'écran "Application non vérifiée" apparaît : Clique sur **Advanced (Paramètres avancés)** → **Go to Webhook... (unsafe)**.
-    *   Cliquez sur **Allow (Autoriser)**.
+### C. Onglet "Champs" (Settings)
+C'est ici que la magie opère. GNôle détecte tous les champs uniques présents dans les soumissions reçues.
+- **Mappage** : Associez chaque champ détecté (ex: "Régime alimentaire") à une **Catégorie** (ex: "Logistique").
+- Une fois mappé, le champ apparaîtra coloré et trié dans l'affichage des détails d'une soumission.
 
-C'est prêt ! 🎉
-
-## 5. Fonctionnement ⚙️
-
-À chaque fois qu'un utilisateur remplit le formulaire :
-1.  GNôle reçoit les données instantanément.
-2.  Si l'email est inconnu : un compte **User** est créé (mot de passe temporaire).
-3.  Une inscription **Participant** est créée dans l'événement.
-    *   Statut : **À valider**.
-    *   Type : **PJ** (par défaut).
-    *   Les réponses sont listées dans **Commentaires / Infos**.
-
-### Mise à jour
-Si un utilisateur modifie sa réponse (si autorisé dans le Form), GNôle mettra à jour les infos et ajoutera un nouveau bloc de réponses dans les commentaires.
-
-## 6. Dépannage 🐛
+## 5. Dépannage 🐛
 
 *   **Rien n'apparaît dans GNôle ?**
-    *   Vérifiez les **Exécutions** dans Apps Script (Menu de gauche → Icône Liste).
-    *   Si statut "Échec" : Cliquez pour voir l'erreur.
-    *   Si statut "Terminé" mais code 401/403 : Vérifiez votre `API_SECRET`.
-    *   Si statut "Terminé" mais code 500 : Erreur serveur, contactez l'admin de GNôle.
+    *   Vérifiez les **Exécutions** dans Apps Script (Menu de gauche).
+    *   Si erreur `401` ou `403` : Vérifiez votre `API_SECRET`.
+    *   Si erreur `500` : Erreur serveur GNôle (vérifiez les logs serveur).
 
-*   **"Unauthorized" ?**
-    *   Vérifiez que vous avez bien copié le secret de *cet* événement précis.
+*   **Champs non détectés ?**
+    *   Les champs n'apparaissent dans "Champs" qu'une fois qu'au moins une soumission contenant ce champ a été reçue. Soumettez un formulaire de test rempli à 100%.
 
-*   **Pas d'email récupéré ?**
-    *   Vérifiez les paramètres du Google Form (Collecte d'email activée).
+*   **Doublons ?**
+    *   Le système utilise l'email pour dédoublonner les participants. Si un utilisateur utilise le même email, sa fiche participant est mise à jour.
