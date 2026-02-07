@@ -17,23 +17,32 @@ depends_on = None
 
 
 def upgrade():
+    # Helper to check existence
+    conn = op.get_bind()
+    from sqlalchemy.engine.reflection import Inspector
+    inspector = Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    
     # 1. Add field_alias to gforms_field_mapping
-    with op.batch_alter_table('gforms_field_mapping', schema=None) as batch_op:
-        batch_op.add_column(sa.Column('field_alias', sa.String(length=100), nullable=True))
+    gforms_cols = [c['name'] for c in inspector.get_columns('gforms_field_mapping')]
+    if 'field_alias' not in gforms_cols:
+        with op.batch_alter_table('gforms_field_mapping', schema=None) as batch_op:
+            batch_op.add_column(sa.Column('field_alias', sa.String(length=100), nullable=True))
 
     # 2. Create event_notification table
-    op.create_table('event_notification',
-        sa.Column('id', sa.Integer(), nullable=False),
-        sa.Column('event_id', sa.Integer(), nullable=False),
-        sa.Column('user_id', sa.Integer(), nullable=False),
-        sa.Column('action_type', sa.String(length=50), nullable=False),
-        sa.Column('description', sa.Text(), nullable=False),
-        sa.Column('created_at', sa.DateTime(), nullable=False),
-        sa.Column('is_read', sa.Boolean(), nullable=True),
-        sa.ForeignKeyConstraint(['event_id'], ['event.id'], ),
-        sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
-        sa.PrimaryKeyConstraint('id')
-    )
+    if 'event_notification' not in tables:
+        op.create_table('event_notification',
+            sa.Column('id', sa.Integer(), nullable=False),
+            sa.Column('event_id', sa.Integer(), nullable=False),
+            sa.Column('user_id', sa.Integer(), nullable=False),
+            sa.Column('action_type', sa.String(length=50), nullable=False),
+            sa.Column('description', sa.Text(), nullable=False),
+            sa.Column('created_at', sa.DateTime(), nullable=False),
+            sa.Column('is_read', sa.Boolean(), nullable=True),
+            sa.ForeignKeyConstraint(['event_id'], ['event.id'], ),
+            sa.ForeignKeyConstraint(['user_id'], ['user.id'], ),
+            sa.PrimaryKeyConstraint('id')
+        )
 
 
 def downgrade():
