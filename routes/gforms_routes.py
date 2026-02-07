@@ -53,6 +53,29 @@ def gforms_menu(event_id):
         db.session.add(default_category)
         db.session.commit()
         logger.info(f"Created default 'Généralités' category for event {event_id}")
+
+    # Vérifier et créer les mappings par défaut pour timestamp et type_ajout
+    default_fields = ['timestamp', 'type_ajout']
+    mappings_changed = False
+    
+    for field_name in default_fields:
+        mapping = GFormsFieldMapping.query.filter_by(
+            event_id=event_id,
+            field_name=field_name
+        ).first()
+        
+        if not mapping:
+            mapping = GFormsFieldMapping(
+                event_id=event_id,
+                field_name=field_name,
+                category_id=default_category.id
+            )
+            db.session.add(mapping)
+            mappings_changed = True
+            
+    if mappings_changed:
+        db.session.commit()
+        logger.info(f"Created default field mappings for event {event_id}")
     
     return render_template(
         'gforms/main.html',
