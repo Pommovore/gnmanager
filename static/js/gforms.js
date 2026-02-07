@@ -35,7 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const { eventId, csrfToken } = context;
-    const baseUrl = context.baseUrl || '';
+    // Sanitize baseUrl to avoid "//path" which browser interprets as protocol-relative
+    const baseUrl = (context.baseUrl || '').replace(/\/$/, '');
     console.log(`GForms Init: eventId=${eventId}, baseUrl=${baseUrl}`);
 
     // --- State ---
@@ -111,16 +112,31 @@ document.addEventListener('DOMContentLoaded', function () {
         tbody.innerHTML = '<tr><td colspan="5" class="text-center"><div class="spinner-border text-primary" role="status"></div></td></tr>';
 
         fetch(`${baseUrl}/event/${eventId}/gforms/submissions?page=${page}&per_page=50`)
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(data => {
+                        throw new Error(data.error || `HTTP ${response.status}`);
+                    }).catch(() => {
+                        throw new Error(`Erreur serveur (${response.status})`);
+                    });
+                }
+                return response.json();
+            })
             .then(data => {
-                renderSubmissionsTable(data.submissions);
+                const submissions = data.submissions || [];
+                renderSubmissionsTable(submissions);
                 renderPagination(data.pagination);
                 currentPage = data.pagination.page;
                 totalPages = data.pagination.pages;
             })
             .catch(err => {
                 console.error('Error loading submissions:', err);
-                tbody.innerHTML = `<tr><td colspan="5" class="text-center text-danger">Erreur: ${err.message || 'Problème réseau ou serveur'}</td></tr>`;
+                const isNetworkError = err.message.includes('fetch');
+                if (isNetworkError) {
+                    tbody.innerHTML = '<tr><td colspan="100%" class="text-center text-muted"><i class="bi bi-info-circle me-2"></i> Aucun formulaire reçu (ou erreur de connexion)</td></tr>';
+                } else {
+                    tbody.innerHTML = `<tr><td colspan="100%" class="text-center text-danger">Erreur: ${err.message}</td></tr>`;
+                }
             });
     }
 

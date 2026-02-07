@@ -48,7 +48,8 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     const { eventId, csrfToken } = context;
-    const baseUrl = context.baseUrl || '';
+    // Sanitize baseUrl to avoid "//path" which browser interprets as protocol-relative
+    const baseUrl = (context.baseUrl || '').replace(/\/$/, '');
 
     // Init tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))

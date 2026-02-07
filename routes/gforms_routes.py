@@ -15,6 +15,7 @@ from io import StringIO
 from flask import Blueprint, render_template, request, jsonify, current_app, Response
 from flask_login import login_required, current_user
 from datetime import datetime
+from sqlalchemy.exc import OperationalError
 
 from models import db, Event, GFormsCategory, GFormsFieldMapping, GFormsSubmission, User, Participant
 from decorators import organizer_required
@@ -136,6 +137,18 @@ def get_submissions(event_id):
                 'has_next': submissions_paginated.has_next
             }
         })
+    except OperationalError as e:
+        if 'no such table' in str(e).lower():
+            logger.warning(f"GFormsSubmission table not found: {e}")
+            return jsonify({
+                'submissions': [],
+                'pagination': {
+                    'page': page, 'per_page': per_page, 'total': 0, 'pages': 0,
+                    'has_prev': False, 'has_next': False
+                }
+            })
+        logger.error(f"Database error in get_submissions: {e}", exc_info=True)
+        return jsonify({'error': 'Erreur de base de données'}), 500
     except Exception as e:
         logger.error(f"Error in get_submissions_data: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
@@ -289,6 +302,15 @@ def get_fields(event_id):
             })
         
         return jsonify({'fields': fields_data})
+    except OperationalError as e:
+        if 'no such table' in str(e).lower():
+            # Retourner au moins les champs par défaut
+            return jsonify({'fields': [
+                {'field_name': 'timestamp', 'field_alias': 'Date', 'category_id': None, 'category': None},
+                {'field_name': 'type_ajout', 'field_alias': 'Type', 'category_id': None, 'category': None}
+            ]})
+        logger.error(f"Database error in get_fields: {e}", exc_info=True)
+        return jsonify({'error': 'Erreur de base de données'}), 500
     except Exception as e:
         logger.error(f"Error in get_fields: {e}", exc_info=True)
         return jsonify({'error': str(e)}), 500
