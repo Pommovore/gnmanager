@@ -93,7 +93,22 @@ def admin_page():
     """
     page = request.args.get('page', 1, type=int)
     admin_view = request.args.get('admin_view', 'users')
-    users_pagination = User.query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
+    search_query = request.args.get('q', '')
+    
+    query = User.query
+    
+    if search_query:
+        from sqlalchemy import or_
+        term = f"%{search_query}%"
+        query = query.filter(
+            or_(
+                User.email.ilike(term),
+                User.nom.ilike(term),
+                User.prenom.ilike(term)
+            )
+        )
+        
+    users_pagination = query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
     
     breadcrumbs = [
         ('Dashboard', url_for('admin.dashboard')),
