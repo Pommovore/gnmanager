@@ -45,7 +45,7 @@ def send_discord_notification(webhook_url, event_name, user_data, registration_t
             }
         ],
         "footer": {
-            "text": "GN Manager Notification System"
+            "text": "GNôle Notification System"
         }
     }
 

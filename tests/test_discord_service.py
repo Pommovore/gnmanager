@@ -171,7 +171,7 @@ class TestDiscordNotifications:
             assert fields['Type'] == 'PNJ'
             
             # Verify footer
-            assert embed['footer']['text'] == "GN Manager Notification System"
+            assert embed['footer']['text'] == "GNôle Notification System"
     
     def test_send_notification_all_registration_types(self):
         """Test notifications for different registration types."""
