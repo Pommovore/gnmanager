@@ -788,7 +788,8 @@ def casting_data(event_id):
             'id': p.id,
             'nom': p.user.nom or '',
             'prenom': p.user.prenom or '',
-            'genre': (p.user.genre or '').strip()
+            'genre': (p.user.genre or '').strip(),
+            'global_comment': p.global_comment or ''
         })
     
     # Get proposals with assignments to avoid N+1

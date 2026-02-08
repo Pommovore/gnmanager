@@ -55,7 +55,8 @@
                 {% for u in users_pagination.items %}
                 <tr>
                     <td>
-                        <a href="{{ url_for('admin.user_events', user_id=u.id) }}" class="text-decoration-none">
+                        <a href="{{ url_for('admin.user_events', user_id=u.id, page=users_pagination.page) }}"
+                            class="text-decoration-none">
                             {{ u.email }}
                         </a>
                     </td>

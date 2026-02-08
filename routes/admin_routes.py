@@ -231,9 +231,11 @@ def user_events(user_id):
                 'role_name': p.role.name if p.role else None
             })
     
+    page = request.args.get('page', 1, type=int)
+    
     breadcrumbs = [
         ('Dashboard', url_for('admin.dashboard')),
-        ('Utilisateurs', url_for('admin.dashboard', admin_view='users') + '#admin'),
+        ('Utilisateurs', url_for('admin.admin_page', admin_view='users', page=page) + '#admin'),
         (user.email, '#')
     ]
     
@@ -241,7 +243,8 @@ def user_events(user_id):
         'user_events.html',
         user=user,
         events_data=events_data,
-        breadcrumbs=breadcrumbs
+        breadcrumbs=breadcrumbs,
+        page=page
     )
 
 

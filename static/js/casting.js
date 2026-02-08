@@ -366,8 +366,15 @@ document.addEventListener('DOMContentLoaded', function () {
             else if (p.type === 'PNJ') typeColorClass = 'text-primary';
             else if (p.type === 'Organisateur') typeColorClass = 'text-warning';
 
+            // Info icon for global comment
+            let infoIcon = '';
+            if (p.global_comment) {
+                const safeComment = p.global_comment.replace(/"/g, '&quot;');
+                infoIcon = ` <i class="bi bi-info-circle text-info ms-1" data-bs-toggle="tooltip" title="${safeComment}" style="cursor: help;"></i>`;
+            }
+
             participantCell.innerHTML = `
-                <strong>${p.nom} ${p.prenom}</strong> <small class="${typeColorClass} fw-bold">(${p.type})</small>
+                <strong>${p.nom} ${p.prenom}</strong> <small class="${typeColorClass} fw-bold">(${p.type})</small>${infoIcon}
             `;
             tr.appendChild(participantCell);
 
@@ -405,6 +412,12 @@ document.addEventListener('DOMContentLoaded', function () {
             });
 
             tbody.appendChild(tr);
+        });
+
+        // Initialize tooltips
+        var tooltipTriggerList = [].slice.call(tbody.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            return new bootstrap.Tooltip(tooltipTriggerEl);
         });
     }
 
