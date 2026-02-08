@@ -68,6 +68,64 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Import button
+    const importBtn = document.getElementById('import-gforms-btn');
+    const importFile = document.getElementById('import-gforms-file');
+
+    if (importBtn && importFile) {
+        importBtn.addEventListener('click', function () {
+            importFile.click();
+        });
+
+        importFile.addEventListener('change', function () {
+            if (this.files && this.files.length > 0) {
+                const file = this.files[0];
+                const formData = new FormData();
+                formData.append('file', file);
+
+                // Show loading state
+                importBtn.disabled = true;
+                importBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> Import...';
+
+                fetch(`${baseUrl}/event/${eventId}/gforms/import`, {
+                    method: 'POST',
+                    headers: {
+                        'X-CSRFToken': csrfToken
+                    },
+                    body: formData
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            let msg = `Import terminé.\nImportés: ${data.imported}\nMis à jour: ${data.updated}\nIgnorés: ${data.ignored}`;
+                            if (data.errors && data.errors.length > 0) {
+                                msg += `\n\n${data.errors.length} Erreurs :\n` + data.errors.slice(0, 5).join('\n');
+                                if (data.errors.length > 5) msg += '\n... (voir console)';
+                                console.warn("Import errors:", data.errors);
+                            }
+                            alert(msg);
+                            loadAllData(eventId);
+                        } else {
+                            alert('Erreur lors de l\'import: ' + (data.error || 'Erreur inconnue'));
+                            if (data.errors && data.errors.length > 0) {
+                                console.error("Import errors:", data.errors);
+                            }
+                        }
+                    })
+                    .catch(err => {
+                        console.error('Error importing file:', err);
+                        alert('Erreur technique lors de l\'import.');
+                    })
+                    .finally(() => {
+                        // Reset UI
+                        importBtn.disabled = false;
+                        importBtn.innerHTML = '<i class="bi bi-upload"></i> Importer';
+                        importFile.value = ''; // Allow re-selecting same file
+                    });
+            }
+        });
+    }
+
     // --- Data Loading ---
 
     function loadAllData(eventId) {

@@ -65,6 +65,8 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - Statut manuel (pas d'automatisation)
 - Configuration des groupes (PJ, PNJ, Organisateur) en JSON
 - **`is_casting_validated`** : Boolean pour indiquer si le casting est validé (défaut: False)
+- **`organizing_association`** : Nom de l'association organisatrice (String)
+- **`display_organizers`** : Boolean pour afficher/masquer la liste des orgas (défaut: True)
 
 ### Role
 - Rôles dans un événement

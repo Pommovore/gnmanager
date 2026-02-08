@@ -16,7 +16,9 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Statuts manuels personnalisables
 - Visibilité publique/privée
 - Configuration de groupes (PJ, PNJ, Organisateur)
-- Upload d'images de fond
+- **Association Organisatrice** : Champ dédié pour afficher le nom de l'asso/entité organisatrice.
+- **Affichage des organisateurs** : Option pour masquer la liste des organisateurs aux participants.
+- **Upload d'images de fond**
 
 ### Gestion des rôles et inscriptions
 - Création de rôles pour chaque événement (type, genre, groupe)
@@ -28,6 +30,7 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - **Catégorisation des champs** (Généralités, HRP, etc.)
 - **Code couleur** personnalisable par catégorie
 - **Gestion des soumissions** : Création de compte user et fiche participant automatique
+- **Import Massif** : Import de données GForms via CSV avec création automatique de comptes et mapping.
 - Interface dédiée pour les organisateurs (tableaux, tris, recherches)
 
 ### Système de Casting avancé

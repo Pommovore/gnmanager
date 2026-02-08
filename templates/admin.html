@@ -90,8 +90,9 @@
                                 <button type="button" class="btn-close" data-bs-dismiss="modal"
                                     aria-label="Close"></button>
                             </div>
-                            <form action="{{ url_for('admin.admin_update_full_user', user_id=u.id) }}" method="POST"
-                                id="updateUserForm{{ u.id }}">
+                            <form
+                                action="{{ url_for('admin.admin_update_full_user', user_id=u.id, page=users_pagination.page) }}"
+                                method="POST" id="updateUserForm{{ u.id }}">
                                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                 {% set is_readonly = (user.role != 'createur' and u.role == 'createur') %}
                                 <div class="modal-body">
@@ -162,8 +163,9 @@
                             </form>
                             <div class="modal-footer">
                                 {% if not is_readonly and u.id != current_user.id %}
-                                <form action="{{ url_for('admin.admin_delete_user', user_id=u.id) }}" method="POST"
-                                    class="me-auto">
+                                <form
+                                    action="{{ url_for('admin.admin_delete_user', user_id=u.id, page=users_pagination.page) }}"
+                                    method="POST" class="me-auto">
                                     <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                                     <button type="submit" class="btn btn-danger">Supprimer</button>
                                 </form>

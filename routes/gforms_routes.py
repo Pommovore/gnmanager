@@ -11,14 +11,17 @@ Ce module gère :
 import json
 import logging
 import csv
-from io import StringIO
+from io import StringIO, TextIOWrapper
 from flask import Blueprint, render_template, request, jsonify, current_app, Response
 from flask_login import login_required, current_user
 from datetime import datetime
 from sqlalchemy.exc import OperationalError
+from werkzeug.security import generate_password_hash
+import secrets
 
-from models import db, Event, GFormsCategory, GFormsFieldMapping, GFormsSubmission, User, Participant
+from models import db, Event, GFormsCategory, GFormsFieldMapping, GFormsSubmission, User, Participant, EventNotification
 from decorators import organizer_required
+from constants import RegistrationStatus, ParticipantType
 
 # Création du Blueprint
 gforms_bp = Blueprint('gforms', __name__)
@@ -459,3 +462,232 @@ def export_gforms_data(event_id):
         mimetype="text/csv",
         headers={"Content-disposition": f"attachment; filename={filename}"}
     )
+
+
+@gforms_bp.route('/event/<int:event_id>/gforms/import', methods=['POST'])
+@login_required
+@organizer_required
+def import_gforms_data(event_id):
+    """
+    Importe des données depuis un CSV Google Forms.
+    Le format attendu est celui de l'export GForms ou compatible:
+    - Col 0 : Timestamp
+    - Col 1 : Email
+    - Col 2+ : Questions / Réponses
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'error': 'Aucun fichier fourni'}), 400
+        
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'Aucun fichier sélectionné'}), 400
+
+    try:
+        # Wrapper pour lire le fichier en mode texte (stream)
+        stream = TextIOWrapper(file.stream, encoding='utf-8', errors='replace')
+        # Détection basique du délimiteur (GForms natif = ',', Excel FR = ';')
+        # On lit la première ligne pour deviner
+        first_line = stream.readline()
+        stream.seek(0)
+        
+        delimiter = ','
+        if ';' in first_line and first_line.count(';') > first_line.count(','):
+            delimiter = ';'
+            
+        csv_reader = csv.reader(stream, delimiter=delimiter)
+        
+        # Lire les en-têtes
+        try:
+            headers = next(csv_reader)
+        except StopIteration:
+            return jsonify({'success': False, 'error': 'Fichier vide'}), 400
+            
+        if len(headers) < 2:
+            return jsonify({'success': False, 'error': 'Le fichier doit contenir au moins 2 colonnes (Timestamp, Email)'}), 400
+            
+        # Stats
+        stats = {
+            'imported': 0,
+            'updated': 0,
+            'ignored': 0,
+            'errors': []
+        }
+        
+        # Cache des utilisateurs/participants pour éviter trop de requêtes
+        # (Optimisation simple : on ne charge pas tout, on fait au fil de l'eau mais on pourrait optimiser plus)
+        
+        for row_idx, row in enumerate(csv_reader, start=2): # Start=2 car ligne 1 = header
+            if not row:
+                continue
+                
+            if len(row) < 2:
+                stats['errors'].append(f"Ligne {row_idx}: Pas assez de colonnes")
+                continue
+                
+            timestamp_str = row[0].strip()
+            email = row[1].strip()
+            
+            if not email:
+                stats['ignored'] += 1
+                continue
+
+            # Validation format email simple
+            if '@' not in email or '.' not in email:
+                stats['errors'].append(f"Ligne {row_idx}: Email invalide ({email})")
+                continue
+                
+            # Parse timestamp
+            timestamp = datetime.utcnow()
+            try:
+                # Formats courants GForms
+                # 2024/01/30 2:30:15 PM EAT
+                # 2024/01/30 14:30:15
+                # On essaie de faire de notre mieux, sinon fallback current
+                # Pour simplifier, on prend string tel quel si format complexe ou on essaie standard
+                pass 
+                # TODO: Parsing date robuste. Pour l'instant on garde le timestamp d'import si échec
+                # Mais pour le tri c'est mieux d'avoir le vrai.
+                # GForms export format variable. On tente ISO ou DD/MM/YYYY
+            except:
+                pass
+
+            # Récupérer les réponses dynamiques
+            answers = {}
+            for i in range(2, len(row)):
+                if i < len(headers):
+                    key = headers[i].strip()
+                    val = row[i].strip()
+                    if val: # On ne stocke que les valeurs non vides
+                        answers[key] = val
+            
+            try:
+                # 1. Gestion Utilisateur
+                user = User.query.filter_by(email=email).first()
+                type_ajout = "inconnu"
+                
+                if not user:
+                    type_ajout = "créé"
+                    temp_password = secrets.token_urlsafe(12)
+                    user = User(
+                        email=email,
+                        nom="Utilisateur",
+                        prenom="GForm",
+                        password_hash=generate_password_hash(temp_password),
+                        role='user'
+                    )
+                    db.session.add(user)
+                    db.session.flush()
+                else:
+                    type_ajout = "ajouté" # Par défaut
+                
+                # Mise à jour Nom/Prénom si trouvés dans les réponses
+                nom_form = None
+                prenom_form = None
+                for key, val in answers.items():
+                    k = key.lower()
+                    if k in ['nom', 'nom de famille', 'lastname']: nom_form = val
+                    elif k in ['prénom', 'prenom', 'firstname']: prenom_form = val
+                
+                if nom_form: user.nom = nom_form
+                if prenom_form: user.prenom = prenom_form
+                
+                # 2. Gestion Participant
+                participant = Participant.query.filter_by(user_id=user.id, event_id=event.id).first()
+                if not participant:
+                    participant = Participant(
+                        user_id=user.id,
+                        event_id=event.id,
+                        type=ParticipantType.PJ.value,
+                        registration_status=RegistrationStatus.TO_VALIDATE.value
+                    )
+                    db.session.add(participant)
+                    
+                    # Notification
+                    notif = EventNotification(
+                        event_id=event.id,
+                        user_id=user.id,
+                        action_type="participant_join_request",
+                        description=f"Import GForm: {user.prenom} {user.nom} ({email})",
+                        is_read=False
+                    )
+                    db.session.add(notif)
+                else:
+                    type_ajout = "mis à jour"
+
+                # 3. Gestion GFormsSubmission
+                submission = GFormsSubmission.query.filter_by(event_id=event.id, email=email).first()
+                if not submission:
+                    submission = GFormsSubmission(
+                        event_id=event.id,
+                        user_id=user.id,
+                        email=email,
+                        timestamp=datetime.utcnow(), # On met le temps d'import par defaut
+                        type_ajout=type_ajout,
+                        raw_data=json.dumps(answers)
+                    )
+                    db.session.add(submission)
+                    stats['imported'] += 1
+                else:
+                    # Fusion des données
+                    current_data = json.loads(submission.raw_data) if submission.raw_data else {}
+                    # On écrase/ajoute les nouvelles valeurs non vides
+                    for k, v in answers.items():
+                        current_data[k] = v
+                    
+                    submission.raw_data = json.dumps(current_data)
+                    submission.type_ajout = "mis à jour" # Force status update
+                    submission.timestamp = datetime.utcnow() # Update timestamp to now (import time)
+                    stats['updated'] += 1
+                    
+            except Exception as e:
+                db.session.rollback() # Rollback partiel si possible ? Non, session unique.
+                # Dans une boucle, si on veut tolérance aux pannes, il faudrait commit à chaque ligne
+                # ou utiliser des savepoints. Ici on log l'erreur et on continue (mais la session pourrait être invalidée)
+                # Pour simplifier: on log et on espère. En SQLAlchemy, rollback invalide souvent la transaction.
+                # Mieux vaut tout faire dans une grosse transaction, si erreur, tout fail.
+                # Ou commit à chaque ligne pour "best effort".
+                # Vu la demande "import", souvent on veut tout ou rien, ou best effort. 
+                # On va faire un commit à la fin, si erreur on stop tout.
+                raise e # On laisse remonter pour le try/except global qui fera rollback
+        
+        # Creation automatique des mappings pour les nouveaux champs
+        # On récupère toutes les clés de toutes les réponses importées
+        # (C'est déjà fait implicitement car on a stocké dans raw_data, mais il faut mettre à jour la table mappings)
+        
+        # Recupération des champs existants
+        existing_mappings = {m.field_name for m in GFormsFieldMapping.query.filter_by(event_id=event_id).all()}
+        
+        # On parcourt les headers (sauf 0 et 1)
+        default_cat = GFormsCategory.query.filter(
+            GFormsCategory.event_id == event_id,
+            db.func.lower(GFormsCategory.name) == 'généralités'
+        ).first()
+        
+        if not default_cat:
+             default_cat = GFormsCategory(event_id=event_id, name='Généralités', color='neutral', position=0)
+             db.session.add(default_cat)
+             db.session.flush()
+             
+        for h in headers[2:]:
+            h = h.strip()
+            if h and h not in existing_mappings:
+                new_mapping = GFormsFieldMapping(
+                    event_id=event_id,
+                    field_name=h,
+                    category_id=default_cat.id
+                )
+                db.session.add(new_mapping)
+                existing_mappings.add(h)
+
+        db.session.commit()
+        return jsonify({'success': True, 'imported': stats['imported'], 'updated': stats['updated'], 'ignored': stats['ignored'], 'errors': stats['errors']})
+
+    except UnicodeDecodeError:
+        return jsonify({'success': False, 'error': 'Encodage fichier invalide (utilisez UTF-8)'}), 400
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Erreur import GForms: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
+

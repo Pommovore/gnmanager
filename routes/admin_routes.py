@@ -253,7 +253,7 @@ def admin_add_user():
     email = request.form.get('email')
     if User.query.filter_by(email=email).first():
         flash('Cet email existe déjà.', 'warning')
-        return redirect(url_for('admin.dashboard', admin_view='add', _anchor='admin'))
+        return redirect(url_for('admin.admin_page', admin_view='add', _anchor='admin'))
         
     password = generate_password()
     hashed_password = generate_password_hash(password)
@@ -264,7 +264,7 @@ def admin_add_user():
     
     send_email(email, "Bienvenue", f"Votre compte a été créé. Mot de passe : {password}")
     flash(f'Utilisateur {email} ajouté.', 'success')
-    return redirect(url_for('admin.dashboard', admin_view='users', open_edit=new_user.id, _anchor='admin'))
+    return redirect(url_for('admin.admin_page', admin_view='users', open_edit=new_user.id, _anchor='admin'))
 
 
 @admin_bp.route('/admin/user/<int:user_id>/update_full', methods=['POST'])
@@ -277,7 +277,7 @@ def admin_update_full_user(user_id):
     # Sécurité: Non-Créateurs ne peuvent pas éditer les Créateurs
     if user.role == UserRole.CREATEUR.value and current_user.role != UserRole.CREATEUR.value:
         flash('Vous ne pouvez pas modifier un compte administrateur suprême (Créateur).', 'danger')
-        return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
+        return redirect(url_for('admin.admin_page', admin_view='users', _anchor='admin'))
     
     # Mise à jour des champs standard
     user.email = request.form.get('email')
@@ -321,7 +321,9 @@ def admin_update_full_user(user_id):
     db.session.commit()
     
     flash(f"Utilisateur {user.email} mis à jour.", "success")
-    return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
+    # Redirect to admin page (users view) instead of dashboard
+    page = request.args.get('page', 1, type=int)
+    return redirect(url_for('admin.admin_page', admin_view='users', page=page, _anchor='admin'))
 
 
 @admin_bp.route('/admin/user/<int:user_id>/delete', methods=['POST'])
@@ -334,12 +336,12 @@ def admin_delete_user(user_id):
     # Sécurité: Ne peut pas se supprimer soi-même
     if user.id == current_user.id:
         flash("Vous ne pouvez pas supprimer votre propre compte ici.", "danger")
-        return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
+        return redirect(url_for('admin.admin_page', admin_view='users', _anchor='admin'))
         
     # Sécurité: Non-Creator ne peut pas supprimer Creator
     if user.role == UserRole.CREATEUR.value and current_user.role != UserRole.CREATEUR.value:
         flash("Vous ne pouvez pas supprimer un compte Créateur.", "danger")
-        return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
+        return redirect(url_for('admin.admin_page', admin_view='users', _anchor='admin'))
 
     try:
         # Suppression en cascade des entités liées
@@ -354,14 +356,23 @@ def admin_delete_user(user_id):
                 role.assigned_participant_id = None
         
         # Supprimer les tokens
-        from models import AccountValidationToken, PasswordResetToken
+        from models import AccountValidationToken, PasswordResetToken, GFormsSubmission, EventNotification
         AccountValidationToken.query.filter_by(email=user.email).delete()
         PasswordResetToken.query.filter_by(email=user.email).delete()
+        
+        # Supprimer les soumissions GForms
+        GFormsSubmission.query.filter_by(user_id=user.id).delete()
+        
+        # Supprimer les notifications liées
+        EventNotification.query.filter_by(user_id=user.id).delete()
+        
+        # Supprimer les logs d'activité générés par cet utilisateur
+        ActivityLog.query.filter_by(user_id=user.id).delete()
         
         # Supprimer les participations
         Participant.query.filter_by(user_id=user.id).delete()
         
-        # Logger l'action
+        # Logger l'action (par l'admin courant)
         log = ActivityLog(
             user_id=current_user.id,
             action_type=ActivityLogType.USER_DELETION.value,
@@ -380,7 +391,8 @@ def admin_delete_user(user_id):
         db.session.rollback()
         flash(f"Erreur lors de la suppression : {str(e)}", "danger")
         
-    return redirect(url_for('admin.dashboard', admin_view='users', _anchor='admin'))
+    page = request.args.get('page', 1, type=int)
+    return redirect(url_for('admin.admin_page', admin_view='users', page=page, _anchor='admin'))
 
 
 @admin_bp.route('/admin/logs')
