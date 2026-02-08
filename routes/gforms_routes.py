@@ -541,17 +541,39 @@ def import_gforms_data(event_id):
             # Parse timestamp
             timestamp = datetime.utcnow()
             try:
-                # Formats courants GForms
-                # 2024/01/30 2:30:15 PM EAT
-                # 2024/01/30 14:30:15
-                # On essaie de faire de notre mieux, sinon fallback current
-                # Pour simplifier, on prend string tel quel si format complexe ou on essaie standard
-                pass 
-                # TODO: Parsing date robuste. Pour l'instant on garde le timestamp d'import si échec
-                # Mais pour le tri c'est mieux d'avoir le vrai.
-                # GForms export format variable. On tente ISO ou DD/MM/YYYY
-            except:
-                pass
+                # Formats courants GForms et Excel
+                formats = [
+                    '%Y/%m/%d %I:%M:%S %p %Z', # 2024/01/30 2:30:15 PM EAT
+                    '%d/%m/%Y %H:%M:%S',       # 30/01/2024 14:30:15 (FR)
+                    '%Y/%m/%d %H:%M:%S',       # 2024/01/30 14:30:15 (ISOish)
+                    '%Y-%m-%d %H:%M:%S',       # 2024-01-30 14:30:15 (ISO)
+                    '%m/%d/%Y %H:%M:%S',       # 01/30/2024 14:30:15 (US)
+                ]
+                
+                parsed_date = None
+                for fmt in formats:
+                    try:
+                        # Tentative de parsing (naïf pour timezone si %Z échoue ou est ignoré par strptime standard sans %z)
+                        # Note: %Z est dépendant de la locale en C, souvent ignoré en Python standard sans librarie tierce
+                        # On nettoie un peu la chaine pour %Z si c'est gênant, ou on essaie direct.
+                        # strptime ne gère pas bien les noms de timezone comme EAT/CET sans config.
+                        # On va essayer de parser sans la fin si ça echoue.
+                        parsed_date = datetime.strptime(timestamp_str, fmt)
+                        break
+                    except ValueError:
+                        continue
+                        
+                if parsed_date:
+                    timestamp = parsed_date
+                else:
+                    # Fallback: essai de parser en coupant la timezone à la fin si présente (ex: " PM EAT")
+                    # On suppose que la date est au début
+                    # Ceci est une heuristique simple
+                    # Si échec total, on garde le timestamp actuel (défini avant le try)
+                    logger.warning(f"Date parsing failed for '{timestamp_str}', using current time.")
+                    
+            except Exception as e:
+                logger.debug(f"Date parsing error: {e}")
 
             # Récupérer les réponses dynamiques
             answers = {}

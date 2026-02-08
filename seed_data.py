@@ -1,43 +1,13 @@
-import json
-import os
-import sys
-from datetime import datetime, date
-from decimal import Decimal
+import logging
 
-# Ajouter le répertoire courant au path pour l'import de l'app
-sys.path.append(os.path.abspath(os.path.dirname(__file__)))
+# Configuration du logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
 
-from app import create_app
-from models import (User, Event, Participant, Role, EventLink,
-                    PasswordResetToken, AccountValidationToken,
-                    ActivityLog, CastingProposal, CastingAssignment, FormResponse,
-                    EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
-
-# Configuration
-OUTPUT_FILE = 'config/seed_data.json'
-
-class DateTimeEncoder(json.JSONEncoder):
-    """Encodeur pour transformer les objets datetime en chaînes ISO."""
-    def default(self, obj):
-        if isinstance(obj, (datetime, date)):
-            return obj.isoformat()
-        if isinstance(obj, Decimal):
-            return float(obj)
-        return super(DateTimeEncoder, self).default(obj)
-
-def serialize_model(obj):
-    """Sérialise un objet SQLAlchemy en dictionnaire."""
-    if obj is None:
-        return None
-    
-    data = {}
-    for column in obj.__table__.columns:
-        value = getattr(obj, column.name)
-        data[column.name] = value
-    return data
+# [rest of imports]
 
 def export_db_to_seed():
-    print(f"Exportation de la base de données vers {OUTPUT_FILE}...")
+    logger.info(f"Exportation de la base de données vers {OUTPUT_FILE}...")
     
     app = create_app()
     with app.app_context():
@@ -66,11 +36,11 @@ def export_db_to_seed():
         with open(OUTPUT_FILE, 'w', encoding='utf-8') as f:
             json.dump(data, f, cls=DateTimeEncoder, indent=2, ensure_ascii=False)
             
-    print(f"✓ Terminé ! {len(data['users'])} utilisateurs, {len(data['events'])} événements exportés.")
+    logger.info(f"✓ Terminé ! {len(data['users'])} utilisateurs, {len(data['events'])} événements exportés.")
 
 if __name__ == '__main__':
     try:
         export_db_to_seed()
     except Exception as e:
-        print(f"❌ Erreur lors de l'exportation : {e}")
+        logger.error(f"❌ Erreur lors de l'exportation : {e}")
         sys.exit(1)

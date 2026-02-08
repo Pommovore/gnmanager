@@ -4,6 +4,12 @@ import sys
 from datetime import datetime
 from manage_db import serialize_model, DateTimeEncoder
 
+import logging
+
+# Configuration du logger
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
 def main():
     # Setup App Context
     from app import create_app
@@ -14,33 +20,33 @@ def main():
     
     app = create_app()
     with app.app_context():
-        print("🔍 Recherche des événements 'Berlin 1936'...")
+        logger.info("🔍 Recherche des événements 'Berlin 1936'...")
         target_events = Event.query.filter(Event.name.ilike('%Berlin 1936%')).all()
         
         if not target_events:
-            print("❌ Aucun événement trouvé avec le nom contenant 'Berlin 1936'")
+            logger.warning("❌ Aucun événement trouvé avec le nom contenant 'Berlin 1936'")
             return
             
         target_event_ids = [e.id for e in target_events]
-        print(f"✅ {len(target_events)} événements trouvés: ids={target_event_ids}")
+        logger.info(f"✅ {len(target_events)} événements trouvés: ids={target_event_ids}")
         
         # 1. Collecter les participants liés
-        print("🔍 Collecte des participants...")
+        logger.info("🔍 Collecte des participants...")
         participants = Participant.query.filter(Participant.event_id.in_(target_event_ids)).all()
         participant_user_ids = {p.user_id for p in participants}
-        print(f"  - {len(participants)} participants trouvés")
+        logger.info(f"  - {len(participants)} participants trouvés")
         
         # 2. Collecter les utilisateurs (Participants + Admins)
-        print("🔍 Collecte des utilisateurs...")
+        logger.info("🔍 Collecte des utilisateurs...")
         # On garde les participants ET les admins pour ne pas se bloquer
         users = User.query.filter(
             (User.id.in_(participant_user_ids)) | 
             (User.role.in_(['createur', 'sysadmin']))
         ).all()
-        print(f"  - {len(users)} utilisateurs (dont admins) conservés")
+        logger.info(f"  - {len(users)} utilisateurs (dont admins) conservés")
         
         # 3. Collecter les données liées aux événements
-        print("🔍 Collecte des données liées...")
+        logger.info("🔍 Collecte des données liées...")
         roles = Role.query.filter(Role.event_id.in_(target_event_ids)).all()
         event_links = EventLink.query.filter(EventLink.event_id.in_(target_event_ids)).all()
         casting_proposals = CastingProposal.query.filter(CastingProposal.event_id.in_(target_event_ids)).all()
@@ -88,7 +94,7 @@ def main():
         with open(output_file, 'w', encoding='utf-8') as f:
             json.dump(data, f, cls=DateTimeEncoder, indent=2, ensure_ascii=False)
             
-        print(f"✅ Export terminé : {output_file}")
+        logger.info(f"✅ Export terminé : {output_file}")
 
 if __name__ == '__main__':
     main()

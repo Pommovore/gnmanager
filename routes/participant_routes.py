@@ -345,7 +345,7 @@ def update_paf_inline(event_id, p_id):
         paf_map = {item['name']: float(item['amount']) for item in paf_config}
         due = paf_map.get(p.paf_type, 0.0) if p.paf_type else 0.0
         
-        if p.payment_amount >= due and due > 0:
+        if p.payment_amount >= due:
             p.paf_status = 'versée'
         elif p.payment_amount > 0:
             p.paf_status = 'partielle'

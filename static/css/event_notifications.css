@@ -8,3 +8,16 @@
     background-color: rgba(13, 110, 253, 0.05);
     border-left: 3px solid var(--bs-primary);
 }
+
+/* Hide spinners for number inputs with class .no-spinner */
+/* Chrome, Safari, Edge, Opera */
+input.no-spinner::-webkit-outer-spin-button,
+input.no-spinner::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+}
+
+/* Firefox */
+input.no-spinner[type=number] {
+    -moz-appearance: textfield;
+}

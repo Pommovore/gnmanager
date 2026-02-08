@@ -284,7 +284,16 @@ document.addEventListener('DOMContentLoaded', function () {
                     const dueEl = document.querySelector(`.paf-due-amount[data-p-id="${pId}"]`);
                     if (dueEl) dueEl.textContent = `${result.due.toFixed(2)} €`;
 
-                    // Update Payment Amount Display
+                    // Update Payment Amount Input
+                    const amountInput = document.querySelector(`.paf-inline-edit-amount[data-p-id="${pId}"]`);
+                    if (amountInput) {
+                        amountInput.value = result.payment_amount.toFixed(2);
+                        amountInput.classList.remove('border-warning');
+                        amountInput.classList.add('border-success');
+                        setTimeout(() => amountInput.classList.remove('border-success'), 2000);
+                    }
+
+                    // Update Payment Amount Display (Legacy/Fallback if element exists)
                     const amountDisplay = document.querySelector(`.paf-payment-amount-display[data-p-id="${pId}"]`);
                     if (amountDisplay) amountDisplay.textContent = `${result.payment_amount.toFixed(2)} €`;
 
@@ -399,13 +408,43 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    // Payment Amount Modal Logic
+    // Payment Amount Modal Logic (Deprecated but code kept for reference if needed, button removed)
     const amountModalEl = document.getElementById('paymentAmountModal');
     let amountModal = null;
     if (amountModalEl) {
         amountModal = new bootstrap.Modal(amountModalEl);
     }
 
+    // Inline Amount Edit Logic (Enter key to save)
+    document.querySelectorAll('.paf-inline-edit-amount').forEach(input => {
+        input.addEventListener('keydown', function (e) {
+            if (e.key === 'Enter') {
+                e.preventDefault(); // Prevent form submission if inside one
+                const pId = this.dataset.pId;
+                const amount = parseFloat(this.value);
+
+                if (isNaN(amount)) {
+                    alert("Veuillez entrer un montant valide.");
+                    return;
+                }
+
+                // Blur to indicate action is being processed
+                this.blur();
+
+                // Show loading state (optional, maybe change border color?)
+                this.classList.add('border-warning');
+
+                updateParticipantPAF(pId, { payment_amount: amount });
+            }
+        });
+
+        // Auto-select content on focus for easier editing
+        input.addEventListener('focus', function () {
+            this.select();
+        });
+    });
+
+    /* 
     document.querySelectorAll('.paf-edit-amount-btn').forEach(btn => {
         btn.addEventListener('click', function () {
             currentPId = this.dataset.pId;
@@ -414,6 +453,7 @@ document.addEventListener('DOMContentLoaded', function () {
             if (amountModal) amountModal.show();
         });
     });
+    */
 
     const saveAmountBtn = document.getElementById('savePaymentAmountBtn');
     if (saveAmountBtn) {

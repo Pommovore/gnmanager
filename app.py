@@ -93,11 +93,11 @@ def create_app(test_config=None):
     def log_request_info():
         # Ne logger que les requêtes intéressantes (pas les static)
         if not request.path.startswith('/static'):
-            print(f"!!! DEBUG REQUEST !!! {request.method} {request.url}")
-            print(f"!!! HEADERS !!! {dict(request.headers)}")
-            print(f"!!! COOKIES !!! {request.cookies}")
-            print(f"!!! SESSION !!! {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
-            print(f"!!! SCHEME !!! {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
+            app.logger.debug(f"!!! DEBUG REQUEST !!! {request.method} {request.url}")
+            app.logger.debug(f"!!! HEADERS !!! {dict(request.headers)}")
+            app.logger.debug(f"!!! COOKIES !!! {request.cookies}")
+            app.logger.debug(f"!!! SESSION !!! {'user_id' in session}, csrf_token in session: {'csrf_token' in session}")
+            app.logger.debug(f"!!! SCHEME !!! {request.scheme}, ScriptRoot: {request.script_root}, Path: {request.path}")
 
     # Gestion du préfixe d'URL (ex: /gnmanager)
     # Utilisation du middleware magique pour compatibilité Nginx force-redirect
@@ -117,7 +117,7 @@ def create_app(test_config=None):
         # Donc la requête entre dans ProxyFix -> nettoie environ -> passe à MagicPrefix -> passe à Flask
         app.wsgi_app = MagicPrefixMiddleware(app.wsgi_app, prefix=app_root)
         app.config['APPLICATION_ROOT'] = app_root
-        print(f"✅ Application configurée avec MagicPrefixMiddleware: {app_root}")
+        app.logger.info(f"✅ Application configurée avec MagicPrefixMiddleware: {app_root}")
     
     # Appliquer la configuration de test si fournie
     if test_config:

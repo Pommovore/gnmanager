@@ -53,7 +53,7 @@ def configure_logging(app):
     os.makedirs(log_dir, exist_ok=True)
     
     # Determine log level from environment
-    log_level_str = os.environ.get('LOG_LEVEL', 'INFO' if not app.debug else 'DEBUG')
+    log_level_str = os.environ.get('LOGLEVEL', os.environ.get('LOG_LEVEL', 'INFO' if not app.debug else 'DEBUG'))
     log_level = getattr(logging, log_level_str.upper(), logging.INFO)
     
     # Configure root logger
