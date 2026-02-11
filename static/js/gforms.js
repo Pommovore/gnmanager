@@ -429,7 +429,20 @@ document.addEventListener('DOMContentLoaded', function () {
 
     function renderCategorySelectors() {
         // Re-render mapping selectors if categories changed
-        // ... (Already handled by full re-fetch usually, but could be optimized)
+        const selects = document.querySelectorAll('.mapping-category-select');
+        selects.forEach(select => {
+            const currentValue = select.value;
+            select.innerHTML = '<option value="">-- Non catégorisé --</option>' + getCategoryOptions(currentValue ? parseInt(currentValue) : null);
+        });
+    }
+
+    // Refresh data when switching to settings tab to ensure categories are up to date
+    const settingsTabBtn = document.getElementById('gforms-settings-tab');
+    if (settingsTabBtn) {
+        settingsTabBtn.addEventListener('shown.bs.tab', function () {
+            // Re-render selectors to make sure they have the latest categories
+            renderCategorySelectors();
+        });
     }
 
     // --- Actions ---

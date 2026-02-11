@@ -203,13 +203,26 @@ def update_general(event_id):
     """
     event = Event.query.get_or_404(event_id)
         
+    # Capture old state for logging
+    old_state = {
+        'name': event.name,
+        'location': event.location,
+        'date_start': event.date_start.strftime('%Y-%m-%d') if event.date_start else None,
+        'date_end': event.date_end.strftime('%Y-%m-%d') if event.date_end else None,
+        'description': event.description,
+        'org_link_url': event.org_link_url,
+        'google_form_url': event.google_form_url,
+        'organizing_association': event.organizing_association,
+        'display_organizers': event.display_organizers,
+        'statut': event.statut
+    }
+
     name = request.form.get('name')
     location = request.form.get('location')
     date_start_str = request.form.get('date_start')
     date_end_str = request.form.get('date_end')
     description = request.form.get('description')
     org_link_url = request.form.get('org_link_url')
-    org_link_title = request.form.get('org_link_title')
     org_link_title = request.form.get('org_link_title')
     google_form_url = request.form.get('google_form_url')
     organizing_association = request.form.get('organizing_association')
@@ -233,6 +246,7 @@ def update_general(event_id):
         event.display_organizers = display_organizers
         if statut: event.statut = statut
         event.discord_webhook_url = discord_webhook_url
+        event.org_link_title = org_link_title
         
         if date_start_str: 
             event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')
@@ -241,6 +255,7 @@ def update_general(event_id):
             
         if description is not None: event.description = description
         if google_form_url is not None: event.google_form_url = google_form_url
+        if org_link_url is not None: event.org_link_url = org_link_url
         
         # Upload des images de fond avec validation stricte
         import os
@@ -322,30 +337,49 @@ def update_general(event_id):
              
         db.session.commit()
         
-        # Log update
+        # Log and Notification with specific details
+        changes = []
+        
+        if event.name != old_state['name']:
+            changes.append(f"changement du titre en '{event.name}'")
+            
+        if event.location != old_state['location']:
+            changes.append(f"changement du lieu en '{event.location}'")
+            
+        new_start = event.date_start.strftime('%Y-%m-%d')
+        if new_start != old_state['date_start']:
+            changes.append(f"changement date début en '{new_start}'")
+            
+        new_end = event.date_end.strftime('%Y-%m-%d')
+        if new_end != old_state['date_end']:
+            changes.append(f"changement date fin en '{new_end}'")
+            
+        if event.description != old_state['description']:
+            changes.append("modification de la description")
+            
+        # Log update to ActivityLog (keeping it general or specific?)
+        # User request emphasizes the visual notification format log.
+        # But we still need ActivityLog for system history.
         log = ActivityLog(
             action_type=ActivityLogType.EVENT_UPDATE.value,
             user_id=current_user.id,
             event_id=event.id,
-            details=json.dumps({'updated_fields': 'General Info (Name, Date, Limits, Links, Image)', 'event_name': event.name})
+            details=json.dumps({
+                'updated_fields': ', '.join(changes) if changes else 'General Update',
+                'event_name': event.name
+            })
         )
         db.session.add(log)
         db.session.commit()
         
-        # Créer une notification pour les organisateurs
-        from services.notification_service import create_notification
-        changed_fields = []
-        if name and name != event.name: changed_fields.append('nom')
-        if location and location != event.location: changed_fields.append('lieu')
-        if date_start_str: changed_fields.append('dates')
-        if description is not None: changed_fields.append('description')
-        
-        if changed_fields:
-            create_notification(
+        # Creates notification for internal users (organizers)
+        if changes:
+             from services.notification_service import create_notification
+             create_notification(
                 event_id=event.id,
                 user_id=current_user.id,
                 action_type='event_updated',
-                description=f"{current_user.prenom} {current_user.nom} a modifié: {', '.join(changed_fields)}"
+                description=f"modifications apportées : {', '.join(changes)}"
             )
 
         flash('Informations générales mises à jour.', 'success')
@@ -502,6 +536,15 @@ def add_role(event_id):
     db.session.add(new_role)
     db.session.commit()
     
+    # Notification
+    from services.notification_service import create_notification
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='role_created',
+        description=f"Action : ajout du rôle '{name}'"
+    )
+    
     flash(f'Rôle "{name}" créé avec succès.', 'success')
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
 
@@ -523,6 +566,11 @@ def update_role(event_id, role_id):
         flash('Le nom du rôle est obligatoire.', 'danger')
         return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
     
+    # Detect changes
+    changes = []
+    if name != role.name: changes.append(f"nom en '{name}'")
+    
+    # Update fields
     role.name = name
     role.type = request.form.get('type') or None
     role.genre = request.form.get('genre') or None
@@ -532,6 +580,19 @@ def update_role(event_id, role_id):
     role.comment = request.form.get('comment') or None
     
     db.session.commit()
+    
+    # Notification
+    from services.notification_service import create_notification
+    desc = f"Action : modification du rôle '{name}'"
+    if changes:
+        desc += f" ({', '.join(changes)})"
+        
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='role_updated',
+        description=desc
+    )
     
     flash(f'Rôle "{name}" mis à jour.', 'success')
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
@@ -562,6 +623,15 @@ def delete_role(event_id, role_id):
     
     db.session.delete(role)
     db.session.commit()
+    
+    # Notification
+    from services.notification_service import create_notification
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='role_deleted',
+        description=f"Action : suppression du rôle '{role.name}'"
+    )
     
     flash(f'Rôle "{role.name}" supprimé.', 'success')
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
@@ -860,6 +930,15 @@ def add_proposal(event_id):
     db.session.add(proposal)
     db.session.commit()
     
+    # Notification
+    from services.notification_service import create_notification
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='casting_proposal_added',
+        description=f"Action : ajout d'une proposition '{name}'"
+    )
+    
     return jsonify({'id': proposal.id, 'name': proposal.name})
 
 
@@ -971,6 +1050,20 @@ def toggle_casting_validation(event_id):
         event.is_casting_validated = not event.is_casting_validated
     
     db.session.commit()
+    
+    # Notification
+    from services.notification_service import create_notification
+    status_text = "validé" if event.is_casting_validated else "non-validé"
+    # Note: user wants RED validation text in UI, but backend log just stores text. 
+    # The UI template handles color based on content or we can use markdown if supported.
+    # The user request said "Validation (en rouge)". 
+    # I'll stick to text description here, UI rendering determines color.
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='casting_validation',
+        description=f"Action : modification de la validation du casting en '{status_text}'"
+    )
     
     return jsonify({
         'success': True,

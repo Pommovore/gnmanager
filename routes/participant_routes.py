@@ -320,19 +320,41 @@ def update_paf_inline(event_id, p_id):
     if p.event_id != event_id:
         return jsonify({'success': False, 'error': 'Participant invalide'}), 400
         
+    # Detect changes for logging
+    changes = []
+    
     if 'payment_amount' in data:
         try:
-            p.payment_amount = float(data['payment_amount'])
+            new_amount = float(data['payment_amount'])
+            if abs(new_amount - (p.payment_amount or 0)) > 0.01:
+                p.payment_amount = new_amount
+                changes.append(f"montant versé modifié en {new_amount}€")
         except (ValueError, TypeError):
             pass
+            
     if 'payment_method' in data:
-        p.payment_method = data['payment_method']
+        new_method = data['payment_method']
+        if new_method != p.payment_method:
+            p.payment_method = new_method
+            changes.append(f"moyen de paiement modifié en '{new_method}'")
+            
     if 'paf_type' in data:
-        p.paf_type = data['paf_type']
+        new_type = data['paf_type']
+        if new_type != p.paf_type:
+             p.paf_type = new_type
+             changes.append(f"type de PAF modifié en '{new_type}'")
+             
     if 'info_payement' in data:
-        p.info_payement = data['info_payement']
+        new_info = data['info_payement']
+        if new_info != p.info_payement:
+            p.info_payement = new_info
+            changes.append("info paiement mise à jour")
+            
     if 'global_comment' in data:
-        p.global_comment = data['global_comment']
+        new_comment = data['global_comment']
+        if new_comment != p.global_comment:
+            p.global_comment = new_comment
+            changes.append("commentaire global mis à jour")
         
     # Recalculer le statut PAF si nécessaire
     # Si le statut est 'dispensé(e)' ou 'erreur', on le garde sauf si le montant change vers un montant positif
@@ -345,20 +367,46 @@ def update_paf_inline(event_id, p_id):
         paf_map = {item['name']: float(item['amount']) for item in paf_config}
         due = paf_map.get(p.paf_type, 0.0) if p.paf_type else 0.0
         
-        if p.payment_amount >= due:
+        if (p.payment_amount or 0) >= due:
             p.paf_status = 'versée'
-        elif p.payment_amount > 0:
+        elif (p.payment_amount or 0) > 0:
             p.paf_status = 'partielle'
         else:
             p.paf_status = 'non versée'
             
     db.session.commit()
     
+    # Log specific changes if any
+    if changes:
+        log = ActivityLog(
+            user_id=current_user.id,
+            action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
+            event_id=event.id,
+            details=json.dumps({
+                'participant_id': p.id,
+                'update_type': 'paf_inline_update',
+                'changes': changes,
+                'participant_email': p.user.email
+            })
+        )
+        db.session.add(log)
+        
+        # Notification to organizers if significant changes (optional, but requested for granular logs)
+        # Maybe group consecutive updates? For now, we log every save.
+        from services.notification_service import create_notification
+        create_notification(
+            event_id=event.id,
+            user_id=current_user.id,
+            action_type='participant_updated',
+            description=f"Mise à jour pour {p.user.prenom} {p.user.nom} : {', '.join(changes)}"
+        )
+        db.session.commit()
+
     # Recalculer due pour le retour AJAX
     paf_config = json.loads(event.paf_config or '[]')
     paf_map = {item['name']: float(item['amount']) for item in paf_config}
     due = paf_map.get(p.paf_type, 0.0) if p.paf_type else 0.0
-    remaining = due - p.payment_amount
+    remaining = due - (p.payment_amount or 0)
     
     return jsonify({
         'success': True,
@@ -401,12 +449,15 @@ def change_status(event_id, p_id):
     if action == 'validate':
         participant.registration_status = RegistrationStatus.VALIDATED.value
         flash(f'Participant {participant.user.email} validé.', 'success')
+        status_text = "validé"
     elif action == 'reject':
         participant.registration_status = RegistrationStatus.REJECTED.value
         flash(f'Participant {participant.user.email} rejeté.', 'warning')
+        status_text = "rejeté"
     elif action == 'pending':
         participant.registration_status = RegistrationStatus.PENDING.value
         flash(f'Participant {participant.user.email} mis en attente.', 'info')
+        status_text = "mis en attente"
     else:
         flash('Action invalide.', 'danger')
         return redirect(url_for('participant.manage', event_id=event_id))
@@ -422,6 +473,15 @@ def change_status(event_id, p_id):
         })
     )
     db.session.add(log)
+    
+    # Notification pour les organisateurs
+    from services.notification_service import create_notification
+    create_notification(
+        event_id=event.id,
+        user_id=current_user.id,
+        action_type='status_change',
+        description=f"Le statut de {participant.user.prenom} {participant.user.nom} a été changé en '{status_text}'"
+    )
     
     db.session.commit()
     return redirect(url_for('participant.manage', event_id=event_id))
