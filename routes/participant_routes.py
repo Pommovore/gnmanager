@@ -7,7 +7,7 @@ Ce module gère :
 - API d'assignation de rôles
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
 from flask_login import login_required, current_user
 from models import db, Event, Participant, Role, ActivityLog
 from sqlalchemy.orm import joinedload
@@ -21,6 +21,11 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import datetime
 from services.notification_service import create_notification, count_unread_notifications
+from utils.file_validation import validate_upload, generate_unique_filename, FileValidationError
+from werkzeug.utils import secure_filename
+import os
+import shutil
+
 
 participant_bp = Blueprint('participant', __name__)
 
@@ -782,5 +787,157 @@ def leave(event_id):
     db.session.commit()
     
     flash("Vous avez quitté l'événement.", 'success')
+    return redirect(url_for('event.detail', event_id=event_id))
+
+
+@participant_bp.route('/event/<int:event_id>/participant/<int:participant_id>/update_event_photo', methods=['POST'])
+@login_required
+def update_event_photo(event_id, participant_id):
+    """
+    Met à jour la photo spécifique à l'événement pour un participant.
+    """
+    participant = Participant.query.get_or_404(participant_id)
+    
+    # Vérification des autorisations : soi-même ou un organisateur
+    if participant.user_id != current_user.id:
+        # Si ce n'est pas l'utilisateur lui-même, vérifier si c'est un organisateur de l'événement
+        is_organizer = Participant.query.filter_by(
+            event_id=event_id, 
+            user_id=current_user.id
+        ).filter(Participant.type == 'Organisateur').first()
+        
+        if not is_organizer:
+            flash('Accès non autorisé', 'danger')
+            return redirect(url_for('event.detail', event_id=event_id))
+
+    if 'event_photo' not in request.files:
+        flash('Aucun fichier sélectionné', 'warning')
+        return redirect(url_for('event.detail', event_id=event_id))
+        
+    file = request.files['event_photo']
+    if file.filename == '':
+        flash('Aucun fichier sélectionné', 'warning')
+        return redirect(url_for('event.detail', event_id=event_id))
+        
+    try:
+        # Validation du fichier
+        validate_upload(file, file_type='image')
+        
+        # Création du répertoire de stockage
+        # static/uploads/events/<event_id>/participants/
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Génération du nom de fichier unique
+        # Format: <nom>_<prenom>_<timestamp>.<ext>
+        safe_nom = secure_filename(participant.user.nom or 'unknown')
+        safe_prenom = secure_filename(participant.user.prenom or 'unknown')
+        prefix = f"{safe_nom}_{safe_prenom}"
+        
+        filename = generate_unique_filename(file.filename, prefix=prefix)
+        file_path = os.path.join(upload_folder, filename)
+        
+        # Supprimer l'ancienne photo si elle existe
+        if participant.custom_image:
+            # On essaie de retrouver le chemin absolu de l'ancienne image
+            # custom_image stocke le chemin relatif web, ex: /static/uploads/...
+            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/'))
+            if os.path.exists(old_path):
+                try:
+                    os.remove(old_path)
+                except OSError:
+                    pass # Ignorer si suppression échoue
+        
+        # Sauvegarde
+        file.seek(0) # Reset stream after validation
+        file.save(file_path)
+        
+        # Mise à jour BDD
+        # Stocker le chemin relatif pour l'URL
+        relative_path = f"/static/uploads/events/{event_id}/participants/{filename}"
+        participant.custom_image = relative_path
+        
+        db.session.commit()
+        flash('Photo de l\'événement mise à jour avec succès', 'success')
+        
+    except FileValidationError as e:
+        flash(str(e), 'danger')
+    except Exception as e:
+        flash(f"Erreur lors de l'upload: {str(e)}", 'danger')
+        
+    return redirect(url_for('event.detail', event_id=event_id))
+
+
+@participant_bp.route('/event/<int:event_id>/participant/<int:participant_id>/copy_profile_photo', methods=['POST'])
+@login_required
+def copy_profile_to_event_photo(event_id, participant_id):
+    """
+    Copie la photo de profil générale vers la photo de l'événement.
+    """
+    from flask import current_app
+
+    participant = Participant.query.get_or_404(participant_id)
+    
+    # Vérification des autorisations
+    if participant.user_id != current_user.id:
+         # Si ce n'est pas l'utilisateur lui-même, vérifier si c'est un organisateur de l'événement
+        is_organizer = Participant.query.filter_by(
+            event_id=event_id, 
+            user_id=current_user.id
+        ).filter(Participant.type == 'Organisateur').first()
+        
+        if not is_organizer:
+            flash('Accès non autorisé', 'danger')
+            return redirect(url_for('event.detail', event_id=event_id))
+            
+    user = participant.user
+    if not user.avatar_url:
+        flash('Aucune photo de profil à copier', 'warning')
+        return redirect(url_for('event.detail', event_id=event_id))
+        
+    try:
+        # Chemin source (avatar_url est relatif web, ex: /static/uploads/avatar_123.png)
+        source_rel = user.avatar_url.lstrip('/')
+        source_path = os.path.join(current_app.root_path, source_rel)
+        
+        if not os.path.exists(source_path):
+            flash('Phtoto de profil introuvable sur le serveur', 'danger')
+            return redirect(url_for('event.detail', event_id=event_id))
+            
+        # Chemin destination
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Nom de fichier destination
+        safe_nom = secure_filename(user.nom or 'unknown')
+        safe_prenom = secure_filename(user.prenom or 'unknown')
+        prefix = f"{safe_nom}_{safe_prenom}"
+        
+        # Extension
+        _, ext = os.path.splitext(source_path)
+        filename = generate_unique_filename(f"copy{ext}", prefix=prefix)
+        dest_path = os.path.join(upload_folder, filename)
+        
+        # Copie
+        shutil.copy2(source_path, dest_path)
+        
+        # Supprimer l'ancienne custom_image si elle existe
+        if participant.custom_image:
+            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/'))
+            if os.path.exists(old_path):
+                 try:
+                    os.remove(old_path)
+                 except OSError:
+                    pass
+        
+        # Mise à jour BDD
+        participant.custom_image = f"/static/uploads/events/{event_id}/participants/{filename}"
+        db.session.commit()
+        
+        flash('Photo de profil copiée comme photo d\'événement', 'success')
+        
+    except Exception as e:
+        flash(f"Erreur lors de la copie: {str(e)}", 'danger')
+        
     return redirect(url_for('event.detail', event_id=event_id))
 
