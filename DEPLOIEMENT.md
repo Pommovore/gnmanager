@@ -155,15 +155,20 @@ uv run python fix_sequences.py
 ```
 
 ### Tables exportées/importées
-- `User` : Utilisateurs
-- `Event` : Événements (inclut `is_casting_validated`)
+- `User` : Utilisateurs (inclut `is_profile_photo_public`, `profile_photo_url`)
+- `Event` : Événements (inclut `is_casting_validated`, `discord_webhook_url`)
 - `Role` : Rôles des personnages
-- `Participant` : Inscriptions
+- `Participant` : Inscriptions (inclut `custom_image`, `is_photo_locked`)
 - `CastingProposal` : Propositions de casting
 - `CastingAssignment` : Attributions (inclut `score`)
 - `PasswordResetToken` : Tokens de reset
 - `AccountValidationToken` : Tokens de validation
-- `ActivityLog` : Logs d'activité
+- `ActivityLog` : Logs d'activité système
+- `EventNotification` : Notifications par événement
+- `GFormsCategory` : Catégories GForms
+- `GFormsFieldMapping` : Mapping des champs GForms
+- `GFormsSubmission` : Soumissions GForms
+- `FormResponse` : Réponses brutes des formulaires
 
 ---
 

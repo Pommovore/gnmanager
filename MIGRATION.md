@@ -33,32 +33,7 @@ Ce fichier documente la migration en cours de `routes.py` (monolithique, 967 lig
 
 ## 🚧 Routes restantes à migrer
 
-### `routes/event_routes.py` (à créer)
-
-Les routes suivantes de `routes_legacy.py` doivent être migrées :
-
-- `/event/create` (ligne ~420) → `create_event()`
-- `/event/<int:event_id>` (ligne ~480) → `event_detail()`
-- `/event/<int:event_id>/update_general` (ligne ~570) → `update_event_general()`
-- `/event/<int:event_id>/update_status` (ligne ~600) → `update_event_status()`
-- `/event/<int:event_id>/update_groups` (ligne ~630) → `update_event_groups()`  
-- `/event/<int:event_id>/join` (ligne ~520) → `join_event()`
-
-**Estimation**: ~250 lignes
-
-### `routes/participant_routes.py` (à créer)
-
-Les routes suivantes de `routes_legacy.py` doivent être migrées :
-
-- `/event/<int:event_id>/participants` (ligne ~668) → `manage_participants()`
-- `/event/<int:event_id>/participants/bulk_update` (ligne ~700) → `bulk_update_participants()`
-- `/event/<int:event_id>/participant/<p_id>/update` (ligne ~740) → `update_participant()`
-- `/event/<int:event_id>/participant/<p_id>/change-status` (ligne ~770) → `change_participant_status()`
-- `/event/<int:event_id>/casting` (ligne ~805) → `casting_interface()`
-- `/api/casting/assign` (ligne ~860) → `api_assign_role()`
-- `/api/casting/unassign` (ligne ~910) → `api_unassign_role()`
-
-**Estimation**: ~250 lignes
+Toutes les routes ont été migrées avec succès. Voir la section "État Final" ci-dessous.
 
 ## 📝 Guide de migration
 
@@ -191,10 +166,9 @@ L'ensemble des routes a été migré depuis `routes_legacy.py` vers le dossier `
 
 ## ⚠️ Important
 
-- **`routes_legacy.py`** contient l'ancien code complet (backup)
-- **`routes.py`** est maintenant le package `routes/` 
-- L'application fonctionne actuellement en mode **hybride** : auth/admin sur nouveaux blueprints, reste sur legacy
-- **Ne pas supprimer** `routes_legacy.py` tant que la migration n'est pas complète
+- **`routes_legacy.py`** : N'est plus utilisé et peut être supprimé en toute sécurité.
+- **`routes/`** contient tous les blueprints actifs.
+- Tous les modules de routes sont enregistrés dans `routes/__init__.py`.
 
 ## 💡 Amélioration de la qualité du code
 
@@ -209,6 +183,5 @@ Grâce à cette refactorisation :
 ## 📞 Support
 
 Pour toute question sur la migration, consultez :
-- [`implementation_plan.md`](file:///C:/Users/jchod/.gemini/antigravity/brain/09b79904-43d9-4be8-a94e-3e89bcba3f91/implementation_plan.md)
-- [`constants.py`](file:///\\wsl.localhost\Ubuntu-24.04\home\jack\dev\gnmanager\constants.py) - Liste des Enums disponibles
-- [`decorators.py`](file:///\\wsl.localhost\Ubuntu-24.04\home\jack\dev\gnmanager\decorators.py) - Décorateurs disponibles
+- `constants.py` - Liste des Enums disponibles
+- `decorators.py` - Décorateurs disponibles

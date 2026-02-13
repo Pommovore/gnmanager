@@ -64,15 +64,37 @@ Si vous êtes désigné comme **Organisateur** sur cet événement, vous voyez d
 
 - **Infos Générales (modif)** : Pour éditer la description, les jauges, les liens, les dates et changer le statut de l'événement.
     - **Association Organisatrice** : Permet de définir le nom de l'entité qui organise (défaut: "une entité mystérieuse...").
-    - **Affichage des organisateurs** : Case à cocher pour masquer ou afficher la liste des organisateurs aux participants (utile pour garder le mystère).
-- **GForms Import** : Bouton "Importer" à côté de l'export pour charger massivement des données depuis un CSV Google Forms.
-- **Groupes** : Pour configurer les noms des groupes (factions) disponibles.
-- **Participants** : Liste complète des inscrits avec tableau de gestion (Validation, PAF, Repas). Permet d'exporter les données en CSV/Excel.
-- **Rôles** : Création et édition de la liste des rôles (Nom, Type, Liens GDoc/PDF).
+    - **Affichage des organisateurs** : Case à cocher pour masquer ou afficher la liste des organisateurs aux participants.
+    - **Webhook Discord** : URL configurable pour envoyer des notifications automatiques sur un canal Discord.
+- **Groupes** : Pour configurer les noms des groupes (factions) disponibles par type.
+- **Participants** : Page dédiée de gestion des inscrits :
+    - Tableau avec filtres avancés (statut, type, groupe, genre, photo).
+    - **Colonne Photo** : Indicateur visuel du statut photo de chaque participant (OK, Profil, KO).
+    - **Liste E-mails** : Bouton pour générer la liste des emails des participants filtrés, formatée en `Nom <email>,` avec bouton Copier.
+    - **Export CSV** : Export des données filtrées au format CSV/Excel.
+    - Gestion individuelle : Validation, PAF, upload de photo personnalisée.
+- **GForms Import** : Bouton "Importer" pour charger massivement des données depuis un CSV Google Forms.
+- **Rôles** : Création et édition de la liste des rôles (Nom, Type, Genre, Groupe, Liens GDoc/PDF, Commentaire).
 - **Casting** : Interface d'attribution des rôles.
     - Tableau matriciel croisant Rôles et Participants.
     - Système de **Scoring** (0 à 10) pour noter l'adéquation d'un joueur à un rôle.
     - **Algorithme d'attribution auto** : Bouton "Casting pondéré" pour proposer une répartition optimale basée sur les scores.
+    - **Propositions** : Colonnes additionnelles pour tester différentes versions de casting.
+- **Trombinoscope** : Vue d'ensemble visuelle de tous les rôles avec les photos des joueurs assignés.
+    - **Indicateurs couleur** : Cadre vert (photo custom), orange (photo profil publique), rouge (pas de photo), gris (rôle non attribué).
+    - **Layouts** : Boutons en haut de la section pour changer l'affichage (1, 2 ou 4 par ligne).
+    - **Export ODT** : Génère un document imprimable avec options (type de rôle, nom du joueur, groupement).
+    - **Export Images (ZIP)** : Télécharge toutes les photos dans une archive ZIP avec motifs de nommage configurables.
+- **P.A.F.** : Tableau de suivi des paiements (Participation Aux Frais).
+    - Vue par participant avec montants, méthodes de paiement et statut.
+    - Tri par colonne.
+- **GForms** : Interface dédiée pour visualiser et catégoriser les réponses Google Forms.
+    - Catégories avec codes couleur.
+    - Mapping de champs et aliases.
+- **Notifications** : Journal d'activité de l'événement.
+    - Liste chronologique de toutes les actions (inscriptions, modifications, casting, PAF, etc.).
+    - Indicateur de notifications non lues (clôche orange dans la barre latérale).
+    - Bouton "Tout marquer comme lu".
 
 ---
 

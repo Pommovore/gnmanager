@@ -16,11 +16,19 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - **`extensions.py`** : Extensions Flask (db, login_manager)
 
 ### Routes par Domaine (routes/)
-- `auth_routes.py` : Connexion, Inscription
-- `event_routes.py` : Gestion événement, Casting, Participants
-- `gforms_routes.py` : Intégration Google Forms (Webhook & UI)
-- `admin_routes.py` : Administration globale
-- `webhook_routes.py` : Point d'entrée des webhooks
+- `auth_routes.py` : Connexion, Inscription, Validation de compte, Reset de mot de passe
+- `event_routes.py` : Gestion événement, Rôles, Trombinoscope (export ODT/Images)
+- `participant_routes.py` : Gestion des participants, photos, export CSV
+- `gforms_routes.py` : Intégration Google Forms (Webhook & UI, Import CSV)
+- `admin_routes.py` : Administration globale, gestion des utilisateurs
+- `webhook_routes.py` : Point d'entrée des webhooks (Google Forms)
+- `health_routes.py` : Health checks et monitoring (`/health`, `/health/ready`, `/health/metrics`)
+
+### Services (services/)
+- **`discord_service.py`** : Envoi de notifications via webhook Discord
+- **`notification_service.py`** : Gestion des notifications internes (journal d'activité)
+- **`odt_service.py`** : Génération du trombinoscope au format ODT
+- **`image_export_service.py`** : Export des photos du trombinoscope en archive ZIP
 
 ### Scripts utilitaires
 
@@ -42,16 +50,30 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
   - `login.html`, `register.html`, `set_password.html` : Authentification
   - `dashboard.html` : Tableau de bord principal
   - `event_detail.html` : Page détail d'un événement
-  - `casting.html` : Page casting standalone (non utilisée actuellement)
+  - `manage_participants.html` : Page gestion des participants (filtres, photo, email list)
   - **`partials/`** : Templates partiels inclus dans d'autres templates
     - `event_info.html` : Infos participant avec affichage conditionnel du rôle assigné
-    - `event_organizer_tabs.html` : Onglets organisateur (Généralités, Groupes, Rôles, Casting, Participants)
+    - `event_sidebar.html` : Navigation latérale de l'événement
+    - `event_organizer_tabs.html` : Onglets organisateur (Généralités, Groupes, Rôles, Casting, Trombinoscope, PAF, GForms, Notifications)
+    - `event_modals.html` : Modales générales (inscription, intérêt)
+    - `event_organizer_modals.html` : Modales organisateur (rôles, suppression)
+    - `casting_templates.html` : Templates pour l'interface de casting
+    - `contact_edit_modals.html` : Modales d'édition des contacts
 
 ### Statiques
 
-- **`static/`** : Assets CSS, JS, images
-  - `js/casting.js` : Logique de l'interface de casting (externalisé)
-  - `js/event_organizer.js` : Gestion des onglets organisateur
+- **`static/css/`** : Feuilles de style par module
+  - `casting.css`, `dashboard.css`, `event_info.css`, `event_notifications.css`
+  - `gforms.css`, `participants.css`, `trombinoscope.css`
+- **`static/js/`** : Scripts par module
+  - `casting.js` : Logique de l'interface de casting (externalisé)
+  - `event_organizer.js` : Gestion des onglets organisateur, layout trombinoscope
+  - `event_organizer_tabs.js` : Logique avancée des onglets (PAF, GForms)
+  - `manage_participants.js` : Filtres, tri, photo, email list pour la page participants
+  - `gforms.js` : Interface Google Forms
+  - `event_modals.js` : Gestion des modales
+  - `utils.js` : Utilitaires partagés
+  - `admin.js`, `dashboard.js`, `participants.js`
 
 ## Modèles de données
 
@@ -81,7 +103,9 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - Liaison User ↔ Event
 - Type (Organisateur, PJ, PNJ) et groupe
 - Statut d'inscription (À valider, En attente, Validé, Rejeté)
-- Informations de paiement
+- Informations de paiement (montant, méthode, statut)
+- **`custom_image`** : Photo personnalisée pour le trombinoscope
+- **`is_photo_locked`** : Verrouillage de la photo par l'organisateur
 
 ### CastingProposal
 - Proposition de casting pour un événement
@@ -122,6 +146,17 @@ Modèles dédiés au stockage structuré des réponses Google Forms.
 - **`raw_data`** : JSON complet des réponses
 - **`type_ajout`** : "créé" (nouveau user), "ajouté" (participant seul), "mis à jour"
 - Relation vers `FormResponse` (stockage brut historique)
+
+### EventNotification
+- Journal d'activité par événement
+- **`action_type`** : Type d'action (inscription, modification, casting, PAF, etc.)
+- **`description`** : Description formatée de l'action
+- **`is_read`** : Boolean pour le suivi lecture/non-lu
+- Relation vers Event et User (acteur de l'action)
+
+### ActivityLog
+- Journal d'activité système (global)
+- Actions d'administration, erreurs, événements techniques
 
 ## Flux d'authentification
 

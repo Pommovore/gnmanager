@@ -18,12 +18,20 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Configuration de groupes (PJ, PNJ, Organisateur)
 - **Association Organisatrice** : Champ dédié pour afficher le nom de l'asso/entité organisatrice.
 - **Affichage des organisateurs** : Option pour masquer la liste des organisateurs aux participants.
-- **Upload d'images de fond**
+- **Upload d'images de fond** (thème clair et sombre)
+- **Notifications Discord** : Webhook configurable par événement
 
 ### Gestion des rôles et inscriptions
 - Création de rôles pour chaque événement (type, genre, groupe)
 - Inscription des participants avec statuts (À valider, En attente, Validé, Rejeté)
 - Attribution des rôles (casting)
+
+### Gestion des Participants (Organisateurs)
+- Tableau complet avec filtres (statut, type, groupe, genre, photo)
+- **Colonne Photo** : Indicateur de statut photo (OK / Profil / KO)
+- **Liste E-mails** : Génère une liste copiable d'emails formatés `Nom <email>,`
+- **Export CSV** : Export des données filtrées au format CSV
+- Gestion des photos personnalisées par participant
 
 ### Intégration Google Forms
 - **Synchronisation automatique** des réponses via Webhook
@@ -43,6 +51,18 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - **Validation** : Switch "Validé/Non-validé" persistant
 - **Affichage conditionnel** : Les participants voient leur rôle assigné uniquement quand le casting est validé
 - Lien vers la fiche PDF du personnage (ou "bientôt disponible...")
+
+### Trombinoscope
+- Vue d'ensemble visuelle des rôles et participants assignés
+- **Indicateurs couleur** : Vert (photo custom), Orange (photo profil), Rouge (pas de photo), Gris (non attribué)
+- **Layouts** : 1 par ligne (liste), 2 par ligne (grille), 4 par ligne (compact)
+- **Export ODT** : Document imprimable avec options (type, joueur, groupement)
+- **Export Images (ZIP)** : Archive de toutes les photos avec motifs de nommage configurables
+
+### Système de Notifications
+- Journal d'activité par événement (inscription, modification, casting, PAF, etc.)
+- Notifications en temps réel pour les organisateurs
+- Indicateur visuel (cloche) avec compteur d'éléments non lus
 
 ### Administration
 - Tableau de bord complet
@@ -165,16 +185,26 @@ gnmanager/
 ├── models.py               # Modèles SQLAlchemy
 ├── auth.py                 # Authentification et emails
 ├── extensions.py           # Extensions Flask
-├── constants.py            # Constantes (statuts, types, etc.)
+├── constants.py            # Constantes et Enums
+├── decorators.py           # Décorateurs (@admin_required, @organizer_required...)
 ├── manage_db.py            # Gestion de la BDD (export/import JSON/CSV)
 ├── seed_data.py            # Génération de données de test
 ├── fresh_deploy.py         # Premier déploiement
 ├── update_deploy.py        # Mise à jour rapide
 ├── pyproject.toml          # Dépendances Python (uv)
-├── routes/                 # Routes organisées par domaine
-│   ├── admin_routes.py
-│   ├── auth_routes.py
-│   └── event_routes.py     # Inclut les routes de casting
+├── routes/                 # Routes organisées par domaine (Blueprints)
+│   ├── admin_routes.py     # Administration
+│   ├── auth_routes.py      # Authentification
+│   ├── event_routes.py     # Événements, rôles, trombinoscope
+│   ├── participant_routes.py # Gestion des participants
+│   ├── gforms_routes.py    # Intégration Google Forms
+│   ├── webhook_routes.py   # Endpoints webhook
+│   └── health_routes.py    # Health checks et monitoring
+├── services/               # Logique métier externalisée
+│   ├── discord_service.py  # Notifications Discord
+│   ├── notification_service.py # Notifications internes
+│   ├── odt_service.py      # Export trombinoscope ODT
+│   └── image_export_service.py # Export images ZIP
 ├── config/
 │   ├── deploy_config.yaml
 │   └── db_test_*.csv       # Données de test exportées
@@ -183,10 +213,24 @@ gnmanager/
 ├── templates/
 │   ├── base.html
 │   ├── event_detail.html
+│   ├── manage_participants.html  # Page gestion participants
 │   └── partials/
-│       ├── event_info.html
-│       └── event_organizer_tabs.html
-├── static/                 # CSS, JS, Assets
+│       ├── event_info.html       # Infos participant
+│       ├── event_sidebar.html    # Navigation latérale
+│       ├── event_organizer_tabs.html # Onglets organisateur
+│       ├── event_modals.html     # Modales générales
+│       └── event_organizer_modals.html # Modales organisateur
+├── static/
+│   ├── css/                # Feuilles de style par module
+│   │   ├── casting.css, dashboard.css, event_info.css
+│   │   ├── gforms.css, participants.css
+│   │   ├── trombinoscope.css, event_notifications.css
+│   └── js/                 # Scripts par module
+│       ├── casting.js, event_organizer.js
+│       ├── manage_participants.js, gforms.js
+│       ├── event_organizer_tabs.js, event_modals.js
+│       └── utils.js
+├── tests/                  # Suite de tests pytest
 ├── instance/               # Base de données SQLite
 ├── ARCHITECTURE.md         # Documentation technique
 └── README.md               # Ce fichier
