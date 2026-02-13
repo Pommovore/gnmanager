@@ -92,6 +92,12 @@ function getGNContext(selector = null) {
 // Initialiser au chargement du DOM
 document.addEventListener('DOMContentLoaded', () => {
     initContactIcons();
+
+    // Initialiser les tooltips Bootstrap
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    })
 });
 
 // Export pour compatibilité (si modules ES6 utilisés plus tard)

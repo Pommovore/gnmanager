@@ -191,8 +191,9 @@
                         {% endfor %}
                     </div>
                     <div class="mb-0 mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-link-btn"><i
-                                class="bi bi-plus"></i>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-link-btn"
+                            data-bs-toggle="tooltip" title="Ajouter un nouveau lien externe">
+                            <i class="bi bi-plus"></i>
                             Ajouter un lien</button>
                     </div>
                 </div>
@@ -220,8 +221,9 @@
                         {% endfor %}
                     </div>
                     <div class="mb-0 mt-2">
-                        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-paf-btn"><i
-                                class="bi bi-plus"></i> Ajouter un tarif</button>
+                        <button type="button" class="btn btn-sm btn-outline-secondary" id="add-paf-btn"
+                            data-bs-toggle="tooltip" title="Ajouter une nouvelle option de tarif">
+                            <i class="bi bi-plus"></i> Ajouter un tarif</button>
                     </div>
                 </div>
 
@@ -324,7 +326,8 @@
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Gestion des Rôles <!-- TEST_MARKER_20260204_V2 --></span>
-            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addRoleModal">
+            <button class="btn btn-sm btn-primary" type="button" data-bs-toggle="modal" data-bs-target="#addRoleModal"
+                data-bs-toggle="tooltip" title="Créer un nouveau rôle">
                 <i class="bi bi-plus"></i> Ajouter un rôle
             </button>
         </div>
@@ -448,11 +451,12 @@
                             <td class="text-center">
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1"
                                     data-bs-toggle="modal" data-bs-target="#editRoleModal{{ role.id }}"
-                                    title="Modifier ce rôle">
+                                    title="Modifier ce rôle" data-bs-toggle="tooltip">
                                     <i class="bi bi-gear"></i>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
-                                    data-bs-target="#deleteRoleModal{{ role.id }}" title="Supprimer ce rôle">
+                                    data-bs-target="#deleteRoleModal{{ role.id }}" title="Supprimer ce rôle"
+                                    data-bs-toggle="tooltip">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>
@@ -571,11 +575,13 @@
             <span>Trombinoscope</span>
             <div class="btn-group">
                 <a href="{{ url_for('event.export_trombinoscope_images', event_id=event.id) }}"
-                    class="btn btn-sm btn-outline-secondary me-2">
+                    class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="tooltip"
+                    title="Télécharger toutes les photos dans une archive ZIP">
                     <i class="bi bi-images"></i> Exporter (Images)
                 </a>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
-                    data-bs-target="#exportOdtModal">
+                    data-bs-target="#exportOdtModal" data-bs-toggle="tooltip"
+                    title="Générer un document ODT imprimable">
                     <i class="bi bi-file-earmark-word"></i> Exporter (ODT)
                 </button>
             </div>
@@ -614,13 +620,15 @@
                         {% if p.custom_image %}
                         {# CASE GREEN: Custom image exists #}
                         <div class="trombi-frame trombi-frame-green">
-                            <img src="{{ p.custom_image }}" alt="Photo Joueur">
+                            <img src="{{ url_for('static', filename=p.custom_image.replace('/static/', '')) }}"
+                                alt="Photo Joueur">
                         </div>
                         <div class="trombi-label trombi-label-green">{{ p.user.nom }} {{ p.user.prenom }}</div>
                         {% elif p.user.is_profile_photo_public and p.user.profile_photo_url %}
                         {# CASE ORANGE: Public profile photo exists #}
                         <div class="trombi-frame trombi-frame-orange">
-                            <img src="{{ p.user.profile_photo_url }}" alt="Photo Profil">
+                            <img src="{{ url_for('static', filename=p.user.profile_photo_url.replace('/static/', '')) }}"
+                                alt="Photo Profil">
                         </div>
                         <div class="trombi-label trombi-label-orange">
                             <div>{{ p.user.nom }} {{ p.user.prenom }}</div>
