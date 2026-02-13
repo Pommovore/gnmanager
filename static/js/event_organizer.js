@@ -277,4 +277,29 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         }
     }
+
+    // --- Trombinoscope Layout Logic ---
+    const layoutButtons = document.querySelectorAll('.btn-group[aria-label="Layout Options"] button');
+    const trombiContainer = document.querySelector('.trombi-container');
+
+    if (layoutButtons.length > 0 && trombiContainer) {
+        layoutButtons.forEach(btn => {
+            btn.addEventListener('click', function () {
+                const layout = this.dataset.layout;
+
+                // Remove active class from all buttons
+                layoutButtons.forEach(b => b.classList.remove('active'));
+                // Add active class to clicked button
+                this.classList.add('active');
+
+                // Remove all layout classes from container
+                trombiContainer.classList.remove('layout-1', 'layout-2', 'layout-4');
+
+                // Add new layout class (if not 1, which is default)
+                if (layout !== '1') {
+                    trombiContainer.classList.add(`layout-${layout}`);
+                }
+            });
+        });
+    }
 });

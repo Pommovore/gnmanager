@@ -1,7 +1,19 @@
-/* Trombinoscope Styles */
-
+/* Default Layout (1 per line) & Base Styles */
 .trombi-container {
     padding: 1rem;
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+    /* Default: 1 column */
+}
+
+/* Layout modifiers */
+.layout-2 {
+    grid-template-columns: repeat(2, 1fr);
+}
+
+.layout-4 {
+    grid-template-columns: repeat(4, 1fr);
 }
 
 .trombi-card {
@@ -14,9 +26,12 @@
     border: 1px solid var(--bs-border-color);
     border-radius: var(--bs-border-radius);
     padding: 1rem;
-    margin-bottom: 1rem;
+    margin-bottom: 0;
+    /* Margin handled by grid gap */
     box-shadow: var(--bs-box-shadow-sm);
     transition: transform 0.2s;
+    height: 100%;
+    /* Ensure equal height in grid */
 }
 
 .trombi-card:hover {
@@ -27,6 +42,8 @@
 .trombi-role-info {
     flex: 1;
     padding-right: 1rem;
+    display: flex;
+    flex-direction: column;
 }
 
 .trombi-role-name {
@@ -77,6 +94,136 @@
     font-weight: 500;
     color: var(--bs-body-color);
 }
+
+/* Layout 4 Specific Overrides */
+/* In layout 4, we want a vertical card with specific order:
+   1. Photo/Frame
+   2. Role Name (and badge)
+   3. Player Name 
+*/
+.layout-4 .trombi-card {
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.layout-4 .trombi-role-info {
+    order: 2;
+    /* Role info comes second (below photo) */
+    padding-right: 0;
+    width: 100%;
+    align-items: center;
+    margin-top: 0.5rem;
+}
+
+.layout-4 .trombi-role-name {
+    font-size: 1rem;
+    /* Smaller font for compact view */
+    margin-bottom: 0.25rem;
+    order: 1;
+    /* Role name first in info block */
+}
+
+.layout-4 .trombi-role-details {
+    margin-bottom: 0.25rem;
+    order: 2;
+    /* Badges second */
+}
+
+/* Comment hidden in compact view? Or just small */
+.layout-4 .trombi-role-info .text-muted {
+    display: none;
+    /* Hide comments in compact view */
+}
+
+.layout-4 .trombi-frame-container {
+    order: 1;
+    /* Photo container comes first (top) */
+    width: 100%;
+    margin-bottom: 0;
+}
+
+.layout-4 .trombi-frame {
+    width: 120px;
+    /* Smaller photo */
+    height: 120px;
+    margin-bottom: 0;
+}
+
+.layout-4 .trombi-label {
+    order: 3;
+    /* Player name comes last (at the very bottom) */
+    margin-top: 0.5rem;
+    font-weight: bold;
+    width: 100%;
+}
+
+/* We need to restructure the DOM slightly via CSS or use display: contents logic 
+   if we can't change HTML structure easily. 
+   
+   Current HTML structure:
+   .trombi-card
+      .trombi-role-info (Role Name, Badges, Comment)
+      .trombi-frame-container (Frame+Img, Player Name)
+
+   Desired Visual Order in Layout 4:
+   1. Frame (from .trombi-frame-container)
+   2. Role Name (from .trombi-role-info)
+   3. Player Name (from .trombi-frame-container)
+   
+   To achieve this mixed ordering with Flexbox, we need to flatten the structure visually 
+   using `display: contents` on the wrappers.
+*/
+
+.layout-4 .trombi-role-info,
+.layout-4 .trombi-frame-container {
+    display: contents;
+}
+
+/* Now direct children of .trombi-role-info and .trombi-frame-container 
+   become direct flex items of .trombi-card 
+*/
+
+.layout-4 .trombi-frame {
+    order: 10;
+    width: 120px;
+    height: 120px;
+    margin: 0 auto 0.5rem auto;
+}
+
+.layout-4 .trombi-role-name {
+    order: 20;
+    margin-bottom: 0.25rem;
+    text-align: center;
+}
+
+.layout-4 .trombi-role-details {
+    order: 25;
+    margin-bottom: 0.5rem;
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 0.25rem;
+}
+
+/* Badges inside details need to be visible */
+.layout-4 .trombi-role-details .badge {
+    margin-left: 0 !important;
+    /* Reset margin */
+}
+
+.layout-4 .trombi-label {
+    order: 30;
+    margin-top: 0;
+    font-weight: bold;
+}
+
+/* Hide comments in layout 4 */
+.layout-4 .text-muted.small {
+    display: none;
+}
+
 
 /* Status Colors */
 
@@ -129,11 +276,30 @@
 }
 
 /* Responsive adjustments */
+@media (max-width: 992px) {
+    .layout-4 {
+        grid-template-columns: repeat(2, 1fr);
+        /* Fallback to 2 cols on tablets */
+    }
+}
+
 @media (max-width: 768px) {
+    .trombi-container {
+        grid-template-columns: 1fr;
+        /* Force 1 col on mobile */
+    }
+
+    .layout-2,
+    .layout-4 {
+        grid-template-columns: 1fr;
+    }
+
     .trombi-card {
         flex-direction: column;
         align-items: flex-start;
     }
+
+    /* Reset display contents for mobile if needed, or keep it if it works */
 
     .trombi-frame-container {
         width: 100%;

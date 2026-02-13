@@ -572,7 +572,23 @@
 <div class="tab-pane fade" id="list-trombinoscope" role="tabpanel">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Trombinoscope</span>
+            <div class="d-flex align-items-center gap-2">
+                <span>Trombinoscope</span>
+                <div class="btn-group btn-group-sm ms-3" role="group" aria-label="Layout Options">
+                    <button type="button" class="btn btn-outline-secondary active" data-layout="1"
+                        data-bs-toggle="tooltip" title="Affichage liste (1 par ligne)">
+                        <i class="bi bi-list"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-layout="2" data-bs-toggle="tooltip"
+                        title="Affichage grille (2 par ligne)">
+                        <i class="bi bi-grid"></i>
+                    </button>
+                    <button type="button" class="btn btn-outline-secondary" data-layout="4" data-bs-toggle="tooltip"
+                        title="Affichage compact (4 par ligne)">
+                        <i class="bi bi-grid-3x3"></i>
+                    </button>
+                </div>
+            </div>
             <div class="btn-group">
                 <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal"
                     data-bs-target="#exportImagesModal" data-bs-toggle="tooltip"
