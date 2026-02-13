@@ -31,6 +31,11 @@
             %}href="{{ url_for('event.detail', event_id=event.id) }}#casting-container" {% endif %} role="tab"><i
                 class="bi bi-person-video2"></i> Casting</a>
 
+        <a class="list-group-item list-group-item-action" id="list-trombinoscope-list" {% if is_detail_page
+            %}data-bs-toggle="list" href="#list-trombinoscope" {% else
+            %}href="{{ url_for('event.detail', event_id=event.id) }}#list-trombinoscope" {% endif %} role="tab"><i
+                class="bi bi-grid-3x3-gap"></i> Trombinoscope</a>
+
         <a class="list-group-item list-group-item-action" id="list-paf-list" {% if is_detail_page
             %}data-bs-toggle="list" href="#list-paf" {% else
             %}href="{{ url_for('event.detail', event_id=event.id) }}#list-paf" {% endif %} role="tab"><i

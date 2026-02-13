@@ -643,6 +643,85 @@ def delete_role(event_id, role_id):
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
 
 
+@event_bp.route('/event/<int:event_id>/trombinoscope/export/odt', methods=['GET'])
+@login_required
+@organizer_required
+def export_trombinoscope_odt(event_id):
+    """
+    Exporte le trombinoscope au format ODT.
+    
+    Accès réservé aux organisateurs.
+    Options via query params:
+    - include_type (on/off)
+    - include_player_name (on/off)
+    - group_by_group (on/off)
+    """
+    try:
+        import re
+        event = Event.query.get_or_404(event_id)
+        
+        include_type = request.args.get('include_type') == 'on'
+        include_player_name = request.args.get('include_player_name') == 'on'
+        group_by_group = request.args.get('group_by_group') == 'on'
+
+        from services.odt_service import generate_trombinoscope_odt
+        odt_file = generate_trombinoscope_odt(
+            event_id, 
+            include_type=include_type, 
+            include_player_name=include_player_name, 
+            group_by_group=group_by_group
+        )
+        
+        # Sanitize filename: replace non-alphanumeric with underscore
+        safe_event_name = re.sub(r'[^a-zA-Z0-9]', '_', event.name)
+        filename = f"trombinoscope_{safe_event_name}.odt"
+        
+        from flask import send_file
+        return send_file(
+            odt_file,
+            mimetype='application/vnd.oasis.opendocument.text',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"Erreur export ODT: {e}")
+        flash(f"Erreur lors de la génération du fichier ODT : {str(e)}", 'danger')
+        return redirect(url_for('event.detail', event_id=event_id))
+
+
+@event_bp.route('/event/<int:event_id>/trombinoscope/export/images', methods=['GET'])
+@login_required
+@organizer_required
+def export_trombinoscope_images(event_id):
+    """
+    Exporte les images du trombinoscope dans une archive ZIP.
+    
+    Fichiers nommés: <role>_<groupe>_<joueur>.jpg
+    """
+    try:
+        import re
+        event = Event.query.get_or_404(event_id)
+        
+        from services.image_export_service import generate_trombinoscope_zip
+        zip_file = generate_trombinoscope_zip(event_id)
+        
+        # Sanitize filename
+        safe_event_name = re.sub(r'[^a-zA-Z0-9]', '_', event.name)
+        filename = f"trombinoscope_{safe_event_name}.zip"
+        
+        from flask import send_file
+        return send_file(
+            zip_file,
+            mimetype='application/zip',
+            as_attachment=True,
+            download_name=filename
+        )
+    except Exception as e:
+        current_app.logger.error(f"Erreur export ZIP Images: {e}")
+        flash(f"Erreur lors de la génération de l'archive ZIP : {str(e)}", 'danger')
+        return redirect(url_for('event.detail', event_id=event_id))
+
+
 
 
 

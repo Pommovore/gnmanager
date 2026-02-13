@@ -563,6 +563,148 @@
     </div>
 </div>
 
+{# Trombinoscope Tab (Organizer only) #}
+<link rel="stylesheet" href="{{ url_for('static', filename='css/trombinoscope.css') }}">
+<div class="tab-pane fade" id="list-trombinoscope" role="tabpanel">
+    <div class="card">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Trombinoscope</span>
+            <div class="btn-group">
+                <a href="{{ url_for('event.export_trombinoscope_images', event_id=event.id) }}"
+                    class="btn btn-sm btn-outline-secondary me-2">
+                    <i class="bi bi-images"></i> Exporter (Images)
+                </a>
+                <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
+                    data-bs-target="#exportOdtModal">
+                    <i class="bi bi-file-earmark-word"></i> Exporter (ODT)
+                </button>
+            </div>
+        </div>
+        <div class="card-body bg-body-tertiary">
+            <div class="trombi-container">
+                {% if roles and roles|length > 0 %}
+                {% for role in roles %}
+                <div class="trombi-card">
+                    <div class="trombi-role-info">
+                        <div class="trombi-role-name">{{ role.name }}</div>
+                        <div class="trombi-role-details">
+                            {% if role.type == 'Organisateur' %}
+                            <span class="badge bg-warning text-dark">{{ role.type }}</span>
+                            {% elif role.type == 'PJ' %}
+                            <span class="badge bg-success">{{ role.type }}</span>
+                            {% elif role.type == 'PNJ' %}
+                            <span class="badge bg-info">{{ role.type }}</span>
+                            {% endif %}
+                            {% if role.group %}
+                            <span class="badge bg-secondary ms-2">{{ role.group }}</span>
+                            {% endif %}
+                        </div>
+                        {% if role.comment %}
+                        <div class="mt-2 text-muted small">
+                            <i class="bi bi-info-circle me-1"></i>{{ role.comment }}
+                        </div>
+                        {% endif %}
+                    </div>
+
+                    <div class="trombi-frame-container">
+                        {% if role.assigned_participant %}
+                        {# Logic for Assigned Roles #}
+                        {% set p = role.assigned_participant %}
+                        {# Logic for photo preference: Custom > Profile (if public) > None #}
+                        {% if p.custom_image %}
+                        {# CASE GREEN: Custom image exists #}
+                        <div class="trombi-frame trombi-frame-green">
+                            <img src="{{ p.custom_image }}" alt="Photo Joueur">
+                        </div>
+                        <div class="trombi-label trombi-label-green">{{ p.user.nom }} {{ p.user.prenom }}</div>
+                        {% elif p.user.is_profile_photo_public and p.user.profile_photo_url %}
+                        {# CASE ORANGE: Public profile photo exists #}
+                        <div class="trombi-frame trombi-frame-orange">
+                            <img src="{{ p.user.profile_photo_url }}" alt="Photo Profil">
+                        </div>
+                        <div class="trombi-label trombi-label-orange">
+                            <div>{{ p.user.nom }} {{ p.user.prenom }}</div>
+                            <div class="small fw-normal">(photo du profil)</div>
+                        </div>
+                        {% else %}
+                        {# CASE RED: No photo available #}
+                        <div class="trombi-frame trombi-frame-red">
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                                <i class="bi bi-camera-video-off display-6 mb-2"></i>
+                                <span>Aucune photo n'est disponible</span>
+                            </div>
+                        </div>
+                        <div class="trombi-label trombi-label-red">{{ p.user.nom }} {{ p.user.prenom }}</div>
+                        {% endif %}
+                        {% else %}
+                        {# CASE GREY: Unassigned Role #}
+                        <div class="trombi-frame trombi-frame-grey">
+                            <div class="d-flex flex-column align-items-center justify-content-center h-100">
+                                <i class="bi bi-person-plus display-6 mb-2"></i>
+                                <span>Rôle non encore attribué</span>
+                            </div>
+                        </div>
+                        <div class="trombi-label trombi-label-grey">--</div>
+                        {% endif %}
+                    </div>
+                </div>
+                {% endfor %}
+                {% else %}
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-grid-3x3-gap" style="font-size: 3rem;"></i>
+                    <p class="mt-3">Aucun rôle défini pour générer le trombinoscope.</p>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Export ODT -->
+<div class="modal fade" id="exportOdtModal" tabindex="-1" aria-labelledby="exportOdtModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('event.export_trombinoscope_odt', event_id=event.id) }}" method="GET">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportOdtModalLabel">Options d'export ODT</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Choisissez les informations à inclure dans le trombinoscope :</p>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="include_type" id="odtIncludeType" checked>
+                        <label class="form-check-label" for="odtIncludeType">
+                            Exporter le type de rôle
+                        </label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="include_player_name"
+                            id="odtIncludePlayerName" checked>
+                        <label class="form-check-label" for="odtIncludePlayerName">
+                            Exporter le nom du joueur
+                        </label>
+                    </div>
+
+                    <div class="form-check mb-2">
+                        <input class="form-check-input" type="checkbox" name="group_by_group" id="odtGroupByGroup"
+                            checked>
+                        <label class="form-check-label" for="odtGroupByGroup">
+                            Grouper par groupe de rôle
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">Exporter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+
 
 
 
@@ -716,7 +858,8 @@
                                         <i class="bi bi-info-circle"></i>
                                     </button>
                                 </div>
-                                {% set type_color = 'text-warning' if p.type == 'Organisateur' else ('text-success' if
+                                {% set type_color = 'text-warning' if p.type == 'Organisateur' else ('text-success'
+                                if
                                 p.type == 'PJ' else 'text-primary') %}
                                 <small class="{{ type_color }} fw-bold">({{ p.type }})</small>
                             </td>
@@ -791,7 +934,8 @@
                             </td>
                             <td>
                                 <div class="d-flex align-items-center justify-content-between">
-                                    {% set payment_methods = event.payment_methods|from_json if event.payment_methods
+                                    {% set payment_methods = event.payment_methods|from_json if
+                                    event.payment_methods
                                     else ['Helloasso'] %}
                                     <select class="form-select form-select-sm paf-inline-edit me-1"
                                         data-p-id="{{ p.id }}" data-field="payment_method">
@@ -823,7 +967,8 @@
                                 <div class="paf-remaining-container" data-p-id="{{ p.id }}">
                                     {% if remaining > 0.01 %}
                                     <span class="text-danger fw-bold">{{ "%.2f"|format(remaining) }} €</span>
-                                    {% elif remaining < -0.01 %} <span class="text-success">{{ "%.2f"|format(remaining)
+                                    {% elif remaining < -0.01 %} <span class="text-success">{{
+                                        "%.2f"|format(remaining)
                                         }} €
                                         (Trop perçu)</span>
                                         {% else %}
@@ -915,7 +1060,8 @@
                 <strong>Fonctionnalité désactivée</strong>
                 <p class="mb-0">
                     Le menu GForms est désactivé car aucun "Secret Webhook" n'a été généré pour cet événement.<br>
-                    Veuillez aller dans l'onglet <strong>Généralités</strong>, section "Intégration Google Forms", et
+                    Veuillez aller dans l'onglet <strong>Généralités</strong>, section "Intégration Google Forms",
+                    et
                     générer un secret.
                 </p>
             </div>

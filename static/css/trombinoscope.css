@@ -1,0 +1,143 @@
+/* Trombinoscope Styles */
+
+.trombi-container {
+    padding: 1rem;
+}
+
+.trombi-card {
+    display: flex;
+    flex-direction: row;
+    /* Role info left, Photo right */
+    align-items: center;
+    justify-content: space-between;
+    background-color: var(--bs-body-bg);
+    border: 1px solid var(--bs-border-color);
+    border-radius: var(--bs-border-radius);
+    padding: 1rem;
+    margin-bottom: 1rem;
+    box-shadow: var(--bs-box-shadow-sm);
+    transition: transform 0.2s;
+}
+
+.trombi-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--bs-box-shadow);
+}
+
+.trombi-role-info {
+    flex: 1;
+    padding-right: 1rem;
+}
+
+.trombi-role-name {
+    font-size: 1.2rem;
+    font-weight: bold;
+    margin-bottom: 0.5rem;
+    color: var(--bs-body-color);
+}
+
+.trombi-role-details {
+    font-size: 0.9rem;
+    color: var(--bs-secondary-color);
+}
+
+.trombi-frame-container {
+    flex-shrink: 0;
+    width: 250px;
+    /* Fixed width for consistency */
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.trombi-frame {
+    width: 150px;
+    height: 150px;
+    border-radius: var(--bs-border-radius);
+    overflow: hidden;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--bs-tertiary-bg);
+    border-width: 3px;
+    border-style: solid;
+    margin-bottom: 0.5rem;
+}
+
+.trombi-frame img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.trombi-label {
+    font-size: 0.85rem;
+    text-align: center;
+    font-weight: 500;
+    color: var(--bs-body-color);
+}
+
+/* Status Colors */
+
+/* Green: Assigned & Custom Photo */
+.trombi-frame-green {
+    border-color: var(--bs-success);
+}
+
+.trombi-label-green {
+    color: var(--bs-success);
+}
+
+/* Orange: Assigned & Public Profile Photo (No custom) */
+.trombi-frame-orange {
+    border-color: var(--bs-orange);
+}
+
+.trombi-label-orange {
+    color: var(--bs-orange);
+}
+
+/* Red: Assigned & No Photo */
+.trombi-frame-red {
+    border-color: var(--bs-danger);
+    background-color: var(--bs-danger-bg-subtle);
+    color: var(--bs-danger);
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.trombi-label-red {
+    color: var(--bs-danger);
+}
+
+/* Grey: Unassigned */
+.trombi-frame-grey {
+    border-color: var(--bs-secondary);
+    background-color: var(--bs-secondary-bg-subtle);
+    color: var(--bs-secondary);
+    text-align: center;
+    padding: 1rem;
+    font-size: 0.8rem;
+    font-weight: bold;
+}
+
+.trombi-label-grey {
+    color: var(--bs-secondary);
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .trombi-card {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .trombi-frame-container {
+        width: 100%;
+        align-items: center;
+        margin-top: 1rem;
+    }
+}
