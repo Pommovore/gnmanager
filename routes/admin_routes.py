@@ -171,7 +171,7 @@ def update_profile():
                 validate_upload(file, file_type="image")
                 
                 # Créer le répertoire de stockage
-                static_folder = os.path.join(os.getcwd(), 'static', 'uploads')
+                static_folder = os.path.join(current_app.root_path, 'static', 'uploads')
                 os.makedirs(static_folder, exist_ok=True)
                 
                 # Redimensionner l'image
