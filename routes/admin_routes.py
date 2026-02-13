@@ -180,12 +180,16 @@ def update_profile():
                 
                 # Sauvegarder avec l'ID utilisateur comme nom
                 save_path = os.path.join(static_folder, f"avatar_{current_user.id}.png")
+                current_app.logger.info(f"[DEBUG] Saving avatar to: {save_path}")
                 img.save(save_path)
                 current_user.avatar_url = f"/static/uploads/avatar_{current_user.id}.png"
+                current_app.logger.info(f"[DEBUG] Avatar saved. URL: {current_user.avatar_url}")
             except FileValidationError as e:
+                current_app.logger.error(f"[DEBUG] FileValidation Error: {e}")
                 flash(str(e), 'danger')
                 return redirect(url_for('admin.dashboard'))
             except Exception as e:
+                current_app.logger.error(f"[DEBUG] Upload Error: {e}")
                 flash(f"Erreur lors du traitement de l'image : {str(e)}", 'danger')
                 return redirect(url_for('admin.dashboard'))
 

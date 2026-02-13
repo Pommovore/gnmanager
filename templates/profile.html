@@ -15,7 +15,7 @@
         <label class="form-label">Avatar (max 80x80)</label>
         <input type="file" class="form-control" name="avatar">
         {% if user.avatar_url %}
-        <img src="{{ user.avatar_url }}" class="mt-2" alt="Avatar">
+        <img src="{{ url_for('static', filename=user.avatar_url.replace('/static/', '')) }}" class="mt-2" alt="Avatar">
         {% endif %}
     </div>
     <div class="mb-3">
