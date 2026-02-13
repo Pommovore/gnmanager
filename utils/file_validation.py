@@ -209,3 +209,58 @@ def save_validated_file(file, upload_folder: str, prefix: str = "") -> str:
     
     # Return relative path for database storage
     return new_filename
+
+
+def process_and_save_image(file, upload_folder: str, prefix: str = "", 
+                           target_size: Tuple[int, int] = (600, 800)) -> str:
+    """
+    Validate, resize, convert to JPG and save an image.
+    
+    Args:
+        file: FileStorage object from Flask request
+        upload_folder: Target directory
+        prefix: Filename prefix
+        target_size: Max dimensions (width, height) - default (600, 800)
+        
+    Returns:
+        Filename of the saved JPG image
+        
+    Raises:
+        FileValidationError: If validation fails
+    """
+    # 1. Validation de base
+    validate_upload(file, file_type="image")
+    
+    try:
+        # 2. Ouverture et traitement
+        img = Image.open(file)
+        
+        # Conversion en RGB (nécessaire pour JPG si source est PNG/RGBA)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+            
+        # 3. Redimensionnement (garde les proportions)
+        # thumbnail modifie l'image en place
+        img.thumbnail(target_size, Image.Resampling.LANCZOS)
+        
+        # 4. Génération du nom de fichier (.jpg)
+        original_name = os.path.splitext(secure_filename(file.filename))[0]
+        import time
+        timestamp = int(time.time() * 1000)
+        
+        if prefix:
+            new_filename = f"{prefix}_{timestamp}.jpg"
+        else:
+            new_filename = f"{timestamp}_{original_name}.jpg"
+            
+        # 5. Sauvegarde
+        os.makedirs(upload_folder, exist_ok=True)
+        save_path = os.path.join(upload_folder, new_filename)
+        
+        # Sauvegarde en JPG optimisé
+        img.save(save_path, 'JPEG', quality=85, optimize=True)
+        
+        return new_filename
+        
+    except Exception as e:
+        raise FileValidationError(f"Erreur lors du traitement de l'image : {str(e)}")

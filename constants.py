@@ -149,6 +149,8 @@ class DefaultValues:
     
     DEFAULT_GROUP = 'Peu importe'
     DEFAULT_AVATAR_SIZE = (80, 80)
+    DEFAULT_PROFILE_PHOTO_SIZE = (600, 800)
+    DEFAULT_EVENT_IMAGE_SIZE = (1920, 1080)
     PASSWORD_MIN_LENGTH = 6
     
     # Expiration des tokens

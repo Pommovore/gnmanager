@@ -257,17 +257,23 @@ def update_general(event_id):
         if google_form_url is not None: event.google_form_url = google_form_url
         if org_link_url is not None: event.org_link_url = org_link_url
         
-        # Upload des images de fond avec validation stricte
+        # Upload des images de fond avec validation stricte (JPG 1920x1080)
         import os
         from flask import current_app
-        from utils.file_validation import save_validated_file, FileValidationError
+        from utils.file_validation import process_and_save_image, FileValidationError
+        from constants import DefaultValues
         
         def save_event_image(file, suffix):
-            """Sauvegarder une image d'événement avec validation stricte."""
+            """Sauvegarder une image d'événement avec validation et conversion JPG."""
             if file and file.filename:
                 try:
                     upload_folder = os.path.join(current_app.root_path, 'static/uploads/events')
-                    filename = save_validated_file(file, upload_folder, prefix=f"{event.id}_{suffix}")
+                    filename = process_and_save_image(
+                        file, 
+                        upload_folder, 
+                        prefix=f"{event.id}_{suffix}",
+                        target_size=DefaultValues.DEFAULT_EVENT_IMAGE_SIZE
+                    )
                     return f"uploads/events/{filename}"
                 except FileValidationError as e:
                     flash(str(e), 'danger')

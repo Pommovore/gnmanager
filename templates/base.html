@@ -239,14 +239,27 @@
                             </div>
 
                             <div class="mb-3">
-                                <label for="avatar" class="form-label">Avatar</label>
-                                {% if current_user.avatar_path %}
+                                <label for="avatar" class="form-label">Avatar (max 80x80)</label>
+                                {% if current_user.avatar_url %}
                                 <div class="mb-2">
-                                    <img src="{{ url_for('static', filename=current_user.avatar_path) }}" alt="Avatar"
-                                        class="img-thumbnail" style="max-width: 150px;">
+                                    <img src="{{ url_for('static', filename=current_user.avatar_url.replace('/static/', '')) }}"
+                                        alt="Avatar" class="img-thumbnail" style="max-width: 80px;">
                                 </div>
                                 {% endif %}
                                 <input type="file" class="form-control" id="avatar" name="avatar" accept="image/*">
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="profile_photo" class="form-label">Photo de Profil (max 600x800) - Pour
+                                    événements</label>
+                                {% if current_user.profile_photo_url %}
+                                <div class="mb-2">
+                                    <img src="{{ url_for('static', filename=current_user.profile_photo_url.replace('/static/', '')) }}"
+                                        alt="Photo de Profil" class="img-thumbnail" style="max-width: 200px;">
+                                </div>
+                                {% endif %}
+                                <input type="file" class="form-control" id="profile_photo" name="profile_photo"
+                                    accept="image/*">
                             </div>
 
                             <hr class="my-4">

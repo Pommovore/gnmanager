@@ -44,6 +44,7 @@ class User(UserMixin, db.Model):
     age = db.Column(db.Integer)
     genre = db.Column(db.String(20))
     avatar_url = db.Column(db.String(200))
+    profile_photo_url = db.Column(db.String(200))
     
     # Nouveaux champs de contact
     phone = db.Column(db.String(20))

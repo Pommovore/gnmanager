@@ -159,39 +159,51 @@ def update_profile():
     current_user.discord = request.form.get('discord')
     current_user.facebook = request.form.get('facebook')
     
-    # Gestion de l'avatar avec validation stricte
-    from utils.file_validation import FileValidationError, validate_upload, generate_unique_filename
-    from PIL import Image
+    # Gestion des images avec validation stricte
+    from utils.file_validation import FileValidationError, process_and_save_image
     
+    # Répertoire de stockage commun
+    static_folder = os.path.join(current_app.root_path, 'static', 'uploads')
+    
+    # 1. Avatar (80x80)
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and file.filename != '':
             try:
-                # Validation stricte du fichier
-                validate_upload(file, file_type="image")
-                
-                # Créer le répertoire de stockage
-                static_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-                os.makedirs(static_folder, exist_ok=True)
-                
-                # Redimensionner l'image
-                img = Image.open(file)
-                img.thumbnail(DefaultValues.DEFAULT_AVATAR_SIZE)
-                
-                # Sauvegarder avec l'ID utilisateur comme nom
-                save_path = os.path.join(static_folder, f"avatar_{current_user.id}.png")
-                current_app.logger.info(f"[DEBUG] Saving avatar to: {save_path}")
-                img.save(save_path)
-                current_user.avatar_url = f"/static/uploads/avatar_{current_user.id}.png"
+                filename = process_and_save_image(
+                    file, 
+                    static_folder, 
+                    prefix=f"avatar_{current_user.id}", 
+                    target_size=DefaultValues.DEFAULT_AVATAR_SIZE
+                )
+                current_user.avatar_url = f"/static/uploads/{filename}"
                 current_app.logger.info(f"[DEBUG] Avatar saved. URL: {current_user.avatar_url}")
             except FileValidationError as e:
-                current_app.logger.error(f"[DEBUG] FileValidation Error: {e}")
-                flash(str(e), 'danger')
-                return redirect(url_for('admin.dashboard'))
+                current_app.logger.error(f"[DEBUG] Avatar Error: {e}")
+                flash(f"Erreur Avatar: {str(e)}", 'danger')
+            except Exception as e: # Catch all other errors to avoid crash but log them
+                 current_app.logger.error(f"[DEBUG] Avatar Upload Error: {e}")
+                 flash(f"Erreur inattendue Avatar: {str(e)}", 'danger')
+
+    # 2. Photo de Profil (600x800)
+    if 'profile_photo' in request.files:
+        file = request.files['profile_photo']
+        if file and file.filename != '':
+            try:
+                filename = process_and_save_image(
+                    file, 
+                    static_folder, 
+                    prefix=f"profile_{current_user.id}", 
+                    target_size=DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE
+                )
+                current_user.profile_photo_url = f"/static/uploads/{filename}"
+                current_app.logger.info(f"[DEBUG] Profile Photo saved. URL: {current_user.profile_photo_url}")
+            except FileValidationError as e:
+                current_app.logger.error(f"[DEBUG] Profile Photo Error: {e}")
+                flash(f"Erreur Photo Profil: {str(e)}", 'danger')
             except Exception as e:
-                current_app.logger.error(f"[DEBUG] Upload Error: {e}")
-                flash(f"Erreur lors du traitement de l'image : {str(e)}", 'danger')
-                return redirect(url_for('admin.dashboard'))
+                 current_app.logger.error(f"[DEBUG] Profile Photo Upload Error: {e}")
+                 flash(f"Erreur inattendue Photo Profil: {str(e)}", 'danger')
 
     # Mise à jour du mot de passe
     new_password = request.form.get('new_password')

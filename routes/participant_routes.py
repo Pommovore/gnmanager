@@ -820,37 +820,38 @@ def update_event_photo(event_id, participant_id):
         return redirect(url_for('event.detail', event_id=event_id))
         
     try:
-        # Validation du fichier
-        validate_upload(file, file_type='image')
+        # Validation et Sauvegarde (JPG 600x800)
+        from utils.file_validation import process_and_save_image
+        from constants import DefaultValues
         
         # Création du répertoire de stockage
         # static/uploads/events/<event_id>/participants/
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
-        os.makedirs(upload_folder, exist_ok=True)
         
         # Génération du nom de fichier unique
-        # Format: <nom>_<prenom>_<timestamp>.<ext>
         safe_nom = secure_filename(participant.user.nom or 'unknown')
         safe_prenom = secure_filename(participant.user.prenom or 'unknown')
         prefix = f"{safe_nom}_{safe_prenom}"
         
-        filename = generate_unique_filename(file.filename, prefix=prefix)
-        file_path = os.path.join(upload_folder, filename)
-        
-        # Supprimer l'ancienne photo si elle existe
+        # Supprimer l'ancienne photo si elle existe AVANT de sauvegarder la nouvelle
+        # (Pour éviter de garder des fichiers orphelins si le nom change)
         if participant.custom_image:
-            # On essaie de retrouver le chemin absolu de l'ancienne image
-            # custom_image stocke le chemin relatif web, ex: /static/uploads/...
-            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/'))
+            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/').replace('static/', 'static/', 1))
+            # Note: custom_image est relatif /static/...
+            # On doit gérer le cas où il y a un prefixe ou pas
+            # Le plus simple est de reconstruire le chemin
             if os.path.exists(old_path):
                 try:
                     os.remove(old_path)
                 except OSError:
-                    pass # Ignorer si suppression échoue
-        
-        # Sauvegarde
-        file.seek(0) # Reset stream after validation
-        file.save(file_path)
+                    pass
+
+        filename = process_and_save_image(
+            file, 
+            upload_folder, 
+            prefix=prefix, 
+            target_size=DefaultValues.DEFAULT_AVATAR_SIZE
+        )
         
         # Mise à jour BDD
         # Stocker le chemin relatif pour l'URL
@@ -891,39 +892,57 @@ def copy_profile_to_event_photo(event_id, participant_id):
             return redirect(url_for('event.detail', event_id=event_id))
             
     user = participant.user
-    if not user.avatar_url:
+    user = participant.user
+    
+    # On privilégie la photo de profil (600x800), sinon l'avatar (80x80)
+    source_url = user.profile_photo_url or user.avatar_url
+    
+    if not source_url:
         flash('Aucune photo de profil à copier', 'warning')
         return redirect(url_for('event.detail', event_id=event_id))
         
     try:
-        # Chemin source (avatar_url est relatif web, ex: /static/uploads/avatar_123.png)
-        source_rel = user.avatar_url.lstrip('/')
+        # Chemin source
+        source_rel = source_url.lstrip('/')
         source_path = os.path.join(current_app.root_path, source_rel)
         
         if not os.path.exists(source_path):
-            flash('Phtoto de profil introuvable sur le serveur', 'danger')
+            flash('Photo de profil introuvable sur le serveur', 'danger')
             return redirect(url_for('event.detail', event_id=event_id))
             
         # Chemin destination
         upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
         os.makedirs(upload_folder, exist_ok=True)
         
-        # Nom de fichier destination
+        # Traitement et sauvegarde (JPG 600x800)
+        from PIL import Image
+        from constants import DefaultValues
+        import time
+        
+        # Ouverture de l'image source
+        img = Image.open(source_path)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+            
+        # Redimensionnement vers 600x800 (Profile Size)
+        # On utilise DEFAULT_PROFILE_PHOTO_SIZE même si c'est un avatar source (il restera petit)
+        img.thumbnail(DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE, Image.Resampling.LANCZOS)
+        
+        # Génération nom de fichier destination (.jpg)
         safe_nom = secure_filename(user.nom or 'unknown')
         safe_prenom = secure_filename(user.prenom or 'unknown')
         prefix = f"{safe_nom}_{safe_prenom}"
+        timestamp = int(time.time() * 1000)
+        filename = f"{prefix}_{timestamp}.jpg"
         
-        # Extension
-        _, ext = os.path.splitext(source_path)
-        filename = generate_unique_filename(f"copy{ext}", prefix=prefix)
         dest_path = os.path.join(upload_folder, filename)
         
-        # Copie
-        shutil.copy2(source_path, dest_path)
+        # Sauvegarde
+        img.save(dest_path, 'JPEG', quality=85, optimize=True)
         
         # Supprimer l'ancienne custom_image si elle existe
         if participant.custom_image:
-            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/'))
+            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/').replace('static/', 'static/', 1))
             if os.path.exists(old_path):
                  try:
                     os.remove(old_path)
