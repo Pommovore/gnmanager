@@ -574,11 +574,11 @@
         <div class="card-header d-flex justify-content-between align-items-center">
             <span>Trombinoscope</span>
             <div class="btn-group">
-                <a href="{{ url_for('event.export_trombinoscope_images', event_id=event.id) }}"
-                    class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="tooltip"
+                <button type="button" class="btn btn-sm btn-outline-secondary me-2" data-bs-toggle="modal"
+                    data-bs-target="#exportImagesModal" data-bs-toggle="tooltip"
                     title="Télécharger toutes les photos dans une archive ZIP">
                     <i class="bi bi-images"></i> Exporter (Images)
-                </a>
+                </button>
                 <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal"
                     data-bs-target="#exportOdtModal" data-bs-toggle="tooltip"
                     title="Générer un document ODT imprimable">
@@ -706,6 +706,73 @@
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
                     <button type="submit" class="btn btn-primary">Exporter</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Export Images -->
+<div class="modal fade" id="exportImagesModal" tabindex="-1" aria-labelledby="exportImagesModalLabel"
+    aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('event.export_trombinoscope_images', event_id=event.id) }}" method="GET">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="exportImagesModalLabel">Options d'export Images (ZIP)</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>Configuration de l'archive ZIP :</p>
+
+                    <div class="form-check mb-3">
+                        <input class="form-check-input" type="checkbox" name="include_placeholders"
+                            id="imgIncludePlaceholders" checked>
+                        <label class="form-check-label" for="imgIncludePlaceholders">
+                            Générer les photos non fournies ?
+                        </label>
+                        <div class="form-text small">Si coché, une image de remplacement sera générée pour les rôles
+                            sans photo.</div>
+                    </div>
+
+                    <hr>
+                    <p class="mb-2 fw-bold">Modèle de nommage des fichiers :</p>
+
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="filename_pattern" id="patternRodGrpPly"
+                            value="role_group_player" checked>
+                        <label class="form-check-label" for="patternRodGrpPly">
+                            Rôle - Groupe - Joueur
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="filename_pattern" id="patternGrpRolPly"
+                            value="group_role_player">
+                        <label class="form-check-label" for="patternGrpRolPly">
+                            Groupe - Rôle - Joueur
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="filename_pattern" id="patternPlyRolGrp"
+                            value="player_role_group">
+                        <label class="form-check-label" for="patternPlyRolGrp">
+                            Joueur - Rôle - Groupe
+                        </label>
+                    </div>
+                    <div class="form-check">
+                        <input class="form-check-input" type="radio" name="filename_pattern" id="patternPlyGrpRol"
+                            value="player_group_role">
+                        <label class="form-check-label" for="patternPlyGrpRol">
+                            Joueur - Groupe - Rôle
+                        </label>
+                    </div>
+
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-download"></i> Télécharger le ZIP
+                    </button>
                 </div>
             </form>
         </div>

@@ -696,14 +696,37 @@ def export_trombinoscope_images(event_id):
     """
     Exporte les images du trombinoscope dans une archive ZIP.
     
-    Fichiers nommés: <role>_<groupe>_<joueur>.jpg
+    Query Params:
+    - include_placeholders: 'on' pour inclure (défaut: 'on' si param absent? Non, form standard)
+      NOTE: Si on vient de la modale, on aura ?include_placeholders=on si coché.
+      Si on veut que par défaut (sans query params) ça soit activé, on peut checker si args is empty.
+      Mais restons simple: request.args.get('include_placeholders') == 'on'
+      
+    - filename_pattern: modèle de nommage
     """
     try:
         import re
         event = Event.query.get_or_404(event_id)
         
+        # Récupération des options
+        # Pour la backward compatibility ou lien direct: on peut assumer True par défaut?
+        # Le user a demandé une checkbox "générer les photos non fournies ?".
+        # Donc si on décoche, on ne veut pas.
+        # Si on appelle sans param (ancien lien), on peut vouloir le comportement par défaut (True).
+        # Astuce: On regardera si 'filename_pattern' est présent pour savoir si on vient du form.
+        # Si on vient du form, on respecte la checkbox. Sinon (lien direct), on met True.
+        
+        from_form = 'filename_pattern' in request.args
+        
+        if from_form:
+            include_placeholders = request.args.get('include_placeholders') == 'on'
+        else:
+            include_placeholders = True
+            
+        filename_pattern = request.args.get('filename_pattern', 'role_group_player')
+        
         from services.image_export_service import generate_trombinoscope_zip
-        zip_file = generate_trombinoscope_zip(event_id)
+        zip_file = generate_trombinoscope_zip(event_id, include_placeholders=include_placeholders, filename_pattern=filename_pattern)
         
         # Sanitize filename
         safe_event_name = re.sub(r'[^a-zA-Z0-9]', '_', event.name)

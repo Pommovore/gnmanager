@@ -7,7 +7,7 @@ Ce document définit les standards de développement, l'architecture et les work
 *   **Backend** : Python 3.12+ avec Flask.
 *   **Base de données** : SQLite (Dev/Test/Prod) via SQLAlchemy.
 *   **Frontend** : HTML5, CSS3, JavaScript (Vanilla), Bootstrap 5.3.
-*   **Gestionnaire de dépendances** : `uv`.
+*   **Gestionnaire de dépendances** : `uv`. uv est utilisé pour tous les tests et execution des scripts python
 
 ## 2. Architecture & Organisation du Code
 
