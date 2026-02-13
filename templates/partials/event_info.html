@@ -235,8 +235,9 @@
                             method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
                             <button type="submit" class="btn btn-primary rounded-circle p-3"
-                                title="Copier ma photo de profil vers cet événement" {% if not
-                                current_user.profile_photo_url or participant.custom_image %}disabled{% endif %}>
+                                title="{% if participant.is_photo_locked %}Photo verrouillée par l'organisateur{% else %}Copier ma photo de profil vers cet événement{% endif %}"
+                                {% if not current_user.profile_photo_url or participant.custom_image or
+                                participant.is_photo_locked %}disabled{% endif %}>
                                 <i class="bi bi-arrow-right fs-4"></i>
                             </button>
                         </form>
@@ -246,6 +247,28 @@
                     <!-- Cadre 2 : Photo Événement -->
                     <div class="photo-frame-wrapper">
                         <strong class="mb-2">Ma photo pour {{ event.name }}</strong>
+
+                        {% if participant.is_photo_locked %}
+                        <div class="photo-frame border-danger position-relative"
+                            title="Cette photo a été verrouillée par un organisateur">
+                            {% if participant.custom_image %}
+                            <img src="{{ url_for('static', filename=participant.custom_image.replace('/static/', '')) }}"
+                                alt="Photo pour l'événement">
+                            {% else %}
+                            <div class="text-muted text-center p-2">
+                                <i class="bi bi-lock-fill fs-1 text-danger"></i><br>
+                                Photo verrouillée
+                            </div>
+                            {% endif %}
+                            <span class="position-absolute top-0 end-0 badge bg-danger m-1">
+                                <i class="bi bi-lock-fill"></i>
+                            </span>
+                        </div>
+                        <div class="text-center mt-1">
+                            <small class="text-danger fw-bold"><i class="bi bi-lock-fill"></i> Verrouillé par
+                                l'org.</small>
+                        </div>
+                        {% else %}
                         <div class="photo-frame clickable" data-bs-toggle="modal"
                             data-bs-target="#uploadEventPhotoModal" title="Cliquer pour changer la photo">
                             {% if participant.custom_image %}
@@ -258,6 +281,7 @@
                             </div>
                             {% endif %}
                         </div>
+                        {% endif %}
                     </div>
                 </div>
 

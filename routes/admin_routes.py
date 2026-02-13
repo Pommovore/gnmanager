@@ -159,6 +159,14 @@ def update_profile():
     current_user.discord = request.form.get('discord')
     current_user.facebook = request.form.get('facebook')
     
+    # Checkbox fields
+    # Note: Checkboxes only send 'on' if checked, otherwise nothing.
+    current_user.is_profile_photo_public = request.form.get('is_profile_photo_public') == 'on'
+    
+    # Note: is_admin is not user-editable here, only via specific admin panel if any.
+    # The previous code snippet looked like it was trying to set is_admin, which might be a security risk if exposed in user profile.
+    # I will assumes this is the user profile update route.
+    
     # Gestion des images avec validation stricte
     from utils.file_validation import FileValidationError, process_and_save_image
     

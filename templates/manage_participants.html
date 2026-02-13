@@ -329,90 +329,170 @@
         {% for p in participants %}
         <!-- Modal d'édition -->
         <div class="modal fade" id="editModal{{ p.id }}" tabindex="-1">
-            <div class="modal-dialog">
+            <div class="modal-dialog modal-dialog-scrollable modal-lg">
                 <div class="modal-content">
                     <div class="modal-header">
                         <h5 class="modal-title">Éditer - {{ p.user.nom }} {{ p.user.prenom }}</h5>
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
-                    <form method="POST" action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}">
-                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label class="form-label">Email (lecture seule)</label>
-                                <input type="text" class="form-control bg-light" value="{{ p.user.email }}" readonly>
-                            </div>
+                    <div class="modal-body">
+                        <form method="POST" action="{{ url_for('participant.update', event_id=event.id, p_id=p.id) }}"
+                            enctype="multipart/form-data" id="editForm{{ p.id }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}" />
                             <div class="row">
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Discord</label>
-                                    <input type="text" name="discord" class="form-control"
-                                        value="{{ p.user.discord or '' }}" placeholder="Ex: Pseudo#1234">
+                                <div class="col-md-6 pointer-event">
+                                    <!-- Information User (Read-Only) -->
+                                    <div class="mb-3 border rounded p-3">
+                                        <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-person"></i>
+                                            Participant</h6>
+                                        <div class="d-flex align-items-start">
+                                            {% if p.user.profile_photo_url and p.user.is_profile_photo_public %}
+                                            <img src="{{ url_for('static', filename=p.user.profile_photo_url.replace('/static/', '')) }}"
+                                                class="rounded me-2"
+                                                style="width: 40px; height: 50px; object-fit: cover;"
+                                                title="Photo de profil du joueur">
+                                            {% endif %}
+                                            <div>
+                                                <div class="fw-bold">{{ p.user.nom }} {{ p.user.prenom }}</div>
+                                                <div class="small text-muted">{{ p.user.email }}</div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Photo Management (Event Photo) -->
+                                    <div class="mb-3 border rounded p-3">
+                                        <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-camera"></i> Photo
+                                            événement</h6>
+                                        <div class="d-flex align-items-center mb-3">
+                                            {% if p.custom_image %}
+                                            <img src="{{ url_for('static', filename=p.custom_image.replace('/static/', '')) }}"
+                                                class="rounded me-3 border"
+                                                style="width: 60px; height: 80px; object-fit: cover;">
+                                            {% else %}
+                                            <div class="rounded me-3 bg-light border d-flex align-items-center justify-content-center text-muted small text-center"
+                                                style="width: 60px; height: 80px; line-height: 1;">Vide</div>
+                                            {% endif %}
+                                            <div>
+                                                <div class="form-check form-switch"
+                                                    title="Verrouiller la photo : Empêche le participant de la modifier">
+                                                    <input class="form-check-input" type="checkbox"
+                                                        name="is_photo_locked" id="lockPhoto{{p.id}}" {% if
+                                                        p.is_photo_locked %}checked{% endif %}>
+                                                    <label class="form-check-label small"
+                                                        for="lockPhoto{{p.id}}">Verrouiller</label>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small text-muted">Remplacer / Ajouter</label>
+                                            <input type="file" name="photo" class="form-control form-control-sm">
+                                            <div class="form-text small">Ecrase l'image actuelle (600x800)</div>
+                                        </div>
+                                    </div>
                                 </div>
-                                <div class="col-md-6 mb-3">
-                                    <label class="form-label">Téléphone</label>
-                                    <input type="text" name="phone" class="form-control"
-                                        value="{{ p.user.phone or '' }}" placeholder="Ex: 0612345678">
+
+                                <div class="col-md-6">
+                                    <!-- Contact Info -->
+                                    <div class="mb-3 border rounded p-3">
+                                        <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-chat-left-text"></i>
+                                            Contact</h6>
+                                        <div class="mb-2">
+                                            <label class="form-label small">Discord</label>
+                                            <input type="text" name="discord" class="form-control form-control-sm"
+                                                value="{{ p.user.discord or '' }}" placeholder="Ex: Pseudo#1234">
+                                        </div>
+                                        <div class="mb-2">
+                                            <label class="form-label small">Téléphone</label>
+                                            <input type="text" name="phone" class="form-control form-control-sm"
+                                                value="{{ p.user.phone or '' }}" placeholder="Ex: 0612345678">
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">Facebook</label>
+                                            <input type="text" name="facebook" class="form-control form-control-sm"
+                                                value="{{ p.user.facebook or '' }}">
+                                        </div>
+                                    </div>
+
+                                    <!-- Game Info -->
+                                    <div class="mb-3 border rounded p-3">
+                                        <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-controller"></i> Jeu
+                                        </h6>
+                                        <div class="mb-3">
+                                            <label class="form-label small">Type</label>
+                                            <select name="type" class="form-select form-select-sm" required>
+                                                <option value="Organisateur" {% if p.is_organizer %}selected{% endif %}>
+                                                    Organisateur</option>
+                                                <option value="PJ" {% if p.is_pj %}selected{% endif %}>PJ</option>
+                                                <option value="PNJ" {% if p.is_pnj %}selected{% endif %}>PNJ</option>
+                                            </select>
+                                        </div>
+                                        <div class="mb-0">
+                                            <label class="form-label small">Groupe</label>
+                                            <select name="group" class="form-select form-select-sm"
+                                                id="groupSelect{{p.id}}" data-participant-type="{{p.type}}">
+                                                <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group or
+                                                    'Peu importe' }}</option>
+                                            </select>
+                                        </div>
+                                    </div>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Facebook (Lien Profil)</label>
-                                <input type="text" name="facebook" class="form-control"
-                                    value="{{ p.user.facebook or '' }}" placeholder="Ex: https://facebook.com/pseudo">
+
+                            <!-- Payment Section -->
+                            <div class="mb-3 border rounded p-3">
+                                <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-currency-euro"></i> Paiement
+                                    (PAF)</h6>
+                                <div class="row">
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label small">Statut</label>
+                                        <select name="paf_status" class="form-select form-select-sm">
+                                            <option value="non versée" {% if p.paf_status=='non versée' %}selected{%
+                                                endif %}>Non versée</option>
+                                            <option value="partielle" {% if p.paf_status=='partielle' %}selected{% endif
+                                                %}>Partielle</option>
+                                            <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
+                                                Versée</option>
+                                            <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)' %}selected{%
+                                                endif %}>Dispensé(e)</option>
+                                            <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
+                                                Erreur</option>
+                                        </select>
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label small">Montant (€)</label>
+                                        <input type="number" step="0.01" name="payment_amount"
+                                            class="form-control form-control-sm" value="{{ p.payment_amount }}">
+                                    </div>
+                                    <div class="col-md-4 mb-2">
+                                        <label class="form-label small">Moyen</label>
+                                        <select name="payment_method" class="form-select form-select-sm">
+                                            <option value="" {% if not p.payment_method %}selected{% endif %}>-</option>
+                                            {% for method in payment_methods %}
+                                            <option value="{{ method }}" {% if p.payment_method==method %}selected{%
+                                                endif %}>{{ method }}</option>
+                                            {% endfor %}
+                                            {% if p.payment_method and p.payment_method not in payment_methods %}
+                                            <option value="{{ p.payment_method }}" selected>{{ p.payment_method }}
+                                                (Ancien)</option>
+                                            {% endif %}
+                                        </select>
+                                    </div>
+                                </div>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Type</label>
-                                <select name="type" class="form-select" required>
-                                    <option value="Organisateur" {% if p.is_organizer %}selected{% endif %}>
-                                        Organisateur</option>
-                                    <option value="PJ" {% if p.is_pj %}selected{% endif %}>PJ</option>
-                                    <option value="PNJ" {% if p.is_pnj %}selected{% endif %}>PNJ
-                                    </option>
-                                </select>
+
+                            <!-- Comment Section -->
+                            <div class="mb-3 border rounded p-3">
+                                <h6 class="fw-bold border-bottom pb-2 mb-3"><i class="bi bi-chat-square-text"></i>
+                                    Commentaire</h6>
+                                <textarea name="comment" class="form-control form-control-sm"
+                                    rows="2">{{ p.comment or '' }}</textarea>
                             </div>
-                            <div class="mb-3">
-                                <label class="form-label">Groupe</label>
-                                <select name="group" class="form-select" id="groupSelect{{p.id}}"
-                                    data-participant-type="{{p.type}}">
-                                    <option value="{{ p.group or 'Peu importe' }}" selected>{{ p.group
-                                        or 'Peu
-                                        importe' }}</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">PAF (Participation Aux Frais)</label>
-                                <select name="paf_status" class="form-select">
-                                    <option value="non versée" {% if p.paf_status=='non versée' or not p.paf_status
-                                        %}selected{% endif %}>Non versée</option>
-                                    <option value="partielle" {% if p.paf_status=='partielle' %}selected{% endif %}>
-                                        Partielle</option>
-                                    <option value="versée" {% if p.paf_status=='versée' %}selected{% endif %}>
-                                        Versée</option>
-                                    <option value="dispensé(e)" {% if p.paf_status=='dispensé(e)' %}selected{% endif %}>
-                                        Dispensé(e)</option>
-                                    <option value="erreur" {% if p.paf_status=='erreur' %}selected{% endif %}>
-                                        Erreur</option>
-                                </select>
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Montant (€)</label>
-                                <input type="number" step="0.01" name="payment_amount" class="form-control"
-                                    value="{{ p.payment_amount }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Moyen de paiement</label>
-                                <input type="text" name="payment_method" class="form-control"
-                                    value="{{ p.payment_method or '' }}">
-                            </div>
-                            <div class="mb-3">
-                                <label class="form-label">Commentaire</label>
-                                <textarea name="comment" class="form-control" rows="3">{{ p.comment or '' }}</textarea>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
-                            <button type="submit" class="btn btn-primary">Enregistrer</button>
-                        </div>
-                    </form>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button type="submit" class="btn btn-primary" form="editForm{{ p.id }}">Enregistrer</button>
+                    </div>
                 </div>
             </div>
         </div>

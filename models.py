@@ -45,6 +45,7 @@ class User(UserMixin, db.Model):
     genre = db.Column(db.String(20))
     avatar_url = db.Column(db.String(200))
     profile_photo_url = db.Column(db.String(200))
+    is_profile_photo_public = db.Column(db.Boolean, default=True)
     
     # Nouveaux champs de contact
     phone = db.Column(db.String(20))
@@ -281,6 +282,9 @@ class Participant(db.Model):
     share_phone = db.Column(db.Boolean, default=True)
     share_discord = db.Column(db.Boolean, default=True)
     share_facebook = db.Column(db.Boolean, default=True)
+    
+    # Photo locking by organizer
+    is_photo_locked = db.Column(db.Boolean, default=False)
     
     @property
     def is_organizer(self):

@@ -61,9 +61,13 @@ isateurs.
         ('Gestion des Participants', '#')
     ]
         
+    
+    
+    payment_methods = json.loads(event.payment_methods or '["Helloasso"]')
+    
     unread_count = count_unread_notifications(event.id)
     
-    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, breadcrumbs=breadcrumbs, is_organizer=True, unread_count=unread_count)
+    return render_template('manage_participants.html', event=event, participants=participants, groups_config=groups_config, payment_methods=payment_methods, breadcrumbs=breadcrumbs, is_organizer=True, unread_count=unread_count)
 
 
 @participant_bp.route('/event/<int:event_id>/participants/export')
@@ -253,6 +257,46 @@ def update(event_id, p_id):
     p.payment_method = request.form.get('payment_method')
     p.comment = request.form.get('comment')
     
+    # Gestion du verrouillage de la photo (checkbox)
+    is_locked = request.form.get('is_photo_locked') == 'on'
+    if is_locked != p.is_photo_locked:
+         p.is_photo_locked = is_locked
+         # Log lock change
+    
+    # Gestion de l'upload de photo par l'organisateur
+    if 'photo' in request.files:
+        file = request.files['photo']
+        if file and file.filename != '':
+            try:
+                # Import here to avoid circular dependencies
+                from utils.file_validation import process_and_save_image
+                from constants import DefaultValues
+                
+                # Répertoire de stockage (même que l'upload participant)
+                upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
+                
+                # Nom de fichier sécurisé
+                safe_nom = secure_filename(p.user.nom or 'unknown')
+                safe_prenom = secure_filename(p.user.prenom or 'unknown')
+                prefix = f"{safe_nom}_{safe_prenom}"
+                
+                # Sauvegarde avec redimensionnement (600x800)
+                filename = process_and_save_image(
+                    file, 
+                    upload_folder, 
+                    prefix=prefix, 
+                    target_size=DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE
+                )
+                
+                # Mise à jour du chemin
+                p.custom_image = f"/static/uploads/events/{event_id}/participants/{filename}"
+                flash('Photo du participant mise à jour.', 'success')
+                
+            except FileValidationError as e:
+                flash(f"Erreur photo: {str(e)}", 'danger')
+            except Exception as e:
+                flash(f"Erreur inattendue lors de l'upload: {str(e)}", 'danger')
+
     # Mise à jour des informations de contact de l'utilisateur
     p.user.discord = request.form.get('discord')
     p.user.phone = request.form.get('phone')
@@ -268,14 +312,15 @@ def update(event_id, p_id):
             'update_type': 'single_update',
             'new_type': p.type,
             'new_group': p.group,
-            'paf_status': p.paf_status
+            'paf_status': p.paf_status,
+            'photo_locked': p.is_photo_locked
         })
     )
     db.session.add(log)
     
     db.session.commit()
     flash('Participant mis à jour.', 'success')
-    return redirect(url_for('participant.manage', event_id=event_id))
+    return redirect(url_for('participant.manage', event_id=event.id))
 
 
 @participant_bp.route('/event/<int:event_id>/participant/<int:p_id>/update_paf', methods=['POST'])
