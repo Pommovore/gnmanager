@@ -104,6 +104,7 @@ document.addEventListener('DOMContentLoaded', function () {
     const filterGenre = document.getElementById('participant-filter-genre');
     const filterStatus = document.getElementById('participant-filter-status');
     const filterPaf = document.getElementById('participant-filter-paf');
+    const filterPhoto = document.getElementById('participant-filter-photo');
     const tableRows = document.querySelectorAll('#participants-table tbody tr');
 
     function applyFilters() {
@@ -111,18 +112,21 @@ document.addEventListener('DOMContentLoaded', function () {
         const genreVal = filterGenre ? filterGenre.value : '';
         const statusVal = filterStatus ? filterStatus.value : '';
         const pafVal = filterPaf ? filterPaf.value : '';
+        const photoVal = filterPhoto ? filterPhoto.value : '';
 
         tableRows.forEach(row => {
             const rType = row.dataset.type || '';
             const rGenre = row.dataset.genre || '';
             const rStatus = row.dataset.status || '';
             const rPaf = row.dataset.paf || '';
+            const rPhoto = row.dataset.photo || '';
 
             let show = true;
             if (typeVal && rType !== typeVal) show = false;
             if (genreVal && rGenre !== genreVal) show = false;
             if (statusVal && rStatus !== statusVal) show = false;
             if (pafVal && rPaf !== pafVal) show = false;
+            if (photoVal && rPhoto !== photoVal) show = false;
 
             row.style.display = show ? '' : 'none';
         });
@@ -132,6 +136,7 @@ document.addEventListener('DOMContentLoaded', function () {
     if (filterGenre) filterGenre.addEventListener('change', applyFilters);
     if (filterStatus) filterStatus.addEventListener('change', applyFilters);
     if (filterPaf) filterPaf.addEventListener('change', applyFilters);
+    if (filterPhoto) filterPhoto.addEventListener('change', applyFilters);
 
     // --- Sorting Logic ---
     const sortBtns = document.querySelectorAll('.participant-sort-btn');
@@ -187,4 +192,57 @@ document.addEventListener('DOMContentLoaded', function () {
             rows.forEach(row => tableBody.appendChild(row));
         });
     });
+
+    // --- Email List Logic ---
+    const btnEmailList = document.getElementById('btn-email-list');
+    const emailListModalElement = document.getElementById('emailListModal');
+    const emailListModal = emailListModalElement ? new bootstrap.Modal(emailListModalElement) : null;
+    const emailListTextarea = document.getElementById('emailListTextarea');
+    const copyEmailListBtn = document.getElementById('copyEmailListBtn');
+
+    if (btnEmailList) {
+        btnEmailList.addEventListener('click', function () {
+            const visibleRows = document.querySelectorAll('#participants-table tbody tr:not([style*="display: none"])');
+            let emailList = [];
+
+            visibleRows.forEach(row => {
+                // Get Name
+                const nameDiv = row.querySelector('.d-flex.flex-column strong');
+                const name = nameDiv ? nameDiv.textContent.trim() : 'Inconnu';
+
+                // Get Email (hidden in title or data attribute of the envelope icon)
+                const emailIcon = row.querySelector('.bi-envelope');
+                const email = emailIcon ? emailIcon.dataset.copyText : '';
+
+                if (email) {
+                    emailList.push(`${name} <${email}>,`);
+                }
+            });
+
+            if (emailListTextarea) emailListTextarea.value = emailList.join('\n');
+            if (emailListModal) emailListModal.show();
+        });
+    }
+
+    if (copyEmailListBtn) {
+        copyEmailListBtn.addEventListener('click', function () {
+            if (!emailListTextarea) return;
+            emailListTextarea.select();
+            navigator.clipboard.writeText(emailListTextarea.value).then(() => {
+                const originalHtml = copyEmailListBtn.innerHTML;
+                copyEmailListBtn.innerHTML = '<i class="bi bi-check"></i> Copié !';
+                copyEmailListBtn.classList.remove('btn-primary');
+                copyEmailListBtn.classList.add('btn-success');
+
+                setTimeout(() => {
+                    copyEmailListBtn.innerHTML = originalHtml;
+                    copyEmailListBtn.classList.remove('btn-success');
+                    copyEmailListBtn.classList.add('btn-primary');
+                }, 2000);
+            }).catch(err => {
+                console.error('Erreur lors de la copie :', err);
+                alert('Impossible de copier automatiquement.');
+            });
+        });
+    }
 });

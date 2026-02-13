@@ -301,6 +301,20 @@ class Participant(db.Model):
         """Vérifie si le participant est un PNJ (insensible à la casse)."""
         return self.type and self.type.lower() == 'pnj'
 
+    @property
+    def photo_status(self):
+        """
+        Retourne le statut de la photo du participant:
+        - 'ok': Photo spécifique à l'événement présente
+        - 'profil': Pas de photo événement, mais photo de profil publique
+        - 'ko': Aucune photo
+        """
+        if self.custom_image:
+            return 'ok'
+        if self.user.profile_photo_url and self.user.is_profile_photo_public:
+            return 'profil'
+        return 'ko'
+
     @validates('type')
     def validate_type(self, key, value):
         """Assure que le type est normalisé (Organisateur, PJ, PNJ)."""

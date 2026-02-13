@@ -11,6 +11,10 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span class="fw-bold">Gestion des Participants</span>
                     <div class="d-flex gap-2">
+                        <button type="button" class="btn btn-sm btn-outline-primary" id="btn-email-list"
+                            title="Liste des e-mails">
+                            <i class="bi bi-envelope-paper"></i> Liste E-mails
+                        </button>
                         <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
                             class="btn btn-sm btn-success" title="Exporter en CSV">
                             <i class="bi bi-download"></i> CSV
@@ -24,7 +28,7 @@
                 <div class="card-body">
                     {# Toolbar: Filters #}
                     <div class="row g-2 mb-3 align-items-end">
-                        <div class="col-md-3">
+                        <div class="col-md">
                             <label class="form-label small mb-1 text-muted">Type</label>
                             <select class="form-select form-select-sm" id="participant-filter-type">
                                 <option value="">Tous</option>
@@ -33,7 +37,7 @@
                                 <option value="PNJ">PNJ</option>
                             </select>
                         </div>
-                        <div class="col-md-2">
+                        <div class="col-md">
                             <label class="form-label small mb-1 text-muted">Genre</label>
                             <select class="form-select form-select-sm" id="participant-filter-genre">
                                 <option value="">Tous</option>
@@ -42,7 +46,7 @@
                                 <option value="Autre">Autre</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md">
                             <label class="form-label small mb-1 text-muted">Statut</label>
                             <select class="form-select form-select-sm" id="participant-filter-status">
                                 <option value="">Tous</option>
@@ -52,7 +56,16 @@
                                 <option value="À valider">À valider</option>
                             </select>
                         </div>
-                        <div class="col-md-3">
+                        <div class="col-md">
+                            <label class="form-label small mb-1 text-muted">Photo</label>
+                            <select class="form-select form-select-sm" id="participant-filter-photo">
+                                <option value="">Tous</option>
+                                <option value="ok">OK (Événement)</option>
+                                <option value="profil">Profil (Public)</option>
+                                <option value="ko">KO (Aucune)</option>
+                            </select>
+                        </div>
+                        <div class="col-md">
                             <label class="form-label small mb-1 text-muted">PAF</label>
                             <select class="form-select form-select-sm" id="participant-filter-paf">
                                 <option value="">Tous</option>
@@ -84,6 +97,15 @@
                                             <span>Statut</span>
                                             <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
                                                 data-sort="status">
+                                                <i class="bi bi-arrow-down-up"></i>
+                                            </button>
+                                        </div>
+                                    </th>
+                                    <th class="align-middle text-center" style="min-width: 80px;">
+                                        <div class="d-flex align-items-center justify-content-between">
+                                            <span>Photo</span>
+                                            <button class="btn btn-sm btn-link p-0 text-light participant-sort-btn"
+                                                data-sort="photo">
                                                 <i class="bi bi-arrow-down-up"></i>
                                             </button>
                                         </div>
@@ -134,10 +156,11 @@
 
                                 <tr data-type="{{ p.type }}" data-genre="{{ genre_code }}"
                                     data-status="{% if p.registration_status == 'Validé' %}Validé{% elif p.registration_status == 'Rejeté' %}Rejeté{% elif p.registration_status == 'En attente' %}En attente{% else %}À valider{% endif %}"
-                                    data-paf="{{ p.paf_status }}"
+                                    data-paf="{{ p.paf_status }}" data-photo="{{ p.photo_status }}"
                                     data-sort-participant="{{ p.user.nom }} {{ p.user.prenom }}"
                                     data-sort-contact="{{ contact_score }}"
-                                    data-sort-status="{{ p.registration_status }}" data-sort-role="{{ role_name }}">
+                                    data-sort-status="{{ p.registration_status }}" data-sort-role="{{ role_name }}"
+                                    data-sort-photo="{{ p.photo_status }}">
                                     <!-- Participant -->
                                     <td class="align-middle">
                                         <div class="d-flex align-items-center justify-content-between">
@@ -232,6 +255,19 @@
                                         <span class="badge bg-info">⏳ Attente</span>
                                         {% else %}
                                         <span class="badge bg-warning text-dark">⚠ À valider</span>
+                                        {% endif %}
+                                    </td>
+
+                                    <!-- Photo Status -->
+                                    <td class="align-middle text-center">
+                                        {% if p.photo_status == 'ok' %}
+                                        <span class="badge rounded-pill bg-success"
+                                            title="Photo spécifique événement">OK</span>
+                                        {% elif p.photo_status == 'profil' %}
+                                        <span class="badge rounded-pill bg-warning text-dark"
+                                            title="Photo de profil publique">Profil</span>
+                                        {% else %}
+                                        <span class="badge rounded-pill bg-danger" title="Aucune photo">KO</span>
                                         {% endif %}
                                     </td>
 
@@ -571,4 +607,30 @@
     </div> {# Close container-fluid #}
 </div> {# Close col-md-10 #}
 </div> {# Close row #}
+
+<!-- Email List Modal -->
+<div class="modal fade" id="emailListModal" tabindex="-1" aria-labelledby="emailListModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="emailListModalLabel">Liste des E-mails</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p class="small text-muted mb-2">
+                    Liste des e-mails des participants actuellement affichés.
+                    Format : <code>&lt;Nom Prénom&gt; email,</code>
+                </p>
+                <textarea class="form-control" id="emailListTextarea" rows="15" readonly
+                    style="font-family: monospace; font-size: 0.9em;"></textarea>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Fermer</button>
+                <button type="button" class="btn btn-primary" id="copyEmailListBtn">
+                    <i class="bi bi-clipboard"></i> Copier
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 {% endblock %}
