@@ -850,7 +850,7 @@ def update_event_photo(event_id, participant_id):
             file, 
             upload_folder, 
             prefix=prefix, 
-            target_size=DefaultValues.DEFAULT_AVATAR_SIZE
+            target_size=DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE
         )
         
         # Mise à jour BDD
