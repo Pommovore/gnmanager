@@ -599,16 +599,16 @@
             <div class="d-flex align-items-center gap-2">
                 <span>Trombinoscope</span>
                 <div class="btn-group btn-group-sm ms-3" role="group" aria-label="Layout Options">
-                    <button type="button" class="btn btn-outline-secondary active" data-layout="1"
-                        data-bs-toggle="tooltip" title="Affichage liste (1 par ligne)">
+                    <button type="button" class="btn btn-outline-secondary" data-layout="1" data-bs-toggle="tooltip"
+                        title="Affichage liste (1 par ligne)">
                         <i class="bi bi-list"></i>
                     </button>
                     <button type="button" class="btn btn-outline-secondary" data-layout="2" data-bs-toggle="tooltip"
                         title="Affichage grille (2 par ligne)">
                         <i class="bi bi-grid"></i>
                     </button>
-                    <button type="button" class="btn btn-outline-secondary" data-layout="4" data-bs-toggle="tooltip"
-                        title="Affichage compact (4 par ligne)">
+                    <button type="button" class="btn btn-outline-secondary active" data-layout="4"
+                        data-bs-toggle="tooltip" title="Affichage compact (4 par ligne)">
                         <i class="bi bi-grid-3x3"></i>
                     </button>
                 </div>
@@ -627,7 +627,7 @@
             </div>
         </div>
         <div class="card-body bg-body-tertiary">
-            <div class="trombi-container">
+            <div class="trombi-container layout-4">
                 {% if roles and roles|length > 0 %}
                 {% for role in roles %}
                 <div class="trombi-card">

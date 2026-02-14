@@ -129,6 +129,11 @@ def detail(event_id):
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
     # Contrôle d'accès pour les événements privés
+    # 1. Si le participant est rejeté, accès bloqué directement
+    if participant and participant.registration_status == RegistrationStatus.REJECTED.value and not current_user.is_admin:
+        return render_template('event_access_denied.html', event=event, breadcrumbs=[('GN Manager', url_for('admin.dashboard')), (event.name, '#')])
+
+    # 2. Si l'événement est privé et que l'utilisateur n'est ni admin ni participant valide/en attente
     if event.visibility == 'private' and not participant and not current_user.is_admin:
         # Vérifier si l'utilisateur a le token d'accès en session (lié à son ID pour éviter le partage de session)
         if not session.get(f'event_access_{event_id}_{current_user.id}'):
@@ -206,7 +211,7 @@ def verify_access_code(event_id):
         flash('Accès autorisé.', 'success')
         return redirect(url_for('event.detail', event_id=event_id))
     else:
-        flash('Code d\'accès incorrect.', 'danger')
+        flash('Code incorrect', 'danger')
         return render_template('event_access_code.html', event=event, breadcrumbs=[('GN Manager', url_for('admin.dashboard')), (event.name, '#')])
 
 
