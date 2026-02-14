@@ -56,17 +56,30 @@ def dashboard():
     events = []
     now = datetime.now()
     
+    # Filtrage de visibilité (sauf pour les admins qui voient tout/le filtre 'mine' qui implique déjà l'accès)
+    # Pour 'future', 'past', et 'all', on doit exclure les événements privés où l'utilisateur n'est pas participant
+    base_query = Event.query
+    if not current_user.is_admin and filter_type != 'mine':
+        # On inclut les événements publics OU les événements privés où l'utilisateur est participant
+        from sqlalchemy import or_
+        base_query = base_query.filter(
+            or_(
+                Event.visibility != 'private',
+                Event.id.in_(my_event_ids)
+            )
+        )
+
     if filter_type == 'mine':
         # Événements auxquels je participe
         if my_event_ids:
             events = Event.query.filter(Event.id.in_(my_event_ids)).order_by(Event.date_start).all()
     elif filter_type == 'future':
-        events = Event.query.filter(Event.date_start >= now).order_by(Event.date_start).all()
+        events = base_query.filter(Event.date_start >= now).order_by(Event.date_start).all()
     elif filter_type == 'past':
-        events = Event.query.filter(Event.date_end < now).order_by(Event.date_start.desc()).all()
+        events = base_query.filter(Event.date_end < now).order_by(Event.date_start.desc()).all()
     else:
         # 'all'
-        events = Event.query.order_by(Event.date_start).all()
+        events = base_query.order_by(Event.date_start).all()
         
     # Admin Sub-Navigation
     admin_view = request.args.get('admin_view')

@@ -12,7 +12,7 @@ Ce module gère :
 - Inscription à un événement
 """
 
-from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app
+from flask import Blueprint, render_template, request, redirect, url_for, flash, jsonify, current_app, session
 from markupsafe import Markup
 from flask_login import login_required, current_user
 from models import db, Event, Participant, Role, CastingProposal, CastingAssignment, ActivityLog, User
@@ -128,6 +128,12 @@ def detail(event_id):
     # Vérifier si l'utilisateur est participant
     participant = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     
+    # Contrôle d'accès pour les événements privés
+    if event.visibility == 'private' and not participant and not current_user.is_admin:
+        # Vérifier si l'utilisateur a le token d'accès en session (lié à son ID pour éviter le partage de session)
+        if not session.get(f'event_access_{event_id}_{current_user.id}'):
+            return render_template('event_access_code.html', event=event, breadcrumbs=[('GN Manager', url_for('admin.dashboard')), (event.name, '#')])
+    
     is_organizer = participant and participant.is_organizer and participant.registration_status == RegistrationStatus.VALIDATED.value
     groups_config = json.loads(event.groups_config or '{}')
 
@@ -188,6 +194,21 @@ def detail(event_id):
                           count_pjs=count_pjs, count_pnjs=count_pnjs, count_orgs=count_orgs, roles=roles, assigned_role=assigned_role,
                           paf_config=paf_config, paf_map=paf_map, notifications=notifications, unread_count=unread_count)
 
+@event_bp.route('/event/<int:event_id>/access', methods=['POST'])
+@login_required
+def verify_access_code(event_id):
+    """Vérifie le code d'accès pour un événement privé."""
+    event = Event.query.get_or_404(event_id)
+    code = request.form.get('access_code')
+    
+    if event.access_code and code == event.access_code:
+        session[f'event_access_{event_id}_{current_user.id}'] = True
+        flash('Accès autorisé.', 'success')
+        return redirect(url_for('event.detail', event_id=event_id))
+    else:
+        flash('Code d\'accès incorrect.', 'danger')
+        return render_template('event_access_code.html', event=event, breadcrumbs=[('GN Manager', url_for('admin.dashboard')), (event.name, '#')])
+
 
 @event_bp.route('/event/<int:event_id>/update_general', methods=['POST'])
 @login_required
@@ -228,6 +249,8 @@ def update_general(event_id):
     organizing_association = request.form.get('organizing_association')
     discord_webhook_url = request.form.get('discord_webhook_url')
     display_organizers = request.form.get('display_organizers') == 'on'
+    is_private = request.form.get('is_private') == 'on'
+    access_code = request.form.get('access_code', '').strip()
     statut = request.form.get('statut')
     
     try:
@@ -247,6 +270,8 @@ def update_general(event_id):
         if statut: event.statut = statut
         event.discord_webhook_url = discord_webhook_url
         event.org_link_title = org_link_title
+        event.visibility = 'private' if is_private else 'public'
+        event.access_code = access_code if is_private else None
         
         if date_start_str: 
             event.date_start = datetime.strptime(date_start_str, '%Y-%m-%d')

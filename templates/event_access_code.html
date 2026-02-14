@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Accès à l'événement{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-5">
+            <div class="card shadow">
+                <div class="card-header text-center">
+                    <h4 class="mb-0">
+                        <i class="bi bi-lock-fill me-2"></i>Événement privé
+                    </h4>
+                </div>
+                <div class="card-body p-4">
+                    <p class="text-center mb-3">
+                        <strong>{{ event.name }}</strong> est un événement privé.
+                    </p>
+                    <p class="text-center text-muted small mb-4">
+                        Veuillez entrer le code d'accès fourni par l'organisateur.
+                    </p>
+                    <form method="POST" action="{{ url_for('event.verify_access_code', event_id=event.id) }}">
+                        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                        <div class="mb-3">
+                            <label for="access_code" class="form-label">Code d'accès</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-key-fill"></i></span>
+                                <input type="text" class="form-control form-control-lg" id="access_code"
+                                    name="access_code" placeholder="Entrez le code" required autofocus>
+                            </div>
+                        </div>
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="bi bi-unlock-fill me-2"></i>Accéder
+                            </button>
+                            <a href="{{ url_for('admin.dashboard') }}" class="btn btn-outline-secondary">
+                                <i class="bi bi-arrow-left me-2"></i>Retour
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

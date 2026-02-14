@@ -108,6 +108,7 @@ class Event(db.Model):
     background_image_light = db.Column(db.String(200))
     background_image_dark = db.Column(db.String(200))
     visibility = db.Column(db.String(20), default='public')  # public, private
+    access_code = db.Column(db.String(50), nullable=True)  # Code d'accès pour événements privés
     organizing_association = db.Column(db.String(150), default='une entité mystérieuse et inquiétante')
     organizer_structure = db.Column(db.String(100))
     org_link_url = db.Column(db.String(255))

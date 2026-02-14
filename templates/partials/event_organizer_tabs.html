@@ -10,6 +10,30 @@
                 enctype="multipart/form-data">
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
+                <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
+                    <h5 class="mb-3">Visibilité</h5>
+                    <div class="row align-items-center">
+                        <div class="col-md-6 mb-3">
+                            <div class="d-flex align-items-center">
+                                <label class="me-3 text-nowrap" for="access_code_input">Code d'accès :</label>
+                                <input type="text" class="form-control" id="access_code_input" name="access_code"
+                                    value="{{ event.access_code or '' }}" placeholder="Code d'accès à l'événement" {{ ''
+                                    if event.visibility=='private' else 'disabled' }}>
+                            </div>
+                        </div>
+                        <div class="col-md-6 mb-3 d-flex align-items-center">
+                            <div class="form-check">
+                                <input class="form-check-input" type="checkbox" name="is_private" id="is_private"
+                                    {{ 'checked' if event.visibility=='private' else '' }}
+                                    onchange="document.getElementById('access_code_input').disabled = !this.checked;">
+                                <label class="form-check-label" for="is_private">
+                                    Événement privé ?
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
                     <h5 class="mb-3">Informations Principales</h5>
                     <div class="row">
