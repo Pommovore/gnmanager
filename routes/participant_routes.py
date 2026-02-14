@@ -1041,7 +1041,7 @@ def bulk_delete(event_id):
         
         for p in participants:
             # Protection : ne pas supprimer les organisateurs
-            if p.type == ParticipantType.ORGANIZER.value:
+            if p.type == ParticipantType.ORGANISATEUR.value:
                 skipped_orga.append(f"{p.user.nom} {p.user.prenom}")
                 continue
             
