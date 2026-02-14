@@ -103,6 +103,74 @@
     {% endfor %}
 </div>
 
-<link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
-<script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
-{% endblock %}
+{% if events|length < 3 %} <div class="mt-5 pt-5 pb-5">
+    <div class="d-flex flex-wrap justify-content-center gap-5 position-relative"
+        style="overflow: hidden; padding: 50px;">
+
+        <!-- Tim Cook -->
+        <div class="card p-3 shadow text-dark"
+            style="max-width: 300px; transform: rotate(17deg); background-color: #fdfbf7; border: 1px solid #ddd; font-family: 'Times New Roman', serif;">
+            <div class="card-body">
+                <h5 class="card-title fw-bold">🍏 Tim Cook (Apple)</h5>
+                <p class="card-text fst-italic">« C’est une révolution. Nous avons réinventé le bouton "S’inscrire". Il
+                    est si beau que vous aurez envie de cliquer dessus juste pour le plaisir de voir le curseur bouger.
+                    C’est l’expérience d’inscription la plus magique et la plus pro-vie privée que nous ayons jamais
+                    ignorée pour créer la nôtre dans deux ans. C’est "Inscrire" avec un grand I. »</p>
+            </div>
+        </div>
+
+        <!-- Elon Musk -->
+        <div class="card p-3 shadow text-dark"
+            style="max-width: 300px; transform: rotate(-22deg); background-color: #fdfbf7; border: 1px solid #ddd; font-family: 'Times New Roman', serif;">
+            <div class="card-body">
+                <h5 class="card-title fw-bold">🚀 Elon Musk (X / Tesla / SpaceX)</h5>
+                <p class="card-text fst-italic">« Pas mal. Mais est-ce que ce logiciel peut gérer 14 millions
+                    d'inscriptions simultanées pour le premier festival de techno sur Mars ? Si la réponse est non,
+                    c’est du code de "low energy". S’il y a un mode "LUDICROUS" pour remplir la salle en 3 secondes, je
+                    rachète la boîte et je change le nom pour "Z". »</p>
+            </div>
+        </div>
+
+        <!-- Mark Zuckerberg -->
+        <div class="card p-3 shadow text-dark"
+            style="max-width: 300px; transform: rotate(28deg); background-color: #fdfbf7; border: 1px solid #ddd; font-family: 'Times New Roman', serif;">
+            <div class="card-body">
+                <h5 class="card-title fw-bold">👓 Mark Zuckerberg (Meta)</h5>
+                <p class="card-text fst-italic">« J’adore ce logiciel. Il me permet de savoir exactement qui vient à la
+                    soirée, ce qu’ils mangent, et s’ils sont tristes ou contents d'être là, avant même qu'ils ne passent
+                    la porte. On se voit dans le métavers pour le check-in ? J'ai un nouvel avatar avec des jambes
+                    exprès pour l'occasion. »</p>
+            </div>
+        </div>
+
+        <!-- Bill Gates -->
+        <div class="card p-3 shadow text-dark"
+            style="max-width: 300px; transform: rotate(-15deg); background-color: #fdfbf7; border: 1px solid #ddd; font-family: 'Times New Roman', serif;">
+            <div class="card-body">
+                <h5 class="card-title fw-bold">💻 Bill Gates (Microsoft)</h5>
+                <p class="card-text fst-italic">« C’est fantastique. J’ai particulièrement apprécié la façon dont le
+                    formulaire d’inscription s’intègre parfaitement à Excel. Rien ne me procure plus de sérotonine
+                    qu’une liste d’invités triée par ordre alphabétique dans un tableau croisé dynamique. C’est...
+                    excitant. »</p>
+            </div>
+        </div>
+
+        <!-- Jeff Bezos -->
+        <div class="card p-3 shadow text-dark"
+            style="max-width: 300px; transform: rotate(19deg); background-color: #fdfbf7; border: 1px solid #ddd; font-family: 'Times New Roman', serif;">
+            <div class="card-body">
+                <h5 class="card-title fw-bold">📦 Jeff Bezos (Amazon)</h5>
+                <p class="card-text fst-italic">« Le bouton "S'inscrire en 1-Click" est une œuvre d'art. J'ai testé le
+                    logiciel : j'ai voulu m'inscrire à un séminaire de yoga, et avant même d'avoir fini de taper mon
+                    nom, un drone livrait déjà mon badge et un tapis de sol dans mon jardin. Efficiency is everything. »
+                </p>
+            </div>
+        </div>
+
+    </div>
+    </div>
+    {% endif %}
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/dashboard.css') }}">
+    <script src="{{ url_for('static', filename='js/dashboard.js') }}"></script>
+    {% endblock %}

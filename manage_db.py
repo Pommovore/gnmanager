@@ -431,15 +431,33 @@ def import_data_csv(args):
     logger.info("Import CSV terminé.")
 
 
+def disconnect_circular_dependencies(db):
+    """Rompt les liens circulaires pour permettre la suppression propre."""
+    from models import Role, Participant
+    logger.info("  - Déconnexion des dépendances circulaires (Rôles <-> Participants)...")
+    try:
+        # Met à jour les rôles pour ne plus pointer vers les participants
+        db.session.query(Role).update({Role.assigned_participant_id: None})
+        
+        # Met à jour les participants pour ne plus pointer vers les rôles
+        db.session.query(Participant).update({Participant.role_id: None})
+        
+        db.session.commit()
+    except Exception as e:
+        logger.warning(f"  - Erreur déconnexion circulaire (non critique si tables vides): {e}")
+        db.session.rollback()
+
 def clean_database(db):
     """Vide la base de données dans l'ordre correct."""
     from models import (User, Event, Participant, Role, EventLink,
                         PasswordResetToken, AccountValidationToken,
                         ActivityLog, CastingProposal, CastingAssignment, FormResponse,
-                        GFormsCategory, GFormsFieldMapping, GFormsSubmission)
+                        EventNotification, GFormsCategory, GFormsFieldMapping, GFormsSubmission)
                         
     logger.info("Nettoyage complet de la base...")
     try:
+        disconnect_circular_dependencies(db)
+        
         db.session.query(EventNotification).delete()
         db.session.query(GFormsSubmission).delete()
         db.session.query(GFormsFieldMapping).delete()
@@ -449,7 +467,7 @@ def clean_database(db):
         db.session.query(ActivityLog).delete()
         db.session.query(AccountValidationToken).delete()
         db.session.query(PasswordResetToken).delete()
-        db.session.query(FormResponse).delete() # Added
+        db.session.query(FormResponse).delete() 
         db.session.query(Participant).delete()
         db.session.query(Role).delete()
         db.session.query(EventLink).delete()
@@ -514,6 +532,8 @@ def reset_db(args):
                               Role, Event, EventLink, FormResponse, EventNotification,
                               GFormsCategory, GFormsFieldMapping, GFormsSubmission)
                               
+            disconnect_circular_dependencies(db)
+
             db.session.query(EventNotification).delete()
             db.session.query(GFormsSubmission).delete()
             db.session.query(GFormsFieldMapping).delete()

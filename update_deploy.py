@@ -56,6 +56,7 @@ def main():
 
     parser.add_argument("--key", help="Chemin vers la clé SSH privée")
     parser.add_argument("--systemd", action="store_true", help="Redémarrer le service systemd")
+    parser.add_argument("--migrate", action="store_true", help="Exécuter la migration DB (migrate_to_v0_11.py)")
     args = parser.parse_args()
 
     # Détermination de l'environnement
@@ -253,7 +254,23 @@ def main():
         print(f"⚠️ Erreur mise à jour config: {e}")
     sftp.close()
 
-    # 6. Relance service (Optionnel)
+    # 6. MIGRATION (Optionnel)
+    if args.migrate:
+        print("🏗️  Exécution de la migration de base de données...")
+        migration_script = "migrate_to_v0_11.py"
+        # On vérifie si le script existe
+        check_cmd = f"test -f {os.path.join(app_dir, migration_script)}"
+        if run_remote(ssh, check_cmd, sudo=True, password=password):
+             # On le lance avec uv run
+             migrate_cmd = f"cd {app_dir} && export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {migration_script}"
+             if run_remote(ssh, migrate_cmd, sudo=True, password=password):
+                 print("✅ Migration terminée avec succès.")
+             else:
+                 print("❌ Erreur lors de la migration.")
+        else:
+            print(f"⚠️  Script de migration {migration_script} introuvable sur le serveur.")
+
+    # 7. Relance service (Optionnel)
     if args.systemd:
         print("▶️  Redémarrage du service...")
         if run_remote(ssh, f"systemctl start {service_name}", sudo=True, password=password):
