@@ -170,27 +170,31 @@ def update_profile():
     # Gestion des images avec validation stricte
     from utils.file_validation import FileValidationError, process_and_save_image
     
-    # Répertoire de stockage commun
-    static_folder = os.path.join(current_app.root_path, 'static', 'uploads')
-    
     # 1. Avatar (80x80)
     if 'avatar' in request.files:
         file = request.files['avatar']
         if file and file.filename != '':
             try:
+                # Supprimer l'ancien avatar si existant
+                if current_user.avatar_url:
+                    old_path = os.path.join(current_app.root_path, current_user.avatar_url.lstrip('/'))
+                    if os.path.exists(old_path):
+                        try:
+                            os.remove(old_path)
+                        except OSError:
+                            pass
+                
+                avatar_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'users', 'avatars')
                 filename = process_and_save_image(
                     file, 
-                    static_folder, 
+                    avatar_folder, 
                     prefix=f"avatar_{current_user.id}", 
                     target_size=DefaultValues.DEFAULT_AVATAR_SIZE
                 )
-                current_user.avatar_url = f"/static/uploads/{filename}"
-                current_app.logger.info(f"[DEBUG] Avatar saved. URL: {current_user.avatar_url}")
+                current_user.avatar_url = f"/static/uploads/users/avatars/{filename}"
             except FileValidationError as e:
-                current_app.logger.error(f"[DEBUG] Avatar Error: {e}")
                 flash(f"Erreur Avatar: {str(e)}", 'danger')
-            except Exception as e: # Catch all other errors to avoid crash but log them
-                 current_app.logger.error(f"[DEBUG] Avatar Upload Error: {e}")
+            except Exception as e:
                  flash(f"Erreur inattendue Avatar: {str(e)}", 'danger')
 
     # 2. Photo de Profil (600x800)
@@ -198,19 +202,26 @@ def update_profile():
         file = request.files['profile_photo']
         if file and file.filename != '':
             try:
+                # Supprimer l'ancienne photo de profil si existante
+                if current_user.profile_photo_url:
+                    old_path = os.path.join(current_app.root_path, current_user.profile_photo_url.lstrip('/'))
+                    if os.path.exists(old_path):
+                        try:
+                            os.remove(old_path)
+                        except OSError:
+                            pass
+                
+                profile_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'users', 'profile')
                 filename = process_and_save_image(
                     file, 
-                    static_folder, 
+                    profile_folder, 
                     prefix=f"profile_{current_user.id}", 
                     target_size=DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE
                 )
-                current_user.profile_photo_url = f"/static/uploads/{filename}"
-                current_app.logger.info(f"[DEBUG] Profile Photo saved. URL: {current_user.profile_photo_url}")
+                current_user.profile_photo_url = f"/static/uploads/users/profile/{filename}"
             except FileValidationError as e:
-                current_app.logger.error(f"[DEBUG] Profile Photo Error: {e}")
                 flash(f"Erreur Photo Profil: {str(e)}", 'danger')
             except Exception as e:
-                 current_app.logger.error(f"[DEBUG] Profile Photo Upload Error: {e}")
                  flash(f"Erreur inattendue Photo Profil: {str(e)}", 'danger')
 
     # Mise à jour du mot de passe

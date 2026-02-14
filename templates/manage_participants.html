@@ -11,6 +11,10 @@
                 <div class="card-header d-flex justify-content-between align-items-center">
                     <span class="fw-bold">Gestion des Participants</span>
                     <div class="d-flex gap-2">
+                        <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
+                            class="btn btn-sm btn-success" title="Exporter en CSV">
+                            <i class="bi bi-download"></i> CSV
+                        </a>
                         <button type="button" class="btn btn-sm btn-outline-primary" id="btn-email-list"
                             title="E-mails des participants de la liste filtrée">
                             <i class="bi bi-envelope-paper"></i> Liste E-mails
@@ -19,10 +23,6 @@
                             title="Supprimer les participants de la liste filtrée">
                             <i class="bi bi-trash"></i> Supprimer
                         </button>
-                        <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
-                            class="btn btn-sm btn-success" title="Exporter en CSV">
-                            <i class="bi bi-download"></i> CSV
-                        </a>
                         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal"
                             data-bs-target="#exportModal" title="Plus d'options d'export">
                             <i class="bi bi-three-dots"></i>

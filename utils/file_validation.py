@@ -243,15 +243,12 @@ def process_and_save_image(file, upload_folder: str, prefix: str = "",
         # thumbnail modifie l'image en place
         img.thumbnail(target_size, Image.Resampling.LANCZOS)
         
-        # 4. Génération du nom de fichier (.jpg)
-        original_name = os.path.splitext(secure_filename(file.filename))[0]
-        import time
-        timestamp = int(time.time() * 1000)
-        
+        # 4. Génération du nom de fichier (.jpg) - déterministe pour écraser l'ancien
         if prefix:
-            new_filename = f"{prefix}_{timestamp}.jpg"
+            new_filename = f"{prefix}.jpg"
         else:
-            new_filename = f"{timestamp}_{original_name}.jpg"
+            original_name = os.path.splitext(secure_filename(file.filename))[0]
+            new_filename = f"{original_name}.jpg"
             
         # 5. Sauvegarde
         os.makedirs(upload_folder, exist_ok=True)

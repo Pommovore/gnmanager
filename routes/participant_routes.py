@@ -272,7 +272,16 @@ def update(event_id, p_id):
                 from utils.file_validation import process_and_save_image
                 from constants import DefaultValues
                 
-                # Répertoire de stockage (même que l'upload participant)
+                # Supprimer l'ancienne photo si existante
+                if p.custom_image:
+                    old_path = os.path.join(current_app.root_path, p.custom_image.lstrip('/'))
+                    if os.path.exists(old_path):
+                        try:
+                            os.remove(old_path)
+                        except OSError:
+                            pass
+                
+                # Répertoire de stockage
                 upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event_id), 'participants')
                 
                 # Nom de fichier sécurisé
@@ -973,26 +982,25 @@ def copy_profile_to_event_photo(event_id, participant_id):
         # On utilise DEFAULT_PROFILE_PHOTO_SIZE même si c'est un avatar source (il restera petit)
         img.thumbnail(DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE, Image.Resampling.LANCZOS)
         
-        # Génération nom de fichier destination (.jpg)
+        # Génération nom de fichier destination (.jpg) - déterministe
         safe_nom = secure_filename(user.nom or 'unknown')
         safe_prenom = secure_filename(user.prenom or 'unknown')
         prefix = f"{safe_nom}_{safe_prenom}"
-        timestamp = int(time.time() * 1000)
-        filename = f"{prefix}_{timestamp}.jpg"
-        
-        dest_path = os.path.join(upload_folder, filename)
-        
-        # Sauvegarde
-        img.save(dest_path, 'JPEG', quality=85, optimize=True)
+        filename = f"{prefix}.jpg"
         
         # Supprimer l'ancienne custom_image si elle existe
         if participant.custom_image:
-            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/').replace('static/', 'static/', 1))
+            old_path = os.path.join(current_app.root_path, participant.custom_image.lstrip('/'))
             if os.path.exists(old_path):
                  try:
                     os.remove(old_path)
                  except OSError:
                     pass
+        
+        dest_path = os.path.join(upload_folder, filename)
+        
+        # Sauvegarde
+        img.save(dest_path, 'JPEG', quality=85, optimize=True)
         
         # Mise à jour BDD
         participant.custom_image = f"/static/uploads/events/{event_id}/participants/{filename}"

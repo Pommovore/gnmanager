@@ -267,14 +267,25 @@ def update_general(event_id):
             """Sauvegarder une image d'événement avec validation et conversion JPG."""
             if file and file.filename:
                 try:
-                    upload_folder = os.path.join(current_app.root_path, 'static/uploads/events')
+                    # Supprimer l'ancienne image si elle existe
+                    old_attr = f"background_image_{suffix}"
+                    old_value = getattr(event, old_attr, None)
+                    if old_value:
+                        old_path = os.path.join(current_app.root_path, 'static', old_value)
+                        if os.path.exists(old_path):
+                            try:
+                                os.remove(old_path)
+                            except OSError:
+                                pass
+                    
+                    upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'events', str(event.id))
                     filename = process_and_save_image(
                         file, 
                         upload_folder, 
-                        prefix=f"{event.id}_{suffix}",
+                        prefix=suffix,
                         target_size=DefaultValues.DEFAULT_EVENT_IMAGE_SIZE
                     )
-                    return f"uploads/events/{filename}"
+                    return f"uploads/events/{event.id}/{filename}"
                 except FileValidationError as e:
                     flash(str(e), 'danger')
                     return None
