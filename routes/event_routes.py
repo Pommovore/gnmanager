@@ -704,13 +704,15 @@ def export_trombinoscope_odt(event_id):
         include_type = request.args.get('include_type') == 'on'
         include_player_name = request.args.get('include_player_name') == 'on'
         group_by_group = request.args.get('group_by_group') == 'on'
+        layout_cols = int(request.args.get('layout_cols', 4))
 
         from services.odt_service import generate_trombinoscope_odt
         odt_file = generate_trombinoscope_odt(
             event_id, 
             include_type=include_type, 
             include_player_name=include_player_name, 
-            group_by_group=group_by_group
+            group_by_group=group_by_group,
+            layout_cols=layout_cols
         )
         
         # Sanitize filename: replace non-alphanumeric with underscore
