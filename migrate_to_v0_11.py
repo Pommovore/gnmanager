@@ -114,6 +114,7 @@ def migrate():
     # --- COLONNES ---
     # Table User
     add_column_if_missing('user', 'is_profile_photo_public', 'BOOLEAN DEFAULT 1')
+    add_column_if_missing('user', 'profile_photo_url', 'VARCHAR(200)')
     
     # Table Participant
     add_column_if_missing('participant', 'paf_type', 'VARCHAR(50)')
