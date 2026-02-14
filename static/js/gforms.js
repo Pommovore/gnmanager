@@ -126,6 +126,55 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Purge button
+    const purgeBtn = document.getElementById('purge-gforms-btn');
+    if (purgeBtn) {
+        purgeBtn.addEventListener('click', function () {
+            if (!confirm('⚠️ Êtes-vous sûr de vouloir supprimer TOUTES les données GForms de cet événement ?\n\n' +
+                'Cela inclut :\n' +
+                '• Toutes les soumissions\n' +
+                '• Toutes les catégories\n' +
+                '• Tous les mappings de champs\n' +
+                '• Toutes les réponses brutes\n\n' +
+                'Les utilisateurs et participants ne seront PAS affectés.\n\n' +
+                'Cette action est irréversible !')) {
+                return;
+            }
+
+            purgeBtn.disabled = true;
+            purgeBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>';
+
+            fetch(`${baseUrl}/event/${eventId}/gforms/purge`, {
+                method: 'DELETE',
+                headers: {
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        const d = data.deleted;
+                        alert(`Données GForms supprimées :\n` +
+                            `• ${d.submissions} soumissions\n` +
+                            `• ${d.categories} catégories\n` +
+                            `• ${d.mappings} mappings\n` +
+                            `• ${d.form_responses} réponses brutes`);
+                        loadAllData(eventId);
+                    } else {
+                        alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error purging GForms data:', err);
+                    alert('Erreur technique lors de la suppression.');
+                })
+                .finally(() => {
+                    purgeBtn.disabled = false;
+                    purgeBtn.innerHTML = '<i class="bi bi-trash"></i> Supprimer';
+                });
+        });
+    }
+
     // --- Data Loading ---
 
     function loadAllData(eventId) {

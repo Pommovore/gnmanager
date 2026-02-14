@@ -810,3 +810,63 @@ def import_gforms_data(event_id):
         logger.error(f"Erreur import GForms: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
 
+
+@gforms_bp.route('/event/<int:event_id>/gforms/purge', methods=['DELETE'])
+@login_required
+@organizer_required
+def purge_gforms_data(event_id):
+    """
+    API: Supprime toutes les données GForms d'un événement.
+    Supprime : GFormsSubmission, GFormsFieldMapping, GFormsCategory, FormResponse.
+    Ne touche pas aux utilisateurs ni aux participants.
+    """
+    event = Event.query.get_or_404(event_id)
+
+    try:
+        from models import FormResponse
+
+        # Compter avant suppression pour le résumé
+        nb_submissions = GFormsSubmission.query.filter_by(event_id=event_id).count()
+        nb_mappings = GFormsFieldMapping.query.filter_by(event_id=event_id).count()
+        nb_categories = GFormsCategory.query.filter_by(event_id=event_id).count()
+        nb_responses = FormResponse.query.filter_by(event_id=event_id).count()
+
+        # Supprimer dans l'ordre (respecter les FK)
+        GFormsSubmission.query.filter_by(event_id=event_id).delete()
+        GFormsFieldMapping.query.filter_by(event_id=event_id).delete()
+        GFormsCategory.query.filter_by(event_id=event_id).delete()
+        FormResponse.query.filter_by(event_id=event_id).delete()
+
+        db.session.commit()
+
+        total = nb_submissions + nb_mappings + nb_categories + nb_responses
+        logger.info(f"Purged all GForms data for event {event_id}: "
+                     f"{nb_submissions} submissions, {nb_mappings} mappings, "
+                     f"{nb_categories} categories, {nb_responses} form responses")
+
+        # Notification
+        from services.notification_service import create_notification
+        create_notification(
+            event_id=event.id,
+            user_id=current_user.id,
+            action_type='gforms_purge',
+            description=f"Suppression de toutes les données GForms : "
+                        f"{nb_submissions} soumissions, {nb_categories} catégories, "
+                        f"{nb_mappings} mappings, {nb_responses} réponses brutes"
+        )
+
+        return jsonify({
+            'success': True,
+            'deleted': {
+                'submissions': nb_submissions,
+                'categories': nb_categories,
+                'mappings': nb_mappings,
+                'form_responses': nb_responses
+            },
+            'message': f'{total} éléments supprimés'
+        })
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Error purging GForms data for event {event_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500
