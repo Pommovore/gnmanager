@@ -46,8 +46,10 @@ def dashboard():
     filter_type = request.args.get('filter', 'future')
     
     # Identifier les événements de l'utilisateur avec eager loading
+    # On exclut les statuts 'Rejeté' pour ne pas qu'ils apparaissent comme "PJ" ou ne donnent accès aux événements privés
     my_participations = Participant.query\
         .filter_by(user_id=current_user.id)\
+        .filter(Participant.registration_status != RegistrationStatus.REJECTED.value)\
         .options(joinedload(Participant.event))\
         .all()
     my_event_ids = [p.event_id for p in my_participations]
