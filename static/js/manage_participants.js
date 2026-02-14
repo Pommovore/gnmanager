@@ -245,4 +245,73 @@ document.addEventListener('DOMContentLoaded', function () {
             });
         });
     }
+
+    // --- Bulk Delete Logic ---
+    const btnDeleteFiltered = document.getElementById('btn-delete-filtered');
+
+    if (btnDeleteFiltered) {
+        btnDeleteFiltered.addEventListener('click', function () {
+            const visibleRows = document.querySelectorAll('#participants-table tbody tr:not([style*="display: none"])');
+            const participantIds = [];
+            const names = [];
+
+            visibleRows.forEach(row => {
+                const pId = row.dataset.pId;
+                if (pId) {
+                    participantIds.push(parseInt(pId));
+                    const nameEl = row.querySelector('.d-flex.flex-column strong');
+                    if (nameEl) names.push(nameEl.textContent.trim());
+                }
+            });
+
+            if (participantIds.length === 0) {
+                alert('Aucun participant affiché à supprimer.');
+                return;
+            }
+
+            const preview = names.slice(0, 10).join('\n• ');
+            const extra = names.length > 10 ? `\n... et ${names.length - 10} autre(s)` : '';
+
+            if (!confirm(`⚠️ Supprimer ${participantIds.length} participant(s) de la liste filtrée ?\n\n• ${preview}${extra}\n\nLes organisateurs ne seront PAS supprimés.\nCette action est irréversible !`)) {
+                return;
+            }
+
+            btnDeleteFiltered.disabled = true;
+            btnDeleteFiltered.innerHTML = '<span class="spinner-border spinner-border-sm" role="status"></span>';
+
+            const eventId = window.location.pathname.match(/\/event\/(\d+)\//)?.[1];
+            const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+            const csrfToken = csrfMeta ? csrfMeta.content : '';
+
+            fetch(`${window.location.pathname.split('/participants')[0]}/participants/bulk-delete`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                },
+                body: JSON.stringify({ participant_ids: participantIds })
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        let msg = `${data.deleted} participant(s) supprimé(s).`;
+                        if (data.skipped_orga > 0) {
+                            msg += `\n\n⚠️ ${data.warning}`;
+                        }
+                        alert(msg);
+                        window.location.reload();
+                    } else {
+                        alert('Erreur : ' + (data.error || 'Erreur inconnue'));
+                    }
+                })
+                .catch(err => {
+                    console.error('Error deleting participants:', err);
+                    alert('Erreur technique lors de la suppression.');
+                })
+                .finally(() => {
+                    btnDeleteFiltered.disabled = false;
+                    btnDeleteFiltered.innerHTML = '<i class="bi bi-trash"></i> Supprimer';
+                });
+        });
+    }
 });

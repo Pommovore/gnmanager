@@ -1005,3 +1005,87 @@ def copy_profile_to_event_photo(event_id, participant_id):
         
     return redirect(url_for('event.detail', event_id=event_id))
 
+
+@participant_bp.route('/event/<int:event_id>/participants/bulk-delete', methods=['POST'])
+@login_required
+@organizer_required
+def bulk_delete(event_id):
+    """
+    Suppression groupée de participants.
+    
+    Payload JSON: { "participant_ids": [1, 2, 3, ...] }
+    Ne supprime pas les organisateurs pour éviter les erreurs critiques.
+    """
+    event = Event.query.get_or_404(event_id)
+    
+    data = request.get_json()
+    if not data or 'participant_ids' not in data:
+        return jsonify({'success': False, 'error': 'Aucun participant spécifié'}), 400
+    
+    participant_ids = data.get('participant_ids', [])
+    if not participant_ids:
+        return jsonify({'success': False, 'error': 'Liste de participants vide'}), 400
+    
+    try:
+        # Récupérer les participants concernés (vérifier qu'ils appartiennent bien à cet événement)
+        participants = Participant.query.filter(
+            Participant.id.in_(participant_ids),
+            Participant.event_id == event_id
+        ).all()
+        
+        if not participants:
+            return jsonify({'success': False, 'error': 'Aucun participant trouvé'}), 404
+        
+        deleted_names = []
+        skipped_orga = []
+        
+        for p in participants:
+            # Protection : ne pas supprimer les organisateurs
+            if p.type == ParticipantType.ORGANIZER.value:
+                skipped_orga.append(f"{p.user.nom} {p.user.prenom}")
+                continue
+            
+            deleted_names.append(f"{p.user.nom} {p.user.prenom}")
+            
+            # Supprimer la photo d'événement si elle existe
+            if p.custom_image:
+                photo_path = os.path.join(current_app.root_path, p.custom_image.lstrip('/'))
+                if os.path.exists(photo_path):
+                    try:
+                        os.remove(photo_path)
+                    except OSError:
+                        pass
+            
+            db.session.delete(p)
+        
+        db.session.commit()
+        
+        # Notification
+        if deleted_names:
+            description = f"Suppression de {len(deleted_names)} participant(s) : {', '.join(deleted_names[:5])}"
+            if len(deleted_names) > 5:
+                description += f" ... (+{len(deleted_names) - 5})"
+            
+            create_notification(
+                event_id=event.id,
+                user_id=current_user.id,
+                action_type='participant_bulk_delete',
+                description=description
+            )
+        
+        result = {
+            'success': True,
+            'deleted': len(deleted_names),
+            'skipped_orga': len(skipped_orga),
+            'message': f'{len(deleted_names)} participant(s) supprimé(s)'
+        }
+        
+        if skipped_orga:
+            result['warning'] = f"Organisateurs non supprimés : {', '.join(skipped_orga)}"
+        
+        return jsonify(result)
+        
+    except Exception as e:
+        db.session.rollback()
+        current_app.logger.error(f"Error bulk deleting participants for event {event_id}: {e}", exc_info=True)
+        return jsonify({'success': False, 'error': str(e)}), 500

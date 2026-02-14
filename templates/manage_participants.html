@@ -12,8 +12,12 @@
                     <span class="fw-bold">Gestion des Participants</span>
                     <div class="d-flex gap-2">
                         <button type="button" class="btn btn-sm btn-outline-primary" id="btn-email-list"
-                            title="Liste des e-mails">
+                            title="E-mails des participants de la liste filtrée">
                             <i class="bi bi-envelope-paper"></i> Liste E-mails
+                        </button>
+                        <button type="button" class="btn btn-sm btn-outline-danger" id="btn-delete-filtered"
+                            title="Supprimer les participants de la liste filtrée">
+                            <i class="bi bi-trash"></i> Supprimer
                         </button>
                         <a href="{{ url_for('participant.export_participants', event_id=event.id) }}"
                             class="btn btn-sm btn-success" title="Exporter en CSV">
@@ -154,7 +158,7 @@
                                 {% if p.share_phone and (p.participant_phone or p.user.phone) %}{% set contact_score =
                                 contact_score + 1 %}{% endif %}
 
-                                <tr data-type="{{ p.type }}" data-genre="{{ genre_code }}"
+                                <tr data-p-id="{{ p.id }}" data-type="{{ p.type }}" data-genre="{{ genre_code }}"
                                     data-status="{% if p.registration_status == 'Validé' %}Validé{% elif p.registration_status == 'Rejeté' %}Rejeté{% elif p.registration_status == 'En attente' %}En attente{% else %}À valider{% endif %}"
                                     data-paf="{{ p.paf_status }}" data-photo="{{ p.photo_status }}"
                                     data-sort-participant="{{ p.user.nom }} {{ p.user.prenom }}"

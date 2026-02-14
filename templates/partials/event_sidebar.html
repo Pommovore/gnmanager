@@ -16,7 +16,7 @@
         <a class="list-group-item list-group-item-action" id="list-groups-list" {% if is_detail_page
             %}data-bs-toggle="list" href="#list-groups" {% else
             %}href="{{ url_for('event.detail', event_id=event.id) }}#list-groups" {% endif %} role="tab"><i
-                class="bi bi-diagram-3"></i> Configuration Groupes</a>
+                class="bi bi-diagram-3"></i> Groupes</a>
 
         <a class="list-group-item list-group-item-action {{ 'active' if request.endpoint == 'participant.manage' else '' }}"
             href="{{ url_for('participant.manage', event_id=event.id) }}"><i class="bi bi-people"></i> Participants</a>
