@@ -537,7 +537,7 @@ class EventNotification(db.Model):
     is_read = db.Column(db.Boolean, default=False)
     
     # Relations
-    event = db.relationship('Event', backref='notifications')
+    event = db.relationship('Event', backref=db.backref('notifications', cascade='all, delete-orphan'))
     user = db.relationship('User')
     
     def __repr__(self):

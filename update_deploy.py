@@ -262,7 +262,9 @@ def main():
         check_cmd = f"test -f {os.path.join(app_dir, migration_script)}"
         if run_remote(ssh, check_cmd, sudo=True, password=password):
              # On le lance avec uv run
-             migrate_cmd = f"cd {app_dir} && export PATH=$PATH:$HOME/.local/bin:$HOME/.cargo/bin && uv run python {migration_script}"
+             # IMPORTANT: avec sudo, $HOME devient /root, donc on force le path de l'utilisateur
+             user_home = f"/home/{user}"
+             migrate_cmd = f"bash -c 'cd {app_dir} && export PATH=$PATH:{user_home}/.local/bin:{user_home}/.cargo/bin && uv run python {migration_script}'"
              if run_remote(ssh, migrate_cmd, sudo=True, password=password):
                  print("✅ Migration terminée avec succès.")
              else:
