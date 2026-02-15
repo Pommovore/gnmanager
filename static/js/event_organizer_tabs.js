@@ -216,6 +216,17 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // Copy Event URL Button Logic
+    const copyEventUrlBtn = document.getElementById('copy-event-url-btn');
+    if (copyEventUrlBtn) {
+        copyEventUrlBtn.addEventListener('click', function () {
+            const urlInput = document.getElementById('event-url-input');
+            if (urlInput) {
+                copyToClipboard(urlInput.value, this);
+            }
+        });
+    }
+
     // Dynamic PAF Configuration Rows
     const pafConfigContainer = document.getElementById('paf-config-container');
     const addPafBtn = document.getElementById('add-paf-btn');

@@ -32,6 +32,21 @@
                             </div>
                         </div>
                     </div>
+                    <div class="row align-items-center">
+                        <div class="col-12 mb-3">
+                            <label class="form-label">Lien de l'événement</label>
+                            <div class="input-group">
+                                <span class="input-group-text"><i class="bi bi-link-45deg"></i></span>
+                                <input type="text" class="form-control"
+                                    value="{{ url_for('event.detail', event_id=event.id, _external=True) }}" readonly
+                                    id="event-url-input">
+                                <button class="btn btn-outline-secondary" type="button" id="copy-event-url-btn"
+                                    data-bs-toggle="tooltip" title="Copier le lien">
+                                    <i class="bi bi-clipboard"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
                 </div>
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
