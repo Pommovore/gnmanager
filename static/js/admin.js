@@ -30,4 +30,16 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         });
     });
+
+    // Copy email to clipboard (admin events view)
+    document.querySelectorAll('.copy-email-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const email = this.getAttribute('data-email');
+            navigator.clipboard.writeText(email).then(() => {
+                const icon = this.querySelector('i');
+                icon.className = 'bi bi-clipboard-check text-success';
+                setTimeout(() => { icon.className = 'bi bi-clipboard'; }, 1500);
+            });
+        });
+    });
 });

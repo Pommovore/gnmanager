@@ -104,26 +104,35 @@ def admin_page():
     Affiche la page d'administration système.
     
     Returns:
-        Template admin avec gestion des utilisateurs
+        Template admin avec gestion des utilisateurs et événements
     """
     page = request.args.get('page', 1, type=int)
     admin_view = request.args.get('admin_view', 'users')
     search_query = request.args.get('q', '')
     
-    query = User.query
+    users_pagination = None
+    events = None
     
-    if search_query:
-        from sqlalchemy import or_
-        term = f"%{search_query}%"
-        query = query.filter(
-            or_(
-                User.email.ilike(term),
-                User.nom.ilike(term),
-                User.prenom.ilike(term)
-            )
-        )
+    if admin_view == 'events':
+        # Charger tous les événements avec participants eagerly loaded
+        events = Event.query.options(
+            joinedload(Event.participants).joinedload(Participant.user)
+        ).order_by(Event.date_start.desc()).all()
+    else:
+        query = User.query
         
-    users_pagination = query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
+        if search_query:
+            from sqlalchemy import or_
+            term = f"%{search_query}%"
+            query = query.filter(
+                or_(
+                    User.email.ilike(term),
+                    User.nom.ilike(term),
+                    User.prenom.ilike(term)
+                )
+            )
+            
+        users_pagination = query.paginate(page=page, per_page=DefaultValues.USERS_PER_PAGE, error_out=False)
     
     breadcrumbs = [
         ('Dashboard', url_for('admin.dashboard')),
@@ -133,6 +142,7 @@ def admin_page():
     return render_template('admin.html', 
                          user=current_user,
                          users_pagination=users_pagination,
+                         events=events,
                          admin_view=admin_view,
                          breadcrumbs=breadcrumbs)
 

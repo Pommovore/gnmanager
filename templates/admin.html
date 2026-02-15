@@ -5,12 +5,16 @@
     <div class="col-md-2 border-end">
         <div class="list-group list-group-flush">
             <a href="{{ url_for('admin.admin_page', admin_view='users') }}"
-                class="list-group-item list-group-item-action {% if admin_view == 'users' or not admin_view %}active{% endif %}">
+                class="list-group-item list-group-item-action {% if admin_view == 'users' or (admin_view != 'add' and admin_view != 'events') %}active{% endif %}">
                 Utilisateurs
             </a>
             <a href="{{ url_for('admin.admin_page', admin_view='add') }}"
                 class="list-group-item list-group-item-action {% if admin_view == 'add' %}active{% endif %}">
                 Ajouter
+            </a>
+            <a href="{{ url_for('admin.admin_page', admin_view='events') }}"
+                class="list-group-item list-group-item-action {% if admin_view == 'events' %}active{% endif %}">
+                <i class="bi bi-calendar-event"></i> Événements
             </a>
             <a href="{{ url_for('admin.admin_logs') }}" class="list-group-item list-group-item-action">
                 <i class="bi bi-journal-text"></i> Logs
@@ -20,7 +24,150 @@
 
     <!-- Content Area (80%) -->
     <div class="col-md-10 ps-4">
-        {% if admin_view == 'add' %}
+        {% if admin_view == 'events' %}
+        <!-- Events List -->
+        <h4 class="mb-3"><i class="bi bi-calendar-event me-2"></i>Événements ({{ events|length }})</h4>
+
+        {% if events %}
+        <div class="accordion" id="eventsAccordion">
+            {% for e in events %}
+            {% set status_color = "bg-secondary" %}
+            {% if e.statut == "Événement en cours" %}{% set status_color = "bg-success" %}
+            {% elif e.statut == "Terminé" %}{% set status_color = "bg-dark" %}
+            {% elif e.statut == "Annulé" %}{% set status_color = "bg-danger" %}
+            {% elif e.statut == "En préparation" %}{% set status_color = "bg-info text-dark" %}
+            {% elif e.statut == "Inscriptions ouvertes" %}{% set status_color = "bg-success" %}
+            {% endif %}
+
+            <div class="accordion-item">
+                <h2 class="accordion-header" id="heading-{{ e.id }}">
+                    <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse"
+                        data-bs-target="#collapse-{{ e.id }}" aria-expanded="false" aria-controls="collapse-{{ e.id }}">
+                        <div class="d-flex w-100 justify-content-between align-items-center me-3">
+                            <span>
+                                <strong>{{ e.name }}</strong>
+                                <span class="badge {{ status_color }} ms-2">{{ e.statut }}</span>
+                            </span>
+                            <small class="text-muted">
+                                {{ e.date_start.strftime('%d/%m/%Y') }} – {{ e.date_end.strftime('%d/%m/%Y') }}
+                            </small>
+                        </div>
+                    </button>
+                </h2>
+                <div id="collapse-{{ e.id }}" class="accordion-collapse collapse" aria-labelledby="heading-{{ e.id }}"
+                    data-bs-parent="#eventsAccordion">
+                    <div class="accordion-body">
+
+                        {# --- Organisateurs --- #}
+                        {% set organizers = [] %}
+                        {% for p in e.participants if p.is_organizer and p.registration_status == 'Validé' %}
+                        {% set _ = organizers.append(p) %}
+                        {% endfor %}
+
+                        <h6 class="mb-2"><i class="bi bi-people-fill me-1"></i>Organisateurs ({{ organizers|length }})
+                        </h6>
+                        {% if organizers %}
+                        <table class="table table-sm table-bordered mb-4">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Nom</th>
+                                    <th>Prénom</th>
+                                    <th>Email</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for p in organizers %}
+                                <tr>
+                                    <td>{{ p.user.nom or '-' }}</td>
+                                    <td>{{ p.user.prenom or '-' }}</td>
+                                    <td>
+                                        {{ p.user.email }}
+                                        <button type="button" class="btn btn-sm btn-link p-0 ms-1 copy-email-btn"
+                                            data-email="{{ p.user.email }}" title="Copier l'email">
+                                            <i class="bi bi-clipboard"></i>
+                                        </button>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                        {% else %}
+                        <p class="text-muted small mb-4">Aucun organisateur validé.</p>
+                        {% endif %}
+
+                        {# --- Résumé inscriptions --- #}
+                        {% set all_participants = e.participants %}
+                        {% set orga_list = [] %}
+                        {% set pj_list = [] %}
+                        {% set pnj_list = [] %}
+                        {% for p in all_participants %}
+                        {% if p.is_organizer %}{% set _ = orga_list.append(p) %}
+                        {% elif p.is_pj %}{% set _ = pj_list.append(p) %}
+                        {% elif p.is_pnj %}{% set _ = pnj_list.append(p) %}
+                        {% endif %}
+                        {% endfor %}
+
+                        <h6 class="mb-2"><i class="bi bi-bar-chart-fill me-1"></i>Résumé des inscriptions</h6>
+                        <table class="table table-sm table-bordered">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Type</th>
+                                    <th>Inscrits / Max</th>
+                                    <th><span class="badge bg-success">Validé</span></th>
+                                    <th><span class="badge bg-warning text-dark">À valider</span></th>
+                                    <th><span class="badge bg-info text-dark">En attente</span></th>
+                                    <th><span class="badge bg-danger">Rejeté</span></th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for type_name, type_list, type_max in [
+                                ('Organisateurs', orga_list, e.max_organizers),
+                                ('PJ', pj_list, e.max_pjs),
+                                ('PNJ', pnj_list, e.max_pnjs)
+                                ] %}
+                                {% set validated = type_list|selectattr('registration_status', 'equalto',
+                                'Validé')|list|length %}
+                                {% set pending_validate = type_list|selectattr('registration_status', 'equalto', 'À
+                                valider')|list|length %}
+                                {% set pending_wait = type_list|selectattr('registration_status', 'equalto', 'En
+                                attente')|list|length %}
+                                {% set rejected = type_list|selectattr('registration_status', 'equalto',
+                                'Rejeté')|list|length %}
+                                <tr>
+                                    <td><strong>{{ type_name }}</strong></td>
+                                    <td>{{ type_list|length }} / {{ type_max }}</td>
+                                    <td>{{ validated }}</td>
+                                    <td>{{ pending_validate }}</td>
+                                    <td>{{ pending_wait }}</td>
+                                    <td>{{ rejected }}</td>
+                                </tr>
+                                {% endfor %}
+                                <tr class="table-secondary fw-bold">
+                                    <td>Total</td>
+                                    <td>{{ all_participants|length }} / {{ e.max_organizers + e.max_pjs + e.max_pnjs }}
+                                    </td>
+                                    <td>{{ all_participants|selectattr('registration_status', 'equalto',
+                                        'Validé')|list|length }}</td>
+                                    <td>{{ all_participants|selectattr('registration_status', 'equalto', 'À
+                                        valider')|list|length }}</td>
+                                    <td>{{ all_participants|selectattr('registration_status', 'equalto', 'En
+                                        attente')|list|length }}</td>
+                                    <td>{{ all_participants|selectattr('registration_status', 'equalto',
+                                        'Rejeté')|list|length }}</td>
+                                </tr>
+                            </tbody>
+                        </table>
+
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="text-muted">Aucun événement enregistré.</p>
+        {% endif %}
+
+        {% elif admin_view == 'add' %}
         <div class="card mb-3">
             <div class="card-body">
                 <h5>Ajouter un nouvel utilisateur</h5>
