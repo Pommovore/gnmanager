@@ -684,6 +684,27 @@ def delete_role(event_id, role_id):
     return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
 
 
+@event_bp.route('/event/<int:event_id>/trombinoscope_content')
+@login_required
+@organizer_required
+def trombinoscope_content(event_id):
+    """
+    Renvoie le contenu HTML du trombinoscope pour l'onglet correspondant.
+    Permet le rafraîchissement dynamique.
+    """
+    event = Event.query.options(joinedload(Event.participants).joinedload(Participant.user)).get_or_404(event_id)
+    
+    # Récupération des rôles (similaire à 'detail')
+    roles = Role.query.filter_by(event_id=event.id)\
+        .options(
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.proposal),
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.participant).joinedload(Participant.user)
+        )\
+        .order_by(Role.name).all()
+    
+    return render_template('partials/event_trombinoscope_content.html', event=event, roles=roles)
+
+
 @event_bp.route('/event/<int:event_id>/trombinoscope/export/odt', methods=['GET'])
 @login_required
 @organizer_required

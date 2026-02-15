@@ -543,4 +543,83 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
+    // --- Trombinoscope Refresh Logic ---
+    const trombiTabLink = document.getElementById('list-trombinoscope-list');
+    const trombiTabContent = document.getElementById('list-trombinoscope');
+
+    if (trombiTabLink && trombiTabContent) {
+        trombiTabLink.addEventListener('shown.bs.tab', function (e) {
+            // Show spinner
+            trombiTabContent.innerHTML = `
+                <div class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Chargement...</span>
+                    </div>
+                    <p class="mt-2 text-muted">Chargement du trombinoscope...</p>
+                </div>
+            `;
+
+            fetch(`${baseUrl}/event/${eventId}/trombinoscope_content`)
+                .then(response => {
+                    if (!response.ok) throw new Error('Erreur réseau');
+                    return response.text();
+                })
+                .then(html => {
+                    trombiTabContent.innerHTML = html;
+                    // Re-init tooltips
+                    const tooltips = trombiTabContent.querySelectorAll('[data-bs-toggle="tooltip"]');
+                    tooltips.forEach(t => new bootstrap.Tooltip(t));
+
+                    // Re-attach layout listeners
+                    attachTrombiLayoutListeners();
+                })
+                .catch(error => {
+                    console.error('Error loading trombinoscope:', error);
+                    trombiTabContent.innerHTML = `
+                        <div class="alert alert-danger m-3">
+                            <i class="bi bi-exclamation-triangle"></i> Erreur lors du chargement du trombinoscope.
+                        </div>
+                    `;
+                });
+        });
+    }
+
+    // Helper to attach layout listeners (since content is replaced)
+    function attachTrombiLayoutListeners() {
+        const layoutButtons = document.querySelectorAll('.btn-group[aria-label="Layout Options"] button');
+        const trombiContainer = document.querySelector('.trombi-container');
+
+        if (layoutButtons.length > 0 && trombiContainer) {
+            layoutButtons.forEach(btn => {
+                // Remove old listeners to avoid duplicates? 
+                // cloneNode(true) is a nuclear option, but simple addEventListener appends.
+                // Since we replace innerHTML of tab, the buttons are new elements every time.
+                // So no need to remove old listeners.
+
+                btn.addEventListener('click', function () {
+                    const layout = this.dataset.layout;
+
+                    // Remove active class from all buttons
+                    layoutButtons.forEach(b => b.classList.remove('active'));
+                    // Add active class to clicked button
+                    this.classList.add('active');
+
+                    // Remove all layout classes from container
+                    trombiContainer.classList.remove('layout-1', 'layout-2', 'layout-4');
+
+                    // Add new layout class (if not 1, which is default)
+                    if (layout !== '1') {
+                        trombiContainer.classList.add(`layout-${layout}`);
+                    }
+                });
+            });
+        }
+    }
+
+    // Initial attachment (in case we land directly on the tab, though content is loaded server-side initially for first render?)
+    // Actually, if we use include in template, the initial render has the content.
+    // If we switch tabs, we reload it. 
+    // We should attach listeners on initial load too.
+    attachTrombiLayoutListeners();
+
 });

@@ -1,0 +1,32 @@
+@event_bp.route('/event/<int:event_id>/trombinoscope_content')
+@login_required
+@organizer_required
+def trombinoscope_content(event_id):
+    """
+    Renvoie le contenu HTML du trombinoscope pour l'onglet correspondant.
+    Permet le rafraîchissement dynamique.
+    """
+    event = Event.query.options(joinedload(Event.participants).joinedload(Participant.user)).get_or_404(event_id)
+    
+    # Récupération des rôles (similaire à 'detail')
+    roles = Role.query.filter_by(event_id=event.id)\
+        .options(
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.proposal),
+            joinedload(Role.casting_assignments).joinedload(CastingAssignment.participant).joinedload(Participant.user)
+        )\
+        .order_by(Role.name).all()
+        
+    # Inject assigned_participant on roles (logic duplicated from templates or pre-processing)
+    # The template expects 'role.assigned_participant' which is dynamic property or manually set
+    # In 'detail' route it seems it's not set explicitly, so it might be a property of Role model 
+    # or handled in template via a custom filter/method. 
+    # Let's check Role model to be sure. 
+    # Checking template `event_trombinoscope_content.html`:
+    # {% if role.assigned_participant %}
+    
+    # Let's peek at Role model quickly if needed, but safe bet is it works like in `detail`.
+    # Actually `detail` route doesn't process roles for trombi explicitly, it just passes `roles`.
+    # So `assigned_participant` is likely a property on Role model.
+    # Let's verify Role model to be 100% sure we don't break it.
+    
+    return render_template('partials/event_trombinoscope_content.html', event=event, roles=roles)
