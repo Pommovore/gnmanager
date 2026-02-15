@@ -11,7 +11,10 @@
                 <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-3">Visibilité</h5>
+                    <h5 class="mb-3">Visibilité <i class="bi bi-info-circle text-muted small" data-bs-toggle="tooltip"
+                            data-bs-placement="right"
+                            title="Contrôlez l'accès à votre événement : code d'accès, mode privé et lien de partage."></i>
+                    </h5>
                     <div class="row align-items-center">
                         <div class="col-md-6 mb-3">
                             <div class="d-flex align-items-center">
@@ -50,7 +53,10 @@
                 </div>
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
-                    <h5 class="mb-3">Informations Principales</h5>
+                    <h5 class="mb-3">Informations Principales <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Nom, lieu, dates et description de l'événement affichés sur la page publique."></i>
+                    </h5>
                     <div class="row">
                         <div class="col-md-6 mb-3">
                             <label class="form-label">Nom de l'événement</label>
@@ -98,7 +104,10 @@
 
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-3">Images de fond</h5>
+                    <h5 class="mb-3">Images de fond <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Images d'arrière-plan affichées sur la page de l'événement (thème clair et sombre)."></i>
+                    </h5>
                     <div class="mb-3">
                         <label class="form-label">Thème Clair</label>
                         <input type="file" class="form-control" name="background_image_light"
@@ -128,7 +137,10 @@
                     </div>
                 </div>
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
-                    <h5 class="mb-3">Statut & Jauges</h5>
+                    <h5 class="mb-3">Statut & Jauges <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Définissez le statut actuel de l'événement et les limites de places (PJ, PNJ, organisateurs)."></i>
+                    </h5>
                     <div class="mb-3">
                         <label class="form-label">Statut de l'événement</label>
                         <select class="form-select" name="statut">
@@ -210,7 +222,10 @@
 
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
-                    <h5 class="mb-2">Liens Externes</h5>
+                    <h5 class="mb-2">Liens Externes <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Liens vers des ressources externes (site web, règles, documents). Visibles par les participants."></i>
+                    </h5>
                     <div id="links-container">
                         {% for link in event.links_sorted %}
                         <div class="row mb-2 link-row">
@@ -237,7 +252,10 @@
                     </div>
                 </div>
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-2">Configuration P.A.F.</h5>
+                    <h5 class="mb-2">Configuration P.A.F. <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Définissez les tarifs (Participation Aux Frais) proposés aux participants lors de l'inscription."></i>
+                    </h5>
                     <div id="paf-config-container">
                         {% for paf in paf_config %}
                         <div class="row mb-2 paf-row">
@@ -267,7 +285,10 @@
                 </div>
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-3">Moyens de Paiement Autorisés</h5>
+                    <h5 class="mb-3">Moyens de Paiement Autorisés <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Liste des moyens de paiement disponibles dans le menu déroulant de la gestion PAF."></i>
+                    </h5>
                     <div class="mb-0">
                         <label class="form-label">Liste des moyens de paiement (séparés par des virgules)</label>
                         {% set current_methods = event.payment_methods|from_json if event.payment_methods else
@@ -280,7 +301,10 @@
                 </div>
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-tertiary border shadow-sm mx-1">
-                    <h5 class="mb-3">Formulaire Google & Webhook</h5>
+                    <h5 class="mb-3">Formulaire Google & Webhook <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="Clé secrète et URL pour connecter un Google Form à l'événement via webhook automatique."></i>
+                    </h5>
                     <div class="mb-3">
                         <div class="alert alert-secondary p-2 d-flex align-items-center justify-content-between">
                             <div>
@@ -314,7 +338,10 @@
                 </div>
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-3">Notifications Discord</h5>
+                    <h5 class="mb-3">Notifications Discord <i class="bi bi-info-circle text-muted small"
+                            data-bs-toggle="tooltip" data-bs-placement="right"
+                            title="URL du webhook Discord pour recevoir une notification à chaque nouvelle inscription."></i>
+                    </h5>
                     <div class="mb-0">
                         <label class="form-label">URL Webhook Discord</label>
                         <input type="text" class="form-control" name="discord_webhook_url"
