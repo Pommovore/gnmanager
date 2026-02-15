@@ -111,3 +111,4 @@ config/deploy_config_test.yaml
 config/deploy_config_prod.yaml
 static/uploads/
 config/seed_data_prod.json
+static/assets/favicon_old.png
