@@ -3,6 +3,33 @@
     background-size: cover;
     background-position: top center;
     background-repeat: no-repeat;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Overlay semi-transparent pour la lisibilité du texte */
+.event-info-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    z-index: 1;
+    pointer-events: none;
+}
+
+[data-bs-theme="light"] .event-info-overlay {
+    background: rgba(255, 255, 255, 0.75);
+}
+
+[data-bs-theme="dark"] .event-info-overlay {
+    background: rgba(0, 0, 0, 0.65);
+}
+
+/* Contenu au-dessus de l'overlay */
+#event-info-card>.card-body {
+    position: relative;
+    z-index: 2;
 }
 
 /* Note: background images are set via inline style in template for dynamic URLs */

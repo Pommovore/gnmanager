@@ -29,29 +29,29 @@
 <div class="d-flex flex-column gap-2">
     {% for e in events %}
     {% set participation = my_roles.get(e.id) %}
-    {% set row_class = "" %}
     {% set badge_class = "" %}
     {% set badge_text = "" %}
+    {% set card_type = "" %}
 
     {% if participation %}
     {% if participation.registration_status == 'En attente' or participation.registration_status == 'À valider' %}
-    {% set row_class = "list-group-item-secondary" %}
+    {% set card_type = "pending" %}
     {% set badge_class = "bg-light text-dark border" %}
     {% set badge_text = participation.type ~ " (En Attente)" %}
     {% elif participation.is_organizer %}
-    {% set row_class = "list-group-item-danger" %}
+    {% set card_type = "organizer" %}
     {% set badge_class = "bg-danger" %}
     {% set badge_text = "Organisateur" %}
     {% elif participation.is_pj %}
-    {% set row_class = "list-group-item-success" %}
+    {% set card_type = "pj" %}
     {% set badge_class = "bg-success" %}
     {% set badge_text = "PJ" %}
     {% elif participation.is_pnj %}
-    {% set row_class = "list-group-item-primary" %}
+    {% set card_type = "pnj" %}
     {% set badge_class = "bg-primary" %}
     {% set badge_text = "PNJ" %}
     {% else %}
-    {% set row_class = "list-group-item-success" %}
+    {% set card_type = "default" %}
     {% set badge_class = "bg-success" %}
     {% set badge_text = participation.type %}
     {% endif %}
@@ -70,32 +70,42 @@
     {% set status_color = "bg-success" %}
     {% endif %}
 
+    {% set has_image = e.background_image_light %}
+
     <a href="{{ url_for('event.detail', event_id=e.id) }}"
-        class="list-group-item list-group-item-action border rounded shadow-sm p-3 {{ row_class }}">
-        <div class="d-flex w-100 justify-content-between align-items-center">
-            <h5 class="mb-1">
-                {{ e.name }}
-                <span class="badge {{ status_color }}">{{ e.statut }}</span>
-                {% if participation %}
-                <span class="badge {{ badge_class }} ms-2">{{ badge_text }}
-                    {% if (participation.registration_status != 'En attente' and participation.registration_status != 'À
-                    valider') and participation.group and participation.group != 'Peu importe' %}
-                    - {{ participation.group }}
+        class="event-card event-card--{{ card_type }} {% if not has_image %}event-card--no-image{% endif %}" {% if
+        has_image %} data-bg="{{ url_for('static', filename=e.background_image_light) }}" {% endif %}>
+        {% if has_image %}
+        <div class="event-card-bg"></div>
+        <div class="event-card-overlay"></div>
+        {% endif %}
+        <div class="event-card-content">
+            <div class="d-flex w-100 justify-content-between align-items-center">
+                <h5 class="mb-1">
+                    {{ e.name }}
+                    <span class="badge {{ status_color }}">{{ e.statut }}</span>
+                    {% if participation %}
+                    <span class="badge {{ badge_class }} ms-2">{{ badge_text }}
+                        {% if (participation.registration_status != 'En attente' and
+                        participation.registration_status != 'À valider') and participation.group and
+                        participation.group != 'Peu importe' %}
+                        - {{ participation.group }}
+                        {% endif %}
+                    </span>
                     {% endif %}
+                </h5>
+                <small class="text-muted">
+                    <i class="bi bi-calendar-range me-1"></i>
+                    Du {{ e.date_start.strftime('%d/%m/%Y') }} au {{ e.date_end.strftime('%d/%m/%Y') }}
+                </small>
+            </div>
+            <div class="mt-2 text-muted small">
+                Par :
+                <span class="association-medallion">
+                    {{ e.organizing_association or 'une entité mystérieuse et inquiétante' }}
                 </span>
-                {% endif %}
-            </h5>
-            <small class="text-muted">
-                <i class="bi bi-calendar-range me-1"></i>
-                Du {{ e.date_start.strftime('%d/%m/%Y') }} au {{ e.date_end.strftime('%d/%m/%Y') }}
-            </small>
-        </div>
-        <div class="mt-2 text-muted small">
-            Par :
-            <span class="association-medallion">
-                {{ e.organizing_association or 'une entité mystérieuse et inquiétante' }}
-            </span>
-            à {{ e.location }}
+                à {{ e.location }}
+            </div>
         </div>
     </a>
     {% else %}

@@ -105,8 +105,8 @@ class Event(db.Model):
     date_end = db.Column(db.DateTime, nullable=False)
     location = db.Column(db.String(200))
     # background_image = db.Column(db.String(200))  # Deprecated
-    background_image_light = db.Column(db.String(200))
-    background_image_dark = db.Column(db.String(200))
+    background_image_light = db.Column(db.String(200))  # Image de fond unique (utilisée pour les deux thèmes)
+    background_image_dark = db.Column(db.String(200))  # Deprecated : plus utilisée, conservée pour compatibilité DB
     visibility = db.Column(db.String(20), default='public')  # public, private
     access_code = db.Column(db.String(50), nullable=True)  # Code d'accès pour événements privés
     organizing_association = db.Column(db.String(150), default='une entité mystérieuse et inquiétante')

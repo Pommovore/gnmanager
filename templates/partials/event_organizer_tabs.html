@@ -104,33 +104,19 @@
 
 
                 <div class="section-frame p-3 mb-4 rounded bg-body-secondary border shadow-sm mx-1">
-                    <h5 class="mb-3">Images de fond <i class="bi bi-info-circle text-muted small"
+                    <h5 class="mb-3">Image de fond <i class="bi bi-info-circle text-muted small"
                             data-bs-toggle="tooltip" data-bs-placement="right"
-                            title="Images d'arrière-plan affichées sur la page de l'événement (thème clair et sombre)."></i>
+                            title="Image d'arrière-plan affichée sur la page de l'événement et le bandeau d'accueil. Un overlay adaptatif est appliqué selon le thème clair/sombre."></i>
                     </h5>
-                    <div class="mb-3">
-                        <label class="form-label">Thème Clair</label>
-                        <input type="file" class="form-control" name="background_image_light"
-                            accept=".jpg,.jpeg,.png,.webp">
-                        <div class="form-text">Formats: JPG, PNG, WEBP.</div>
+                    <div class="mb-0">
+                        <label class="form-label">Image de fond</label>
+                        <input type="file" class="form-control" name="background_image" accept=".jpg,.jpeg,.png,.webp">
+                        <div class="form-text">Formats: JPG, PNG, WEBP. Une seule image suffit, l'overlay s'adapte au
+                            thème.</div>
                         {% if event.background_image_light %}
                         <div class="mt-2">
                             <small>Image actuelle : <a
                                     href="{{ url_for('static', filename=event.background_image_light) }}"
-                                    target="_blank">Voir</a></small>
-                        </div>
-                        {% endif %}
-                    </div>
-
-                    <div class="mb-3">
-                        <label class="form-label">Thème Sombre</label>
-                        <input type="file" class="form-control" name="background_image_dark"
-                            accept=".jpg,.jpeg,.png,.webp">
-                        <div class="form-text">Formats: JPG, PNG, WEBP.</div>
-                        {% if event.background_image_dark %}
-                        <div class="mt-2">
-                            <small>Image actuelle : <a
-                                    href="{{ url_for('static', filename=event.background_image_dark) }}"
                                     target="_blank">Voir</a></small>
                         </div>
                         {% endif %}

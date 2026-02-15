@@ -319,13 +319,9 @@ def update_general(event_id):
                     return None
             return None
 
-        if 'background_image_light' in request.files:
-            path = save_event_image(request.files['background_image_light'], 'light')
+        if 'background_image' in request.files:
+            path = save_event_image(request.files['background_image'], 'bg')
             if path: event.background_image_light = path
-
-        if 'background_image_dark' in request.files:
-            path = save_event_image(request.files['background_image_dark'], 'dark')
-            if path: event.background_image_dark = path
 
         # Gestion des liens multiples
         # 1. Nettoyer les anciens liens

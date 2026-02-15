@@ -1,17 +1,14 @@
 {# Event information card - extracted from event_detail.html #}
 <link rel="stylesheet" href="{{ url_for('static', filename='css/event_info.css') }}">
 <style>
-    /* Dynamic background images - must remain inline due to template variables */
-    [data-bs-theme="light"] #event-info-card {
+    /* Dynamic background image - must remain inline due to template variables */
+    #event-info-card {
         background-image: url("{{ url_for('static', filename=event.background_image_light if event.background_image_light else 'fond_clair.jpg') }}");
-    }
-
-    [data-bs-theme="dark"] #event-info-card {
-        background-image: url("{{ url_for('static', filename=event.background_image_dark if event.background_image_dark else 'fond_sombre.jpg') }}");
     }
 </style>
 
 <div class="card mb-4" id="event-info-card">
+    <div class="event-info-overlay"></div>
     <div class="card-body">
         {% if is_organizer %}
         {% set other_orgs = [] %}
