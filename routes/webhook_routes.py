@@ -74,7 +74,7 @@ def gform_webhook():
             logger.info(f"Updating FormResponse {response_id}")
             form_response.answers = json.dumps(data.get('answers', {}))
             form_response.respondent_email = data.get('email')
-            form_response.form_id = data.get('formId') # Update form_id just in case
+            form_response.form_id = data.get('formId') # Mettre à jour le form_id au cas où
             form_response.updated_at = datetime.utcnow()
             action = "updated"
         else:
@@ -222,14 +222,14 @@ def gform_webhook():
                 g_submission.raw_data = json.dumps(current_data)
                 g_submission.type_ajout = type_ajout
                 g_submission.timestamp = datetime.utcnow()
-                g_submission.form_response_id = form_response.id # Link to latest response
+                g_submission.form_response_id = form_response.id # Lier à la dernière réponse
                 if not g_submission.user_id and user:
                     g_submission.user_id = user.id
         
         # 2. Auto-detect fields and create mappings
         answers = data.get('answers', {})
         if isinstance(answers, dict):
-            # Get default category (case-insensitive)
+            # Récupérer la catégorie par défaut (insensible à la casse)
             default_cat = GFormsCategory.query.filter(
                 GFormsCategory.event_id == event.id,
                 db.func.lower(GFormsCategory.name) == 'généralités'
@@ -258,7 +258,7 @@ def gform_webhook():
         # ---------------------------------------------------------
         # Notification Discord
         # ---------------------------------------------------------
-        if event.discord_webhook_url and email: # Only if email/user logic ran
+        if event.discord_webhook_url and email: # Seulement si la logique email/utilisateur a été exécutée
              try:
                 from services.discord_service import send_discord_notification
                 

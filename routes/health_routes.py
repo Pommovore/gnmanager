@@ -10,7 +10,7 @@ import sys
 
 health_bp = Blueprint('health', __name__)
 
-# Store app start time
+# Stocker l'heure de démarrage de l'application
 _start_time = datetime.utcnow()
 
 
@@ -44,7 +44,7 @@ def readiness():
         'checks': {}
     }
     
-    # Check database connection
+    # Vérifier la connexion à la base de données
     try:
         db.session.execute(db.text('SELECT 1'))
         checks['checks']['database'] = 'connected'
@@ -67,7 +67,7 @@ def metrics():
     """
     uptime = (datetime.utcnow() - _start_time).total_seconds()
     
-    # Get database file size (for SQLite)
+    # Récupérer la taille du fichier de la base de données (pour SQLite)
     db_size = 0
     db_uri = current_app.config.get('SQLALCHEMY_DATABASE_URI', '')
     if db_uri.startswith('sqlite:///'):
@@ -75,7 +75,7 @@ def metrics():
         if os.path.exists(db_path):
             db_size = os.path.getsize(db_path)
     
-    # Count log files
+    # Compter les fichiers de logs
     log_dir = os.path.join(current_app.root_path, 'logs')
     log_files_count = 0
     if os.path.exists(log_dir):

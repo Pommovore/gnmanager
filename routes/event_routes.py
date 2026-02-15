@@ -1,7 +1,5 @@
 """
-Blueprint pour les routes li
-
-ées aux événements.
+Blueprint pour les routes liées aux événements.
 
 Ce module gère :
 - Création d'événements
@@ -168,7 +166,7 @@ def detail(event_id):
     # Récupérer le rôle assigné au participant courant (si casting validé)
     assigned_role = None
     if participant and event.is_casting_validated:
-        # Check if participant has a role assigned via Role.assigned_participant_id
+        # Vérifier si le participant a un rôle assigné via Role.assigned_participant_id
         assigned_role = Role.query.filter_by(
             event_id=event.id,
             assigned_participant_id=participant.id
@@ -384,7 +382,7 @@ def update_general(event_id):
              
         db.session.commit()
         
-        # Log and Notification with specific details
+        # Journal et notification avec les détails spécifiques
         changes = []
         
         if event.name != old_state['name']:
@@ -404,9 +402,7 @@ def update_general(event_id):
         if event.description != old_state['description']:
             changes.append("modification de la description")
             
-        # Log update to ActivityLog (keeping it general or specific?)
-        # User request emphasizes the visual notification format log.
-        # But we still need ActivityLog for system history.
+        # Enregistrer la mise à jour dans ActivityLog pour l'historique système
         log = ActivityLog(
             action_type=ActivityLogType.EVENT_UPDATE.value,
             user_id=current_user.id,
@@ -419,7 +415,7 @@ def update_general(event_id):
         db.session.add(log)
         db.session.commit()
         
-        # Creates notification for internal users (organizers)
+        # Créer une notification pour les utilisateurs internes (organisateurs)
         if changes:
              from services.notification_service import create_notification
              create_notification(
@@ -451,7 +447,7 @@ def regenerate_secret(event_id):
     new_secret = secrets.token_hex(16).upper()
     event.webhook_secret = new_secret
     
-    # Log deletion/update
+    # Journal de la suppression/mise à jour
     log = ActivityLog(
         action_type=ActivityLogType.EVENT_UPDATE.value,
         user_id=current_user.id,
@@ -493,7 +489,7 @@ def update_status(event_id):
         event.statut = statut
         db.session.commit()
         
-        # Log status change
+        # Journal du changement de statut
         log = ActivityLog(
             action_type=ActivityLogType.STATUS_CHANGE.value,
             user_id=current_user.id,
@@ -525,7 +521,7 @@ def update_groups(event_id):
     """
     event = Event.query.get_or_404(event_id)
         
-    # Expecting form data: groups_pj, groups_pnj, groups_org (comma separated strings)
+    # Données attendues : groups_pj, groups_pnj, groups_org (chaînes séparées par des virgules)
     groups_pj = [g.strip() for g in request.form.get('groups_pj', '').split(',') if g.strip()]
     groups_pnj = [g.strip() for g in request.form.get('groups_pnj', '').split(',') if g.strip()]
     groups_org = [g.strip() for g in request.form.get('groups_org', '').split(',') if g.strip()]
@@ -539,7 +535,7 @@ def update_groups(event_id):
     event.groups_config = json.dumps(config)
     db.session.commit()
     
-    # Log groups update
+    # Journal de la mise à jour des groupes
     log = ActivityLog(
         action_type=ActivityLogType.GROUPS_UPDATE.value,
         user_id=current_user.id,
@@ -613,11 +609,11 @@ def update_role(event_id, role_id):
         flash('Le nom du rôle est obligatoire.', 'danger')
         return redirect(url_for('event.detail', event_id=event.id) + '#list-roles')
     
-    # Detect changes
+    # Détecter les changements
     changes = []
     if name != role.name: changes.append(f"nom en '{name}'")
     
-    # Update fields
+    # Mettre à jour les champs
     role.name = name
     role.type = request.form.get('type') or None
     role.genre = request.form.get('genre') or None
@@ -664,8 +660,8 @@ def delete_role(event_id, role_id):
         p.role_communicated = False
         p.role_received = False
         
-    # Delete associated casting assignments explicitly to avoid IntegrityError
-    # (casting_assignment.role_id cannot be null)
+    # Supprimer les assignations de casting explicitement pour éviter IntegrityError
+    # (casting_assignment.role_id ne peut pas être null)
     CastingAssignment.query.filter_by(role_id=role.id).delete()
     
     db.session.delete(role)
@@ -831,14 +827,13 @@ def join(event_id):
         return redirect(url_for('event.detail', event_id=event.id))
     
     registration_type = request.form.get('type', ParticipantType.PJ.value)
-    # The new code snippet does not use p_group, but the Participant model might require it.
-    # Assuming 'group' is still relevant and should be passed, or it's handled differently.
-    # For now, I'll keep it as it was in the original code, but the new Participant constructor doesn't include it.
-    # Based on the provided snippet, the 'group' field is omitted in the new Participant creation.
-    # The new code also implies a 'status' variable, which was previously hardcoded as TO_VALIDATE.
+    # Le champ 'group' n'est pas utilisé dans le constructeur Participant.
+    # Le code est conservé tel quel, mais le champ n'est pas passé au constructeur.
+    # Le champ 'group' est omis dans la création du Participant.
+    # Le statut est initialisé à TO_VALIDATE par défaut.
     status = RegistrationStatus.TO_VALIDATE.value
     comment = request.form.get('comment')
-    if comment is None: # Handle empty comments explicitly
+    if comment is None: # Gérer les commentaires vides explicitement
         comment = ""
     
     try:
@@ -1011,7 +1006,7 @@ def casting_data(event_id):
     """
     event = Event.query.get_or_404(event_id)
     
-    # Get validated participants grouped by type
+    # Récupérer les participants validés, regroupés par type
     participants = Participant.query.filter_by(
         event_id=event_id,
         registration_status=RegistrationStatus.VALIDATED.value
@@ -1019,7 +1014,7 @@ def casting_data(event_id):
     
     participants_by_type = {}
     for p in participants:
-        # Defensive check for missing user
+        # Vérification défensive : utilisateur manquant
         if not p.user:
             continue
             
@@ -1034,28 +1029,28 @@ def casting_data(event_id):
             'global_comment': p.global_comment or ''
         })
     
-    # Get proposals with assignments to avoid N+1
+    # Récupérer les propositions avec leurs assignations (éviter N+1)
     proposals = CastingProposal.query.filter_by(event_id=event_id)\
         .options(joinedload(CastingProposal.assignments))\
         .order_by(CastingProposal.position).all()
     proposals_data = [{'id': p.id, 'name': p.name} for p in proposals]
     
-    # Get assignments: {proposal_id: {role_id: {participant_id, score}}}
+    # Récupérer les assignations : {proposal_id: {role_id: {participant_id, score}}}
     assignments = {}
     scores = {}  # {proposal_id: {role_id: score}}
     
-    # Add 'main' key for the default column (uses Role.assigned_participant_id)
+    # Ajouter la clé 'main' pour la colonne par défaut (utilise Role.assigned_participant_id)
     assignments['main'] = {}
     roles = Role.query.filter_by(event_id=event_id).all()
     for role in roles:
         if role.assigned_participant_id:
             assignments['main'][str(role.id)] = role.assigned_participant_id
     
-    # Add proposal assignments and scores
+    # Ajouter les assignations et scores des propositions
     for proposal in proposals:
         assignments[str(proposal.id)] = {}
         scores[str(proposal.id)] = {}
-        # Access assignments from eager loaded relationship instead of query
+        # Accéder aux assignations via la relation eager-loaded plutôt que par requête
         try:
             for assignment in proposal.assignments:
                 if assignment.participant_id:
@@ -1133,7 +1128,7 @@ def casting_assign(event_id):
     
     role = Role.query.filter_by(id=role_id, event_id=event_id).first_or_404()
     
-    # Handle 'main' proposal (direct role assignment)
+    # Gérer la proposition 'main' (assignation directe du rôle)
     if proposal_id == 'main':
         if participant_id:
             role.assigned_participant_id = int(participant_id)
@@ -1142,17 +1137,8 @@ def casting_assign(event_id):
         db.session.commit()
         return jsonify({'success': True})
     
-    # Handle custom proposal assignments
-    # Find or create assignment
+    # Gérer les assignations de propositions personnalisées
     proposal = CastingProposal.query.filter_by(id=proposal_id, event_id=event_id).first_or_404()
-    
-    # ... (rest of casting_assign logic if needed, but we are just appending new route)
-    # Actually I should be appending *after* the function. The grep showed it around line 772.
-    # I will target the end of casting_assign function to append. 
-    # Wait, viewing the file showed casting_assign starts at 772. It ends around line 830 (not visible yet).
-    # I'll just append to the end of the file or after add_proposal if I can find a clear spot.
-    
-    # Let me view the end of casting_assign first to place it correctly.
 
     assignment = CastingAssignment.query.filter_by(
         proposal_id=proposal_id,
@@ -1195,7 +1181,7 @@ def delete_proposal(event_id):
     
     proposal = CastingProposal.query.filter_by(id=proposal_id, event_id=event_id).first_or_404()
     
-    # Cascade delete handles assignments
+    # La suppression en cascade gère les assignations
     db.session.delete(proposal)
     db.session.commit()
     
@@ -1226,10 +1212,7 @@ def toggle_casting_validation(event_id):
     # Notification
     from services.notification_service import create_notification
     status_text = "validé" if event.is_casting_validated else "non-validé"
-    # Note: user wants RED validation text in UI, but backend log just stores text. 
-    # The UI template handles color based on content or we can use markdown if supported.
-    # The user request said "Validation (en rouge)". 
-    # I'll stick to text description here, UI rendering determines color.
+    # Le rendu visuel (couleur rouge) est géré côté template UI
     create_notification(
         event_id=event.id,
         user_id=current_user.id,
@@ -1264,14 +1247,14 @@ def update_casting_score(event_id):
         # Main column doesn't support scores (direct assignment)
         return jsonify({'error': 'Scores non supportés pour la colonne principale'}), 400
     
-    # Find or create assignment
+    # Trouver ou créer l'assignation
     assignment = CastingAssignment.query.filter_by(
         proposal_id=proposal_id,
         role_id=role_id
     ).first()
     
     if not assignment:
-        # Create assignment with just the score (no participant yet)
+        # Créer l'assignation avec uniquement le score (pas de participant encore)
         assignment = CastingAssignment(
             proposal_id=proposal_id,
             role_id=role_id,

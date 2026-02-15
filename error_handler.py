@@ -1,6 +1,7 @@
 """
-Enhanced Error Handler for GN Manager
-Provides structured error logging and context capture
+Gestionnaire d'erreurs amélioré pour GN Manager.
+
+Fournit un logging structuré des erreurs et la capture du contexte.
 """
 import logging
 import traceback
@@ -10,13 +11,13 @@ from werkzeug.exceptions import HTTPException
 
 def init_error_handlers(app):
     """
-    Initialize enhanced error handlers for the application
-    Captures detailed context for all errors
+    Initialise les gestionnaires d'erreurs améliorés pour l'application.
+    Capture le contexte détaillé pour toutes les erreurs.
     """
     
     @app.errorhandler(404)
     def not_found_error(error):
-        """Handle 404 Not Found errors"""
+        """Gère les erreurs 404 (Page non trouvée)."""
         app.logger.warning(
             f'404 Not Found: {request.method} {request.url}',
             extra={
@@ -26,7 +27,7 @@ def init_error_handlers(app):
             }
         )
         
-        # Return JSON for API requests, HTML otherwise
+        # Retourner du JSON pour les requêtes API, du HTML sinon
         if request.path.startswith('/api/') or request.accept_mimetypes.accept_json:
             return jsonify({
                 'error': 'Not Found',
@@ -38,7 +39,7 @@ def init_error_handlers(app):
     
     @app.errorhandler(403)
     def forbidden_error(error):
-        """Handle 403 Forbidden errors"""
+        """Gère les erreurs 403 (Accès interdit)."""
         app.logger.warning(
             f'403 Forbidden: {request.method} {request.url}',
             extra={
@@ -58,8 +59,8 @@ def init_error_handlers(app):
     
     @app.errorhandler(500)
     def internal_error(error):
-        """Handle 500 Internal Server errors"""
-        # Log detailed error information
+        """Gère les erreurs 500 (Erreur interne du serveur)."""
+        # Journaliser les informations détaillées de l'erreur
         app.logger.error(
             f'500 Internal Server Error: {request.method} {request.url}',
             extra={
@@ -82,12 +83,12 @@ def init_error_handlers(app):
     
     @app.errorhandler(Exception)
     def handle_exception(error):
-        """Handle all unhandled exceptions"""
-        # Pass through HTTP errors
+        """Gère toutes les exceptions non interceptées."""
+        # Laisser passer les erreurs HTTP
         if isinstance(error, HTTPException):
             return error
         
-        # Log the error with full context
+        # Journaliser l'erreur avec le contexte complet
         app.logger.critical(
             f'Unhandled exception: {type(error).__name__}: {str(error)}',
             extra={
@@ -101,7 +102,7 @@ def init_error_handlers(app):
             exc_info=True
         )
         
-        # Return 500 error
+        # Retourner une erreur 500
         if request.path.startswith('/api/') or request.accept_mimetypes.accept_json:
             return jsonify({
                 'error': 'Internal Server Error',
@@ -113,7 +114,7 @@ def init_error_handlers(app):
 
 
 def log_request_info():
-    """Log information about incoming requests (for debugging)"""
+    """Journalise les informations sur les requêtes entrantes (pour le debug)."""
     if not request.path.startswith('/static/'):
         app = current_app._get_current_object()
         app.logger.debug(

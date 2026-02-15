@@ -218,14 +218,14 @@ def save_categories(event_id):
                 color = 'neutral'
             
             if cat_id and cat_id in existing_categories:
-                # Update existing
+                # Mettre à jour l'existant
                 category = existing_categories[cat_id]
                 category.name = name
                 category.color = color
                 category.position = idx
                 updated_ids.add(cat_id)
             else:
-                # Create new
+                # Créer un nouveau
                 category = GFormsCategory(
                     event_id=event_id,
                     name=name,
@@ -234,7 +234,7 @@ def save_categories(event_id):
                 )
                 db.session.add(category)
         
-        # Delete categories that were removed
+        # Supprimer les catégories retirées
         removed_ids = existing_ids - updated_ids
         for cat_id in removed_ids:
             # Ne pas supprimer la catégorie "Généralités" par défaut
@@ -251,12 +251,12 @@ def save_categories(event_id):
                 
                 db.session.delete(existing_categories[cat_id])
         
-        # Notification details
+        # Détails de la notification
         actions = []
         if updated_ids: actions.append(f"{len(updated_ids)} catégories mises à jour")
-        # Count new categories (those in input but not in existing at start, or we can just track them)
-        # simplistic approach: actions already has updates.
-        # Let's count creations:
+        # Compter les nouvelles catégories
+        # Approche simplifiée : on compte les cr\u00e9ations
+        # Compter les créations :
         created_count = len([c for c in categories_input if not c.get('id')])
         if created_count > 0: actions.append(f"{created_count} catégories créées")
         
@@ -378,11 +378,11 @@ def save_field_mappings(event_id):
             ).first()
             
             if mapping:
-                # Update
+                # Mettre à jour
                 mapping.category_id = category_id
                 mapping.field_alias = field_alias
             else:
-                # Create
+                # Créer
                 mapping = GFormsFieldMapping(
                     event_id=event_id,
                     field_name=field_name,
@@ -655,7 +655,7 @@ def import_gforms_data(event_id):
                     
                     # On suppose que l'import est fait par un admin/orga, on loggue l'action
                     log = ActivityLog(
-                        action_type=ActivityLogType.USER_REGISTRATION.value, # Use appropriate enum
+                        action_type=ActivityLogType.USER_REGISTRATION.value, # Type d'événement d'activité
                         user_id=current_user.id,
                         details=json.dumps({'email': email, 'source': 'gforms_import', 'event_id': event.id})
                     )
@@ -719,7 +719,7 @@ def import_gforms_data(event_id):
                     
                     submission.raw_data = json.dumps(current_data)
                     submission.type_ajout = "mis à jour" # Force status update
-                    submission.timestamp = datetime.utcnow() # Update timestamp to now (import time)
+                    submission.timestamp = datetime.utcnow() # Mettre à jour le timestamp
                     stats['updated'] += 1
                     
             except Exception as e:

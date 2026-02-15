@@ -1,59 +1,60 @@
 """
-Custom exceptions for GN Manager application.
+Exceptions personnalisées pour l'application GN Manager.
 
-This module defines application-specific exceptions for better error handling
-and debugging. Using specific exceptions allows for more granular error handling
-and clearer error messages.
+Ce module définit des exceptions spécifiques à l'application pour une
+meilleure gestion des erreurs et un débogage plus clair. L'utilisation
+d'exceptions spécifiques permet une gestion plus granulaire des erreurs
+et des messages plus explicites.
 """
 
 
 class AppError(Exception):
-    """Base exception for all application errors."""
+    """Exception de base pour toutes les erreurs de l'application."""
     pass
 
 
 class DatabaseError(AppError):
     """
-    Exception raised for database operation errors.
+    Exception levée pour les erreurs d'opérations en base de données.
     
-    Examples:
-    - Failed INSERT/UPDATE/DELETE operations
-    - Constraint violations
-    - Connection issues
+    Exemples :
+    - Échec des opérations INSERT/UPDATE/DELETE
+    - Violations de contraintes
+    - Problèmes de connexion
     """
     pass
 
 
 class PermissionError(AppError):
     """
-    Exception raised for authorization/permission errors.
+    Exception levée pour les erreurs d'autorisation/permissions.
     
-    Examples:
-    - User attempting to access resource they don't own
-    - Non-admin trying to access admin-only features
+    Exemples :
+    - Utilisateur tentant d'accéder à une ressource qui ne lui appartient pas
+    - Non-admin essayant d'accéder à des fonctionnalités réservées aux administrateurs
     """
     pass
 
 
 class ValidationError(AppError):
     """
-    Exception raised for input validation errors.
+    Exception levée pour les erreurs de validation des données.
     
-    Examples:
-    - Invalid email format
-    - Missing required fields
-    - Invalid date ranges
+    Exemples :
+    - Format d'email invalide
+    - Champs obligatoires manquants
+    - Plages de dates invalides
     """
     pass
 
 
 class ExternalServiceError(AppError):
     """
-    Exception raised for external service errors.
+    Exception levée pour les erreurs de services externes.
     
-    Examples:
-    - Google API failures
-    - Email service errors
-    - OAuth failures
+    Exemples :
+    - Échecs de l'API Google
+    - Erreurs du service email
+    - Échecs OAuth
     """
     pass

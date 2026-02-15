@@ -216,7 +216,7 @@ def bulk_update(event_id):
             p.payment_method = request.form.get(f'pay_method_{p_id}', p.payment_method)
             p.comment = request.form.get(f'comment_{p_id}', p.comment)
             
-            # Log bulk update for this participant
+            # Journal de la mise à jour groupée pour ce participant
             log = ActivityLog(
                 user_id=current_user.id,
                 action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
@@ -261,7 +261,7 @@ def update(event_id, p_id):
     is_locked = request.form.get('is_photo_locked') == 'on'
     if is_locked != p.is_photo_locked:
          p.is_photo_locked = is_locked
-         # Log lock change
+         # Journal du changement de verrouillage
     
     # Gestion de l'upload de photo par l'organisateur
     if 'photo' in request.files:
@@ -311,7 +311,7 @@ def update(event_id, p_id):
     p.user.phone = request.form.get('phone')
     p.user.facebook = request.form.get('facebook')
     
-    # Log individual update
+    # Journal de la mise à jour individuelle
     log = ActivityLog(
         user_id=current_user.id,
         action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
@@ -435,7 +435,7 @@ def update_paf_inline(event_id, p_id):
             
     db.session.commit()
     
-    # Log specific changes if any
+    # Journaliser les changements spécifiques le cas échéant
     if changes:
         log = ActivityLog(
             user_id=current_user.id,
@@ -450,8 +450,8 @@ def update_paf_inline(event_id, p_id):
         )
         db.session.add(log)
         
-        # Notification to organizers if significant changes (optional, but requested for granular logs)
-        # Maybe group consecutive updates? For now, we log every save.
+        # Notification aux organisateurs pour les changements significatifs
+        # Possibilité de regrouper les mises à jour consécutives ; pour l'instant, chaque sauvegarde est journalisée.
         from services.notification_service import create_notification
         create_notification(
             event_id=event.id,
@@ -561,7 +561,7 @@ def api_assign():
     participant_id = data.get('participant_id')
     role_id = data.get('role_id')
     
-    # Security check (organizer)
+    # Vérification de sécurité (organisateur)
     event = Event.query.get_or_404(event_id)
     me = Participant.query.filter_by(event_id=event.id, user_id=current_user.id).first()
     if not me or not me.is_organizer:
@@ -570,11 +570,11 @@ def api_assign():
     participant = Participant.query.get_or_404(participant_id)
     role = Role.query.get_or_404(role_id)
     
-    # Update both sides
+    # Mettre à jour les deux côtés
     participant.role_id = role.id
     role.assigned_participant_id = participant.id
     
-    # Log assignment
+    # Journal de l'assignation
     log = ActivityLog(
         user_id=current_user.id,
         action_type=ActivityLogType.PARTICIPANT_UPDATE.value,
@@ -616,7 +616,7 @@ def api_unassign():
                 p.role_id = None
             role.assigned_participant_id = None
             
-            # Log unassignment
+            # Journal de la désassignation
             log = ActivityLog(
                 user_id=current_user.id,
                 action_type=ActivityLogType.PARTICIPANT_UPDATE.value,

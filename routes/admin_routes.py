@@ -178,9 +178,9 @@ def update_profile():
     # Note: Checkboxes only send 'on' if checked, otherwise nothing.
     current_user.is_profile_photo_public = request.form.get('is_profile_photo_public') == 'on'
     
-    # Note: is_admin is not user-editable here, only via specific admin panel if any.
-    # The previous code snippet looked like it was trying to set is_admin, which might be a security risk if exposed in user profile.
-    # I will assumes this is the user profile update route.
+    # Note : is_admin n'est pas modifiable ici, seulement via le panneau d'administration spécifique.
+    # Le code précédent semblait vouloir définir is_admin, ce qui pourrait être un risque sécuritaire si exposé dans le profil utilisateur.
+    # Route de mise à jour du profil utilisateur.
     
     # Gestion des images avec validation stricte
     from utils.file_validation import FileValidationError, process_and_save_image
@@ -374,7 +374,7 @@ def admin_update_full_user(user_id):
         
     db.session.commit()
     
-    # Log user update
+    # Journal de la mise à jour utilisateur
     log = ActivityLog(
         user_id=current_user.id,
         action_type=ActivityLogType.USER_UPDATE.value,
@@ -389,7 +389,7 @@ def admin_update_full_user(user_id):
     db.session.commit()
     
     flash(f"Utilisateur {user.email} mis à jour.", "success")
-    # Redirect to admin page (users view) instead of dashboard
+    # Rediriger vers la page admin (vue utilisateurs) au lieu du tableau de bord
     page = request.args.get('page', 1, type=int)
     return redirect(url_for('admin.admin_page', admin_view='users', page=page, _anchor='admin'))
 
