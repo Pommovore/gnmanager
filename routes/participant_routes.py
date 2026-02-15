@@ -1097,3 +1097,84 @@ def bulk_delete(event_id):
         db.session.rollback()
         current_app.logger.error(f"Error bulk deleting participants for event {event_id}: {e}", exc_info=True)
         return jsonify({'success': False, 'error': str(e)}), 500
+
+
+@participant_bp.route('/event/<int:event_id>/participant/<int:participant_id>/copy_event_to_profile_photo', methods=['POST'])
+@login_required
+def copy_event_to_profile_photo(event_id, participant_id):
+    """
+    Copie la photo spécifique de l'événement vers la photo de profil générale.
+    """
+    participant = Participant.query.get_or_404(participant_id)
+    
+    # Vérification stricte : seul l'utilisateur peut modifier sa propre photo de profil globale
+    if participant.user_id != current_user.id:
+        flash('Action non autorisée. Seul le propriétaire du compte peut modifier sa photo de profil.', 'danger')
+        return redirect(url_for('event.detail', event_id=event_id))
+    
+    if not participant.custom_image:
+        flash("Aucun photo d'événement à copier", 'warning')
+        return redirect(url_for('event.detail', event_id=event_id))
+        
+    try:
+        # Chemin source (photo événement)
+        source_rel = participant.custom_image.lstrip('/')
+        # Gérer le cas où static/ est répété ou pas, selon le stockage
+        # custom_image est stocké comme /static/uploads/...
+        if source_rel.startswith('static/'):
+             source_path = os.path.join(current_app.root_path, source_rel)
+        else:
+             # Fallback
+             source_path = os.path.join(current_app.root_path, 'static', source_rel)
+             
+        if not os.path.exists(source_path):
+            flash('Photo d\'événement introuvable sur le serveur', 'danger')
+            return redirect(url_for('event.detail', event_id=event_id))
+            
+        # Chemin destination (photo profil)
+        upload_folder = os.path.join(current_app.root_path, 'static', 'uploads', 'users', 'profile')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        # Traitement et sauvegarde
+        from PIL import Image
+        from constants import DefaultValues
+        
+        # Ouverture de l'image source
+        img = Image.open(source_path)
+        if img.mode in ('RGBA', 'P'):
+            img = img.convert('RGB')
+            
+        # Redimensionnement vers format profil (600x800)
+        img.thumbnail(DefaultValues.DEFAULT_PROFILE_PHOTO_SIZE, Image.Resampling.LANCZOS)
+        
+        # Génération nom de fichier destination
+        user = participant.user
+        safe_nom = secure_filename(user.nom or 'unknown')
+        safe_prenom = secure_filename(user.prenom or 'unknown')
+        prefix = f"profile_{user.id}" # Uniform user profile naming
+        filename = f"{prefix}_{safe_nom}_{safe_prenom}.jpg"
+        
+        # Supprimer l'ancienne photo de profil si elle existe
+        if user.profile_photo_url:
+            old_path = os.path.join(current_app.root_path, user.profile_photo_url.lstrip('/'))
+            if os.path.exists(old_path):
+                 try:
+                    os.remove(old_path)
+                 except OSError:
+                    pass
+        
+        dest_path = os.path.join(upload_folder, filename)
+        
+        # Sauvegarde
+        img.save(dest_path, 'JPEG', quality=85, optimize=True)
+        
+        # Mise à jour BDD
+        user.profile_photo_url = f"/static/uploads/users/profile/{filename}"
+        db.session.commit()
+        
+        flash('Photo de l\'événement définie comme photo de profil principale', 'success')
+        
+    except Exception as e:
+        flash(f"Erreur lors de la copie: {str(e)}", 'danger')
+        
+    return redirect(url_for('event.detail', event_id=event_id))

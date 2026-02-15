@@ -228,20 +228,33 @@
                         </div>
                     </div>
 
-                    <!-- Bouton Copier -->
-                    <div class="photo-action-btn">
+                    <!-- Bouton Copier dans les deux sens -->
+                    <div class="photo-action-btn gap-2">
+                        <!-- Profil vers Event (existant) -->
                         <form
                             action="{{ url_for('participant.copy_profile_to_event_photo', event_id=event.id, participant_id=participant.id) }}"
                             method="POST">
                             <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
-                            <button type="submit" class="btn btn-primary rounded-circle p-3"
-                                title="{% if participant.is_photo_locked %}Photo verrouillée par l'organisateur{% else %}Copier ma photo de profil vers cet événement{% endif %}"
+                            <button type="submit" class="btn btn-primary rounded-circle p-3 shadow-sm"
+                                title="{% if participant.is_photo_locked %}Photo verrouillée par l'organisateur{% else %}Utiliser ma photo de profil pour cet événement{% endif %}"
                                 {% if not current_user.profile_photo_url or participant.custom_image or
                                 participant.is_photo_locked %}disabled{% endif %}>
                                 <i class="bi bi-arrow-right fs-4"></i>
                             </button>
                         </form>
-                        <small class="text-muted mt-2">Copier</small>
+
+                        <!-- Event vers Profil (Nouveau) -->
+                        <form
+                            action="{{ url_for('participant.copy_event_to_profile_photo', event_id=event.id, participant_id=participant.id) }}"
+                            method="POST"
+                            onsubmit="return confirm('Attention : Cette action va remplacer votre photo de profil générale par celle de cet événement. Continuer ?');">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button type="submit" class="btn btn-outline-primary rounded-circle p-2 shadow-sm"
+                                title="Définir cette photo comme ma photo de profil générale" {% if not
+                                participant.custom_image %}disabled{% endif %}>
+                                <i class="bi bi-arrow-left fs-5"></i>
+                            </button>
+                        </form>
                     </div>
 
                     <!-- Cadre 2 : Photo Événement -->
