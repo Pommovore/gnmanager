@@ -4,7 +4,7 @@
 {# Description Tab (Organizer only) #}
 <div class="tab-pane fade" id="list-general" role="tabpanel">
     <div class="card">
-        <div class="card-header">Modifier les généralités</div>
+        <div class="card-header">Réglages généraux et préférences</div>
         <div class="card-body">
             <form method="POST" action="{{ url_for('event.update_general', event_id=event.id) }}"
                 enctype="multipart/form-data">
@@ -1099,7 +1099,7 @@
 <div class="tab-pane fade" id="list-gforms" role="tabpanel">
     <div class="card">
         <div class="card-header d-flex justify-content-between align-items-center">
-            <span>Gestion Google Forms [V2]</span>
+            <span>Gestion des formulaires</span>
             <div>
                 <input type="file" id="import-gforms-file" accept=".csv" style="display: none;">
                 <button class="btn btn-sm btn-outline-primary me-1" id="import-gforms-btn"
