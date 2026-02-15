@@ -6,11 +6,11 @@
         <div class="list-group list-group-flush">
             <a href="{{ url_for('admin.admin_page', admin_view='users') }}"
                 class="list-group-item list-group-item-action {% if admin_view == 'users' or (admin_view != 'add' and admin_view != 'events') %}active{% endif %}">
-                Utilisateurs
+                <i class="bi bi-people"></i> Utilisateurs
             </a>
             <a href="{{ url_for('admin.admin_page', admin_view='add') }}"
                 class="list-group-item list-group-item-action {% if admin_view == 'add' %}active{% endif %}">
-                Ajouter
+                <i class="bi bi-person-plus"></i> Ajouter
             </a>
             <a href="{{ url_for('admin.admin_page', admin_view='events') }}"
                 class="list-group-item list-group-item-action {% if admin_view == 'events' %}active{% endif %}">
