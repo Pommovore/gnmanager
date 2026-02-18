@@ -116,6 +116,7 @@ class Event(db.Model):
     google_form_url = db.Column(db.String(255))
     google_form_active = db.Column(db.Boolean, default=False)
     display_organizers = db.Column(db.Boolean, default=True)
+    auto_invite_email = db.Column(db.Boolean, default=False)
     # Secret unique pour le webhook Google Forms de cet événement
     webhook_secret = db.Column(db.String(32), unique=True, nullable=True)
     # Discord Webhook URL for notifications

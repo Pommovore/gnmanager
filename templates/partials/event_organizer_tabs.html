@@ -537,6 +537,21 @@
                 <span>Gestion de l'attribution des rôles</span>
                 {# Validation Switch #}
                 <div class="d-flex align-items-center">
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="google_form_active"
+                            name="google_form_active" {% if event.google_form_active %}checked{% endif %}>
+                        <label class="form-check-label" for="google_form_active">Activer l'intégration Google
+                            Form</label>
+                    </div>
+
+                    <div class="form-check form-switch mb-3">
+                        <input class="form-check-input" type="checkbox" id="auto_invite_email" name="auto_invite_email"
+                            {% if event.auto_invite_email %}checked{% endif %}>
+                        <label class="form-check-label" for="auto_invite_email">Envoyer automatiquement un email
+                            d'invitation aux nouveaux utilisateurs</label>
+                        <div class="form-text">Si activé, les nouveaux utilisateurs créés via le Webhook ou l'import CSV
+                            recevront un email pour définir leur mot de passe.</div>
+                    </div>
                     <div class="form-check form-switch">
                         <input class="form-check-input" type="checkbox" role="switch" id="castingValidationSwitch" {% if
                             event.is_casting_validated %}checked{% endif %}>

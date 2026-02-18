@@ -22,6 +22,7 @@ import secrets
 from models import db, Event, GFormsCategory, GFormsFieldMapping, GFormsSubmission, User, Participant, EventNotification
 from decorators import organizer_required
 from constants import RegistrationStatus, ParticipantType
+from services.email_service import send_new_account_invitation
 
 # Création du Blueprint
 gforms_bp = Blueprint('gforms', __name__)
@@ -660,6 +661,18 @@ def import_gforms_data(event_id):
                         details=json.dumps({'email': email, 'source': 'gforms_import', 'event_id': event.id})
                     )
                     db.session.add(log)
+                    
+                    # Envoi email d'invitation si activé
+                    if event.auto_invite_email:
+                        # Flush pour avoir l'ID user si besoin et être "propre"
+                        db.session.flush()
+                        try:
+                            # Note: On envoie l'email synchrone ici, ce qui peut ralentir l'import
+                            # Si beaucoup de lignes, ça peut timeout. 
+                            # Pour l'instant on fait simple.
+                            send_new_account_invitation(user, event)
+                        except Exception as e:
+                            logger.error(f"Failed to send invitation email to {email}: {e}")
                 else:
                     type_ajout = "ajouté" # Par défaut
                 

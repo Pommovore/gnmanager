@@ -375,6 +375,7 @@ def update_general(event_id):
         
         # Checkbox handling: presence means True
         event.google_form_active = 'google_form_active' in request.form
+        event.auto_invite_email = 'auto_invite_email' in request.form
              
         db.session.commit()
         

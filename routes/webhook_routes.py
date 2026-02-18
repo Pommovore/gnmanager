@@ -8,6 +8,7 @@ from extensions import csrf
 from werkzeug.security import generate_password_hash
 import secrets
 from constants import RegistrationStatus, ParticipantType
+from services.email_service import send_new_account_invitation
 
 # Création du Blueprint
 webhook_bp = Blueprint('webhook', __name__)
@@ -184,6 +185,21 @@ def gform_webhook():
                     is_read=False
                 )
                 db.session.add(notif)
+                
+                # Envoi email d'invitation si activé
+                if type_ajout == "créé" and event.auto_invite_email:
+                    # On doit committer l'utilisateur avant d'envoyer l'email car le token a besoin de l'user_id ?
+                    # Non, token a juste besoin de l'email.
+                    # Mais s'il clique sur le lien, il faut que l'user soit en base.
+                    # On flush de nouveau pour être sûr.
+                    db.session.flush()
+                    
+                    # On ne veut pas bloquer le webhook si l'email échoue, donc on log juste l'erreur dans le service
+                    # Idéalement faudrait faire ça en async/background, mais ici on fait synchrone pour l'instant
+                    try:
+                        send_new_account_invitation(user, event)
+                    except Exception as e:
+                        logger.error(f"Failed to send invitation email: {e}")
 
         # ---------------------------------------------------------
         # Nouvelle logique : GFormsSubmission & Field Mappings
