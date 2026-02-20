@@ -99,9 +99,23 @@ def gform_webhook():
         # Nouvelle logique : Inscription/Mise à jour du Participant
         # ---------------------------------------------------------
         email = data.get('email')
+        answers = data.get('answers', {})
+        
+        # Tentative d'extraire l'email depuis les réponses si non fourni par Google Forms
+        if not email and isinstance(answers, dict):
+            for k, v in answers.items():
+                k_lower = k.lower().strip()
+                if 'e-mail' in k_lower or 'email' in k_lower or 'courriel' in k_lower:
+                    if isinstance(v, str) and '@' in v:
+                        email = v.strip()
+                        break
+                        
+        if not email:
+            email = ""
+            
         user = None
         participant = None
-        type_ajout = "inconnu"
+        type_ajout = "anonyme"
         
         if email:
             logger.info(f"Processing email: {email}") # DEBUG LOG
@@ -146,7 +160,6 @@ def gform_webhook():
                  type_ajout = "mis à jour" # Si participant existe déjà
             
             # 3. Traitement de l'identité (Nom/Prénom)
-            answers = data.get('answers', {})
             nom_form = None
             prenom_form = None
 
@@ -206,44 +219,45 @@ def gform_webhook():
         # ---------------------------------------------------------
         
         # 1. Créer/Mettre à jour GFormsSubmission
-        if email:
-            # Use email + event_id to find existing submission to allow merging
+        g_submission = GFormsSubmission.query.filter_by(form_response_id=form_response.id).first()
+        if not g_submission and email:
             g_submission = GFormsSubmission.query.filter_by(event_id=event.id, email=email).first()
-            new_answers = data.get('answers', {})
             
-            if not g_submission:
-                 g_submission = GFormsSubmission(
-                    event_id=event.id,
-                    user_id=user.id if user else None,
-                    email=email,
-                    timestamp=datetime.utcnow(),
-                    type_ajout=type_ajout,
-                    form_response_id=form_response.id,
-                    raw_data=json.dumps(new_answers)
-                )
-                 db.session.add(g_submission)
-            else:
-                # Merge logic: replace only if new data is not empty
-                try:
-                    current_data = json.loads(g_submission.raw_data) if g_submission.raw_data else {}
-                except:
-                    current_data = {}
-                
-                if isinstance(new_answers, dict):
-                    for key, val in new_answers.items():
-                        # check for "empty" values: None, empty string, empty list, empty dict
-                        if val is not None and val != "" and val != [] and val != {}:
-                            current_data[key] = val
-                            
-                g_submission.raw_data = json.dumps(current_data)
-                g_submission.type_ajout = type_ajout
-                g_submission.timestamp = datetime.utcnow()
-                g_submission.form_response_id = form_response.id # Lier à la dernière réponse
-                if not g_submission.user_id and user:
-                    g_submission.user_id = user.id
+        if not g_submission:
+             g_submission = GFormsSubmission(
+                event_id=event.id,
+                user_id=user.id if user else None,
+                email=email,
+                timestamp=datetime.utcnow(),
+                type_ajout=type_ajout,
+                form_response_id=form_response.id,
+                raw_data=json.dumps(answers)
+            )
+             db.session.add(g_submission)
+        else:
+            # Merge logic: replace only if new data is not empty
+            try:
+                current_data = json.loads(g_submission.raw_data) if g_submission.raw_data else {}
+            except:
+                current_data = {}
+            
+            if isinstance(answers, dict):
+                for key, val in answers.items():
+                    # We only ignore None. We must allow empty strings and empty lists
+                    # because a user might delete an answer when updating their form.
+                    if val is not None:
+                        current_data[key] = val
+                        
+            g_submission.raw_data = json.dumps(current_data)
+            g_submission.type_ajout = type_ajout
+            g_submission.timestamp = datetime.utcnow()
+            g_submission.form_response_id = form_response.id # Lier à la dernière réponse
+            if not g_submission.user_id and user:
+                g_submission.user_id = user.id
+            if email and not g_submission.email:
+                g_submission.email = email
         
         # 2. Auto-detect fields and create mappings
-        answers = data.get('answers', {})
         if isinstance(answers, dict):
             # Récupérer la catégorie par défaut (insensible à la casse)
             default_cat = GFormsCategory.query.filter(
@@ -274,7 +288,7 @@ def gform_webhook():
         # ---------------------------------------------------------
         # Notification Discord
         # ---------------------------------------------------------
-        if event.discord_webhook_url and email: # Seulement si la logique email/utilisateur a été exécutée
+        if event.discord_webhook_url: 
              try:
                 from services.discord_service import send_discord_notification
                 
@@ -296,8 +310,8 @@ def gform_webhook():
                 
                 user_data = {
                     'nom': user.nom if user else "Inconnu",
-                    'prenom': user.prenom if user else "Inconnu",
-                    'email': email
+                    'prenom': user.prenom if user else "GForm Anonyme",
+                    'email': email if email else "anonyme@gform.com"
                 }
                 
                 send_discord_notification(
