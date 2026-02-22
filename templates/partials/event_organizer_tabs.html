@@ -1023,22 +1023,20 @@
                                     €</span>
                             </td>
                             <td>
-                                {% if not p.paf_type %}
-                                <span class="text-muted fs-4">?</span>
-                                {% else %}
-                                {% set remaining = due - p.payment_amount %}
                                 <div class="paf-remaining-container" data-p-id="{{ p.id }}">
+                                    {% if not p.paf_type %}
+                                    <span class="text-muted fs-4">?</span>
+                                    {% else %}
+                                    {% set remaining = due - p.payment_amount %}
                                     {% if remaining > 0.01 %}
                                     <span class="text-danger fw-bold">{{ "%.2f"|format(remaining) }} €</span>
-                                    {% elif remaining < -0.01 %} <span class="text-success">{{
-                                        "%.2f"|format(remaining)
-                                        }} €
-                                        (Trop perçu)</span>
+                                    {% elif remaining < -0.01 %} <span class="text-success">{{ "%.2f"|format(remaining)
+                                        }} € (Trop perçu)</span>
                                         {% else %}
                                         <span class="text-success"><i class="bi bi-check-lg"></i> Payé</span>
                                         {% endif %}
+                                        {% endif %}
                                 </div>
-                                {% endif %}
                             </td>
                         </tr>
                         {% endfor %}

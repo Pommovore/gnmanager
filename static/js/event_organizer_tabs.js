@@ -315,13 +315,17 @@ document.addEventListener('DOMContentLoaded', function () {
                     // Update Remaining Amount
                     const remainingContainer = document.querySelector(`.paf-remaining-container[data-p-id="${pId}"]`);
                     if (remainingContainer) {
-                        const rem = result.remaining;
-                        if (rem > 0.01) {
-                            remainingContainer.innerHTML = `<span class="text-danger fw-bold">${rem.toFixed(2)} €</span>`;
-                        } else if (rem < -0.01) {
-                            remainingContainer.innerHTML = `<span class="text-success">${rem.toFixed(2)} € (Trop perçu)</span>`;
+                        if (!result.paf_type) {
+                            remainingContainer.innerHTML = `<span class="text-muted fs-4">?</span>`;
                         } else {
-                            remainingContainer.innerHTML = `<span class="text-success"><i class="bi bi-check-lg"></i> Payé</span>`;
+                            const rem = result.remaining;
+                            if (rem > 0.01) {
+                                remainingContainer.innerHTML = `<span class="text-danger fw-bold">${rem.toFixed(2)} €</span>`;
+                            } else if (rem < -0.01) {
+                                remainingContainer.innerHTML = `<span class="text-success">${rem.toFixed(2)} € (Trop perçu)</span>`;
+                            } else {
+                                remainingContainer.innerHTML = `<span class="text-success"><i class="bi bi-check-lg"></i> Payé</span>`;
+                            }
                         }
                     }
 
@@ -360,6 +364,19 @@ document.addEventListener('DOMContentLoaded', function () {
                         }
                         const tooltip = bootstrap.Tooltip.getInstance(gcBtn);
                         if (tooltip) tooltip.setContent({ '.tooltip-inner': gcBtn.title });
+                    }
+
+                    // Update datasets for recalculation of stats
+                    const pafRow = document.querySelector(`.paf-participant-row[data-p-id="${pId}"]`) ||
+                        document.querySelector(`[data-p-id="${pId}"]`)?.closest('.paf-participant-row');
+                    if (pafRow) {
+                        pafRow.dataset.pafPaid = result.payment_amount || 0;
+                        pafRow.dataset.pafRemaining = result.remaining || 0;
+                    }
+
+                    // Recalculate global PAF stats
+                    if (typeof updatePafStats === 'function') {
+                        updatePafStats();
                     }
                 } else {
                     console.error('Update failed:', result.error);
