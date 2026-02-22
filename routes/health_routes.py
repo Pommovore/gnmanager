@@ -4,6 +4,7 @@ Provides endpoints for monitoring application health and availability
 """
 from flask import Blueprint, jsonify, current_app
 from models import db
+from extensions import cache
 from datetime import datetime
 import os
 import sys
@@ -15,6 +16,7 @@ _start_time = datetime.utcnow()
 
 
 @health_bp.route('/health', methods=['GET'])
+@cache.cached(timeout=30)
 def health():
     """
     Basic health check endpoint (liveness probe)
@@ -57,6 +59,7 @@ def readiness():
 
 
 @health_bp.route('/health/metrics', methods=['GET'])
+@cache.cached(timeout=60)
 def metrics():
     """
     Basic metrics endpoint

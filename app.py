@@ -17,7 +17,7 @@ Usage:
 from flask import Flask, render_template, request, session
 from models import db, User
 from flask_login import LoginManager
-from extensions import mail, migrate, csrf, limiter, oauth, cache
+from extensions import mail, migrate, csrf, limiter, oauth, cache, talisman
 from werkzeug.middleware.proxy_fix import ProxyFix
 import os
 from logging_config import configure_logging
@@ -222,6 +222,39 @@ def create_app(test_config=None):
     csrf.init_app(app)
     limiter.init_app(app)
     cache.init_app(app)
+    
+    # Configuration Flask-Talisman (headers de sécurité HTTP)
+    # CSP permissive pour Bootstrap CDN, Bootstrap Icons, Google Fonts
+    csp = {
+        'default-src': "'self'",
+        'script-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://cdn.jsdelivr.net',
+        ],
+        'style-src': [
+            "'self'",
+            "'unsafe-inline'",
+            'https://cdn.jsdelivr.net',
+            'https://fonts.googleapis.com',
+        ],
+        'font-src': [
+            "'self'",
+            'https://cdn.jsdelivr.net',
+            'https://fonts.gstatic.com',
+        ],
+        'img-src': [
+            "'self'",
+            'data:',
+        ],
+        'connect-src': "'self'",
+    }
+    talisman.init_app(
+        app,
+        content_security_policy=csp,
+        force_https=False,  # Géré par Nginx en amont
+        session_cookie_secure=is_production,
+    )
     oauth.init_app(app)
     
     # Configuration OAuth Google

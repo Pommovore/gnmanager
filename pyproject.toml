@@ -28,6 +28,7 @@ dependencies = [
     "numpy>=2.2.0",
     "markdown>=3.10.1",
     "flask-caching>=2.3.1",
+    "flask-talisman>=1.0.0",
     "pillow>=11.0.0",
     "odfpy>=1.4.1",
 ]
