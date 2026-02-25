@@ -1,10 +1,11 @@
 /**
  * event_organizer_tabs.js
  * Extracted logic from event_organizer_tabs.html
- * Requires window.GN_CONTEXT to be defined with:
- * - eventId
- * - csrfToken
- * - baseUrl
+ * Reads context from #event-context-data data-* attributes:
+ * - data-event-id
+ * - data-csrf-token
+ * - data-base-url
+ * - data-regenerate-url
  */
 
 function copyToClipboard(text, element) {
@@ -34,7 +35,8 @@ document.addEventListener('DOMContentLoaded', function () {
             context = {
                 eventId: dataEl.dataset.eventId,
                 csrfToken: dataEl.dataset.csrfToken,
-                baseUrl: dataEl.dataset.baseUrl
+                baseUrl: dataEl.dataset.baseUrl,
+                regenerateUrl: dataEl.dataset.regenerateUrl
             };
             // Sanitization: Ensure eventId is used correctly if it ends up being a string
         }

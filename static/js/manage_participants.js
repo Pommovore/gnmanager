@@ -1,10 +1,10 @@
 /**
  * manage_participants.js
  * Extracted logic from manage_participants.html
- * Requires window.GN_CONTEXT to be defined with:
- * - eventId
- * - csrfToken
- * - baseUrl
+ * Reads context from #event-context-data data-* attributes:
+ * - data-event-id
+ * - data-csrf-token
+ * - data-base-url
  */
 
 function copyToClipboard(text, element) {
@@ -24,14 +24,25 @@ function copyToClipboard(text, element) {
 }
 
 document.addEventListener('DOMContentLoaded', function () {
-    // Check for context
-    if (!window.GN_CONTEXT) {
-        console.error('GN_CONTEXT is missing. Defaulting to empty values.');
-        window.GN_CONTEXT = { eventId: '', csrfToken: '', baseUrl: '' };
+    // Check for context — read from data-* attributes (no inline script needed)
+    let context = window.GN_CONTEXT;
+    if (!context) {
+        const dataEl = document.getElementById('event-context-data');
+        if (dataEl) {
+            context = {
+                eventId: dataEl.dataset.eventId,
+                csrfToken: dataEl.dataset.csrfToken,
+                baseUrl: dataEl.dataset.baseUrl || ''
+            };
+        }
+    }
+    if (!context) {
+        console.error('Event context is missing. Defaulting to empty values.');
+        context = { eventId: '', csrfToken: '', baseUrl: '' };
     }
 
-    const { eventId, csrfToken } = window.GN_CONTEXT;
-    const baseUrl = window.GN_CONTEXT.baseUrl || '';
+    const { eventId, csrfToken } = context;
+    const baseUrl = (context.baseUrl || '').replace(/\/$/, '');
 
     // Init tooltips
     const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'))

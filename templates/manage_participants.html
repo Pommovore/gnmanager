@@ -599,13 +599,8 @@
 </script>
 
         <link rel="stylesheet" href="{{ url_for('static', filename='css/participants.css') }}">
-        <script>
-            window.GN_CONTEXT = {
-                eventId: {{ event.id }},
-            csrfToken: "{{ csrf_token() }}",
-                baseUrl: ""
-            };
-        </script>
+        <div id="event-context-data" data-event-id="{{ event.id }}" data-csrf-token="{{ csrf_token() }}"
+            data-base-url="{{ config.APPLICATION_ROOT or '' }}" style="display: none;"></div>
         <script src="{{ url_for('static', filename='js/participants.js') }}"></script>
         <script src="{{ url_for('static', filename='js/manage_participants.js') }}"></script>
     </div> {# Close container-fluid #}

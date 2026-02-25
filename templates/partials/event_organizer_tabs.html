@@ -787,15 +787,7 @@
     data-base-url="{{ config.APPLICATION_ROOT or '' }}"
     data-regenerate-url="{{ url_for('event.regenerate_secret', event_id=event.id) }}" style="display: none;"></div>
 
-<script>
-    // Robust initialization of global context
-    window.GN_CONTEXT = {
-        eventId: "{{ event.id }}",
-        csrfToken: "{{ csrf_token() }}",
-        baseUrl: "{{ config.APPLICATION_ROOT or '' }}",
-        regenerateUrl: "{{ url_for('event.regenerate_secret', event_id=event.id) }}"
-    };
-</script>
+
 <script src="{{ url_for('static', filename='js/event_organizer_tabs.js') }}?v=fixed_v2"></script>
 {% include "partials/casting_templates.html" %}
 
