@@ -19,3 +19,11 @@ admin:
   password: "<admin password>" # Admin password
   nom: "<admin nom>"
   prenom: "<admin prenom>"
+
+pdf2txt:
+  api_url: "<pdf2txt api_url>"
+  token: "<pdf2txt token>"
+
+character:
+  api_url: "<character api_url>"
+  token: "<character token>"
