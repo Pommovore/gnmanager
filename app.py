@@ -223,6 +223,10 @@ def create_app(test_config=None):
     limiter.init_app(app)
     cache.init_app(app)
     
+    # Chargement de la configuration de déploiement (services externes)
+    from utils.deploy_config_loader import load_deploy_config
+    load_deploy_config(app)
+    
     # Configuration Flask-Talisman (headers de sécurité HTTP)
     # CSP permissive pour Bootstrap CDN, Bootstrap Icons, Google Fonts
     csp = {

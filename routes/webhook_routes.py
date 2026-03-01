@@ -3,7 +3,7 @@ import json
 import logging
 from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
-from models import db, FormResponse, Event, User, Participant, GFormsSubmission, GFormsCategory, GFormsFieldMapping, EventNotification
+from models import db, FormResponse, Event, User, Participant, Role, GFormsSubmission, GFormsCategory, GFormsFieldMapping, EventNotification
 from extensions import csrf
 from werkzeug.security import generate_password_hash
 import secrets
@@ -335,4 +335,230 @@ def gform_webhook():
         logger.error(f"Error processing webhook: {e}", exc_info=True)
         db.session.rollback()
         return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# Webhooks et routes pour l'analyse des traits de caractère
+# ============================================================================
+
+def _find_role_by_id_texte(id_texte):
+    """
+    Retrouve un rôle à partir de son id_texte (nom sanitisé).
+    Parcourt tous les rôles et compare le nom sanitisé.
+    """
+    import re
+    roles = Role.query.all()
+    for role in roles:
+        sanitized = re.sub(r'[^a-zA-Z0-9]', '', role.name)
+        if sanitized == id_texte:
+            return role
+    return None
+
+
+@webhook_bp.route('/webhook/pdf2txt', methods=['POST'])
+@csrf.exempt
+def webhook_pdf2txt():
+    """
+    Callback du service pdf2txt.
+    Reçoit le résultat de l'extraction PDF → texte.
+    En cas de succès, lance automatiquement l'analyse des traits de caractère.
+    """
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            logger.error("❌ Webhook pdf2txt: aucun payload JSON reçu")
+            return jsonify({"error": "No JSON payload"}), 400
+
+        etat = data.get('etat', '')
+        id_texte = data.get('id_texte', '')
+
+        logger.info(f"📥 Webhook pdf2txt reçu: etat={etat}, id_texte={id_texte}")
+
+        # Retrouver le rôle correspondant
+        role = _find_role_by_id_texte(id_texte)
+        if not role:
+            logger.warning(f"⚠️  Aucun rôle trouvé pour id_texte='{id_texte}'")
+            return jsonify({"error": f"Rôle introuvable pour id_texte={id_texte}"}), 404
+
+        if etat == 'succès':
+            text_url = data.get('url', '')
+            extrait = data.get('extrait', '')
+            logger.info(f"✅ Extraction PDF réussie pour '{role.name}'. "
+                        f"URL texte: {text_url}, Extrait: {extrait[:100]}...")
+
+            # Lancer l'étape 2 : analyse des traits de caractère
+            from services.character_service import request_character_analysis
+            success, message = request_character_analysis(text_url, id_texte)
+
+            if not success:
+                role.character_traits_status = 'error'
+                role.character_traits_data = json.dumps({
+                    'error': f"Échec du lancement de l'analyse des traits: {message}"
+                })
+                db.session.commit()
+                logger.error(f"❌ Échec du lancement de l'analyse character pour '{role.name}': {message}")
+
+            # Le statut reste 'pending' car on attend le callback character
+
+        elif etat == 'échec':
+            erreur = data.get('erreur', 'Erreur inconnue')
+            role.character_traits_status = 'error'
+            role.character_traits_data = json.dumps({
+                'error': f"Échec de l'extraction PDF: {erreur}"
+            })
+            db.session.commit()
+            logger.error(f"❌ Extraction PDF échouée pour '{role.name}': {erreur}")
+
+        else:
+            logger.warning(f"⚠️  Webhook pdf2txt: état inconnu '{etat}' pour '{role.name}'")
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Erreur webhook pdf2txt: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+@webhook_bp.route('/webhook/character', methods=['POST'])
+@csrf.exempt
+def webhook_character():
+    """
+    Callback du service character.
+    Reçoit le résultat de l'analyse des traits de caractère.
+    Télécharge le JSON des traits depuis result_url en cas de succès.
+    """
+    try:
+        data = request.get_json(force=True)
+        if not data:
+            logger.error("❌ Webhook character: aucun payload JSON reçu")
+            return jsonify({"error": "No JSON payload"}), 400
+
+        status = data.get('status', '')
+        request_id = data.get('request_id', '')
+
+        logger.info(f"📥 Webhook character reçu: status={status}, request_id={request_id}")
+
+        # Retrouver le rôle correspondant
+        role = _find_role_by_id_texte(request_id)
+        if not role:
+            logger.warning(f"⚠️  Aucun rôle trouvé pour request_id='{request_id}'")
+            return jsonify({"error": f"Rôle introuvable pour request_id={request_id}"}), 404
+
+        if status == 'completed':
+            result_url = data.get('result_url', '')
+            logger.info(f"✅ Analyse character réussie pour '{role.name}'. "
+                        f"Téléchargement depuis: {result_url}")
+
+            # Télécharger le JSON des traits depuis result_url
+            try:
+                import requests as http_requests
+                resp = http_requests.get(result_url, timeout=15)
+                if resp.status_code == 200:
+                    traits_data = resp.json()
+                    role.character_traits_status = 'success'
+                    role.character_traits_data = json.dumps(traits_data)
+                    db.session.commit()
+                    logger.info(f"✅ Traits de caractère sauvegardés pour '{role.name}': "
+                                f"{len(traits_data.get('traits', []))} traits trouvés")
+                else:
+                    error_msg = f"Erreur téléchargement traits: HTTP {resp.status_code}"
+                    role.character_traits_status = 'error'
+                    role.character_traits_data = json.dumps({'error': error_msg})
+                    db.session.commit()
+                    logger.error(f"❌ {error_msg} pour '{role.name}'")
+            except Exception as e_download:
+                role.character_traits_status = 'error'
+                role.character_traits_data = json.dumps({
+                    'error': f"Erreur téléchargement résultat: {str(e_download)}"
+                })
+                db.session.commit()
+                logger.error(f"❌ Erreur téléchargement traits pour '{role.name}': {e_download}")
+
+        elif status == 'failed':
+            error_msg = data.get('error', 'Erreur inconnue')
+            role.character_traits_status = 'error'
+            role.character_traits_data = json.dumps({'error': error_msg})
+            db.session.commit()
+            logger.error(f"❌ Analyse character échouée pour '{role.name}': {error_msg}")
+
+        else:
+            logger.warning(f"⚠️  Webhook character: statut inconnu '{status}' pour '{role.name}'")
+
+        return jsonify({"status": "ok"}), 200
+
+    except Exception as e:
+        logger.error(f"❌ Erreur webhook character: {e}", exc_info=True)
+        db.session.rollback()
+        return jsonify({"error": str(e)}), 500
+
+
+# ============================================================================
+# Routes de déclenchement et statut de l'analyse
+# ============================================================================
+
+@webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/analyze_traits', methods=['POST'])
+@csrf.exempt
+def analyze_traits(event_id, role_id):
+    """
+    Déclenche l'analyse des traits de caractère pour un rôle.
+    Vérifie que le rôle a un pdf_url, puis lance l'extraction PDF.
+    Accès réservé aux organisateurs (vérification via login_required implicite ou token).
+    """
+    from flask_login import current_user, login_required
+    from decorators import organizer_required
+
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first()
+    if not role:
+        return jsonify({"error": "Rôle introuvable"}), 404
+
+    if not role.pdf_url:
+        return jsonify({"error": "Aucun PDF associé à ce rôle"}), 400
+
+    # Vérifier qu'une analyse n'est pas déjà en cours
+    if role.character_traits_status == 'pending':
+        return jsonify({"error": "Une analyse est déjà en cours pour ce rôle"}), 409
+
+    # Lancer l'extraction PDF (étape 1)
+    from services.character_service import request_pdf_extraction
+    success, message = request_pdf_extraction(role)
+
+    if success:
+        role.character_traits_status = 'pending'
+        role.character_traits_data = None
+        db.session.commit()
+        logger.info(f"🚀 Analyse des traits lancée pour '{role.name}' (event_id={event_id})")
+        return jsonify({"success": True, "message": message}), 200
+    else:
+        role.character_traits_status = 'error'
+        role.character_traits_data = json.dumps({'error': message})
+        db.session.commit()
+        logger.error(f"❌ Échec du lancement de l'analyse pour '{role.name}': {message}")
+        return jsonify({"error": message}), 500
+
+
+@webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/traits_status', methods=['GET'])
+@csrf.exempt
+def traits_status(event_id, role_id):
+    """
+    Retourne le statut actuel de l'analyse des traits de caractère.
+    Utilisé par le JS pour du polling pendant l'analyse.
+    """
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first()
+    if not role:
+        return jsonify({"error": "Rôle introuvable"}), 404
+
+    result = {
+        "status": role.character_traits_status,
+        "data": None
+    }
+
+    if role.character_traits_data:
+        try:
+            result["data"] = json.loads(role.character_traits_data)
+        except (json.JSONDecodeError, TypeError):
+            result["data"] = {"error": "Données corrompues"}
+
+    return jsonify(result), 200
+
 

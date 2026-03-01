@@ -209,6 +209,10 @@ class Role(db.Model):
     google_doc_url = db.Column(db.String(255))
     pdf_url = db.Column(db.String(255))
     
+    # Analyse des traits de caractère
+    character_traits_status = db.Column(db.String(20), default=None)  # None, pending, success, error
+    character_traits_data = db.Column(db.Text, default=None)  # JSON: traits ou message d'erreur
+    
     @validates('type')
     def validate_type(self, key, value):
         """Assure que le type est normalisé (Organisateur, PJ, PNJ)."""

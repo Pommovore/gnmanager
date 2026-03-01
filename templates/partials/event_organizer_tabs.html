@@ -460,13 +460,35 @@
                         <tr data-type="{{ role.type }}" data-group="{{ role.group or '' }}"
                             data-genre="{{ role.genre or '' }}">
                             <td>
-                                {% if role.comment %}
-                                <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ role.comment }}">
-                                    {{ role.name }} <i class="bi bi-info-circle text-muted small"></i>
+                                <span class="d-inline-flex align-items-center gap-1">
+                                    {% if role.comment %}
+                                    <span data-bs-toggle="tooltip" data-bs-placement="top" title="{{ role.comment }}">
+                                        {{ role.name }} <i class="bi bi-info-circle text-muted small"></i>
+                                    </span>
+                                    {% else %}
+                                    {{ role.name }}
+                                    {% endif %}
+
+                                    {# Indicateur d'analyse des traits de caractère #}
+                                    <span id="traits-indicator-{{ role.id }}" class="d-inline-flex align-items-center">
+                                        {% if role.character_traits_status == 'pending' %}
+                                        <span class="spinner-border spinner-border-sm text-primary" role="status"
+                                            title="Analyse en cours..." data-bs-toggle="tooltip"></span>
+                                        {% elif role.character_traits_status == 'success' %}
+                                        <i class="bi bi-info-circle-fill text-success traits-result-icon"
+                                            style="cursor: pointer;" data-role-id="{{ role.id }}"
+                                            data-bs-toggle="popover" data-bs-trigger="click" data-bs-html="true"
+                                            data-bs-placement="right" title="Traits de caractère"
+                                            data-bs-content="{{ role.character_traits_data|e }}"></i>
+                                        {% elif role.character_traits_status == 'error' %}
+                                        {% set error_data = role.character_traits_data|from_json if
+                                        role.character_traits_data else {} %}
+                                        <i class="bi bi-exclamation-circle-fill text-danger" data-bs-toggle="tooltip"
+                                            data-bs-placement="right"
+                                            title="Erreur: {{ error_data.error|default('Erreur inconnue') }}"></i>
+                                        {% endif %}
+                                    </span>
                                 </span>
-                                {% else %}
-                                {{ role.name }}
-                                {% endif %}
                             </td>
                             <td>
                                 {% if role.type == 'Organisateur' %}
@@ -500,15 +522,21 @@
                                 -
                                 {% endif %}
                             </td>
-                            <td class="text-center">
+                            <td class="text-center text-nowrap">
+                                <button type="button" class="btn btn-sm btn-outline-info me-1 btn-analyze-traits"
+                                    data-role-id="{{ role.id }}" data-event-id="{{ event.id }}"
+                                    data-role-name="{{ role.name }}" {% if not role.pdf_url %}disabled{% endif %}
+                                    title="{% if role.pdf_url %}Analyser les traits de caractère{% else %}PDF requis pour l'analyse{% endif %}"
+                                    data-bs-toggle="tooltip">
+                                    <i class="bi bi-person-lines-fill"></i>
+                                </button>
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1"
                                     data-bs-toggle="modal" data-bs-target="#editRoleModal{{ role.id }}"
-                                    title="Modifier ce rôle" data-bs-toggle="tooltip">
+                                    title="Modifier ce rôle">
                                     <i class="bi bi-gear"></i>
                                 </button>
                                 <button type="button" class="btn btn-sm btn-outline-danger" data-bs-toggle="modal"
-                                    data-bs-target="#deleteRoleModal{{ role.id }}" title="Supprimer ce rôle"
-                                    data-bs-toggle="tooltip">
+                                    data-bs-target="#deleteRoleModal{{ role.id }}" title="Supprimer ce rôle">
                                     <i class="bi bi-trash"></i>
                                 </button>
                             </td>

@@ -641,4 +641,196 @@ document.addEventListener('DOMContentLoaded', function () {
     // We should attach listeners on initial load too.
     attachTrombiLayoutListeners();
 
+    // ===================================================================
+    // Analyse des traits de caractère
+    // ===================================================================
+
+    /**
+     * Formate les données de traits pour l'affichage dans un popover.
+     * Format: Catégorie(Trait) = XX%
+     */
+    function formatTraitsContent(data) {
+        if (!data || !data.traits || data.traits.length === 0) {
+            return '<em>Aucun trait détecté</em>';
+        }
+
+        let html = '<div class="small">';
+        data.traits.forEach(t => {
+            const pct = Math.round((t.score || 0) * 100);
+            html += `<div><strong>${t.category || '?'}</strong>(${t.trait || '?'}) = ${pct}%</div>`;
+        });
+
+        if (data.summary) {
+            html += `<hr class="my-1"><div class="fst-italic">${data.summary}</div>`;
+        }
+
+        html += '</div>';
+        return html;
+    }
+
+    /**
+     * Met à jour l'indicateur visuel à côté du nom du rôle.
+     */
+    function updateTraitsIndicator(roleId, status, data) {
+        const indicator = document.getElementById(`traits-indicator-${roleId}`);
+        if (!indicator) return;
+
+        if (status === 'pending') {
+            indicator.innerHTML = `
+                <span class="spinner-border spinner-border-sm text-primary" role="status"
+                      title="Analyse en cours..." data-bs-toggle="tooltip"></span>`;
+        } else if (status === 'success') {
+            const content = formatTraitsContent(data);
+            indicator.innerHTML = `
+                <i class="bi bi-info-circle-fill text-success traits-result-icon"
+                   style="cursor: pointer;"
+                   data-role-id="${roleId}"
+                   data-bs-toggle="popover"
+                   data-bs-trigger="click"
+                   data-bs-html="true"
+                   data-bs-placement="right"
+                   title="Traits de caractère"></i>`;
+            // Initialiser le popover avec le contenu formaté
+            const icon = indicator.querySelector('.traits-result-icon');
+            if (icon) {
+                new bootstrap.Popover(icon, {
+                    content: content,
+                    html: true,
+                    trigger: 'click',
+                    placement: 'right'
+                });
+            }
+        } else if (status === 'error') {
+            const errorMsg = (data && data.error) ? data.error : 'Erreur inconnue';
+            indicator.innerHTML = `
+                <i class="bi bi-exclamation-circle-fill text-danger"
+                   data-bs-toggle="tooltip"
+                   data-bs-placement="right"
+                   title="Erreur: ${errorMsg}"></i>`;
+            // Initialiser le tooltip
+            const icon = indicator.querySelector('i');
+            if (icon) new bootstrap.Tooltip(icon);
+        } else {
+            indicator.innerHTML = '';
+        }
+
+        // Initialiser les tooltips des spinners
+        const spinners = indicator.querySelectorAll('[data-bs-toggle="tooltip"]');
+        spinners.forEach(el => new bootstrap.Tooltip(el));
+    }
+
+    /**
+     * Démarre le polling du statut d'analyse pour un rôle.
+     */
+    function pollTraitsStatus(eventId, roleId) {
+        const pollInterval = setInterval(() => {
+            fetch(`${baseUrl}/event/${eventId}/role/${roleId}/traits_status`)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.status && result.status !== 'pending') {
+                        clearInterval(pollInterval);
+                        updateTraitsIndicator(roleId, result.status, result.data);
+
+                        // Réactiver le bouton d'analyse
+                        const btn = document.querySelector(`.btn-analyze-traits[data-role-id="${roleId}"]`);
+                        if (btn) {
+                            btn.disabled = false;
+                            btn.querySelector('i').className = 'bi bi-person-lines-fill';
+                        }
+                    }
+                })
+                .catch(error => {
+                    console.error(`Erreur polling traits pour rôle ${roleId}:`, error);
+                    clearInterval(pollInterval);
+                });
+        }, 5000); // Polling toutes les 5 secondes
+    }
+
+    /**
+     * Initialise les popovers pour les traits déjà chargés côté serveur.
+     */
+    function initExistingTraitsPopovers() {
+        document.querySelectorAll('.traits-result-icon[data-bs-toggle="popover"]').forEach(icon => {
+            try {
+                const rawData = icon.getAttribute('data-bs-content');
+                if (rawData) {
+                    const data = JSON.parse(rawData);
+                    const content = formatTraitsContent(data);
+                    new bootstrap.Popover(icon, {
+                        content: content,
+                        html: true,
+                        trigger: 'click',
+                        placement: 'right'
+                    });
+                }
+            } catch (e) {
+                console.warn('Erreur parsing traits data pour popover:', e);
+            }
+        });
+    }
+
+    // Initialiser les popovers existants au chargement
+    initExistingTraitsPopovers();
+
+    // Démarrer le polling pour les rôles en cours d'analyse (rechargement de page)
+    document.querySelectorAll('#traits-indicator- .spinner-border').forEach(spinner => {
+        // Fallback: chercher les indicateurs pending via les data attributes
+    });
+    document.querySelectorAll('[id^="traits-indicator-"]').forEach(indicator => {
+        const spinner = indicator.querySelector('.spinner-border');
+        if (spinner) {
+            const roleId = indicator.id.replace('traits-indicator-', '');
+            if (roleId && eventId) {
+                pollTraitsStatus(eventId, roleId);
+            }
+        }
+    });
+
+    // Gestionnaire de clic sur les boutons d'analyse
+    document.querySelectorAll('.btn-analyze-traits').forEach(btn => {
+        btn.addEventListener('click', function () {
+            const roleId = this.dataset.roleId;
+            const roleEventId = this.dataset.eventId;
+            const roleName = this.dataset.roleName;
+
+            if (!confirm(`Lancer l'analyse des traits de caractère pour "${roleName}" ?`)) {
+                return;
+            }
+
+            // Désactiver le bouton pendant l'analyse
+            this.disabled = true;
+            this.querySelector('i').className = 'spinner-border spinner-border-sm';
+
+            // Afficher le spinner à côté du nom
+            updateTraitsIndicator(roleId, 'pending', null);
+
+            // Lancer l'analyse
+            fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/analyze_traits`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': csrfToken
+                }
+            })
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success) {
+                        // Démarrer le polling
+                        pollTraitsStatus(roleEventId, roleId);
+                    } else {
+                        // Erreur immédiate
+                        updateTraitsIndicator(roleId, 'error', { error: result.error });
+                        this.disabled = false;
+                        this.querySelector('i').className = 'bi bi-person-lines-fill';
+                    }
+                })
+                .catch(error => {
+                    console.error('Erreur lancement analyse:', error);
+                    updateTraitsIndicator(roleId, 'error', { error: 'Erreur réseau' });
+                    this.disabled = false;
+                    this.querySelector('i').className = 'bi bi-person-lines-fill';
+                });
+        });
+    });
+
 });
