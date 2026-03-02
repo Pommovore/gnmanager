@@ -386,6 +386,10 @@ def webhook_pdf2txt():
             logger.info(f"✅ Extraction PDF réussie pour '{role.name}'. "
                         f"URL texte: {text_url}, Extrait: {extrait[:100]}...")
 
+            # Passer en statut 'pending_character' (icône bleue)
+            role.character_traits_status = 'pending_character'
+            db.session.commit()
+
             # Lancer l'étape 2 : analyse des traits de caractère
             from services.character_service import request_character_analysis
             success, message = request_character_analysis(text_url, id_texte)
@@ -397,8 +401,6 @@ def webhook_pdf2txt():
                 })
                 db.session.commit()
                 logger.error(f"❌ Échec du lancement de l'analyse character pour '{role.name}': {message}")
-
-            # Le statut reste 'pending' car on attend le callback character
 
         elif etat == 'échec':
             erreur = data.get('erreur', 'Erreur inconnue')
@@ -516,7 +518,7 @@ def analyze_traits(event_id, role_id):
         return jsonify({"error": "Aucun PDF associé à ce rôle"}), 400
 
     # Vérifier qu'une analyse n'est pas déjà en cours
-    if role.character_traits_status == 'pending':
+    if role.character_traits_status in ('pending_pdf', 'pending_character'):
         return jsonify({"error": "Une analyse est déjà en cours pour ce rôle"}), 409
 
     # Lancer l'extraction PDF (étape 1)
@@ -524,7 +526,7 @@ def analyze_traits(event_id, role_id):
     success, message = request_pdf_extraction(role)
 
     if success:
-        role.character_traits_status = 'pending'
+        role.character_traits_status = 'pending_pdf'
         role.character_traits_data = None
         db.session.commit()
         logger.info(f"🚀 Analyse des traits lancée pour '{role.name}' (event_id={event_id})")
@@ -536,29 +538,5 @@ def analyze_traits(event_id, role_id):
         logger.error(f"❌ Échec du lancement de l'analyse pour '{role.name}': {message}")
         return jsonify({"error": message}), 500
 
-
-@webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/traits_status', methods=['GET'])
-@csrf.exempt
-def traits_status(event_id, role_id):
-    """
-    Retourne le statut actuel de l'analyse des traits de caractère.
-    Utilisé par le JS pour du polling pendant l'analyse.
-    """
-    role = Role.query.filter_by(id=role_id, event_id=event_id).first()
-    if not role:
-        return jsonify({"error": "Rôle introuvable"}), 404
-
-    result = {
-        "status": role.character_traits_status,
-        "data": None
-    }
-
-    if role.character_traits_data:
-        try:
-            result["data"] = json.loads(role.character_traits_data)
-        except (json.JSONDecodeError, TypeError):
-            result["data"] = {"error": "Données corrompues"}
-
-    return jsonify(result), 200
 
 

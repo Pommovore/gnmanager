@@ -21,7 +21,7 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - `participant_routes.py` : Gestion des participants, photos, export CSV
 - `gforms_routes.py` : Intégration Google Forms (Webhook & UI, Import CSV)
 - `admin_routes.py` : Administration globale, gestion des utilisateurs
-- `webhook_routes.py` : Point d'entrée des webhooks (Google Forms)
+- `webhook_routes.py` : Point d'entrée des webhooks (Google Forms, pdf2txt, character)
 - `health_routes.py` : Health checks et monitoring (`/health`, `/health/ready`, `/health/metrics`)
 
 ### Services (services/)
@@ -29,6 +29,10 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - **`notification_service.py`** : Gestion des notifications internes (journal d'activité)
 - **`odt_service.py`** : Génération du trombinoscope au format ODT
 - **`image_export_service.py`** : Export des photos du trombinoscope en archive ZIP
+- **`character_service.py`** : Orchestration de l'analyse des traits de caractère (appels pdf2txt et character)
+
+### Utilitaires (utils/)
+- **`deploy_config_loader.py`** : Chargement de la config YAML des services externes (pdf2txt, character) dans `app.config`
 
 ### Scripts utilitaires
 
@@ -98,6 +102,8 @@ GNôle est une application Flask pour la gestion d'événements de Grandeur Natu
 - Assignation à un participant (relation optionnelle)
 - Support de documents Google Docs et PDF
 - Commentaires internes (affichés en tooltip)
+- **`character_traits_status`** : Statut de l'analyse des traits (`None`, `pending_pdf`, `pending_character`, `success`, `error`)
+- **`character_traits_data`** : Données JSON des traits analysés (résultat ou message d'erreur)
 
 ### Participant
 - Liaison User ↔ Event
@@ -205,6 +211,65 @@ Modèles dédiés au stockage structuré des réponses Google Forms.
 Quand `is_casting_validated` est `True` :
 - Le nom du personnage assigné est affiché sous forme de badge noir
 - Un lien vers la fiche PDF du rôle est affiché (ou "bientôt disponible...")
+
+## Analyse des traits de caractère
+
+Fonctionnalité permettant d'extraire automatiquement les traits de caractère d'un rôle à partir de sa fiche PDF, via deux services externes en cascade.
+
+### Flux de traitement
+1. **Clic** sur le bouton d'analyse → statut passe à `pending_pdf` (icône grise)
+2. **Webhook pdf2txt** reçu → statut passe à `pending_character` (icône bleue)
+3. **Webhook character** reçu → statut passe à `success` (icône verte) ou `error` (icône rouge)
+
+```mermaid
+sequenceDiagram
+    participant U as Utilisateur
+    participant B as Backend Flask
+    participant P as Service pdf2txt
+    participant C as Service character
+
+    U->>B: POST /event/.../analyze_traits
+    Note right of B: status = pending_pdf (gris)
+    B->>P: POST pdf2txt API (pdf_url, webhook_url)
+    B-->>U: 200 OK
+
+    P-->>B: POST /webhook/pdf2txt (succès, text_url)
+    Note right of B: status = pending_character (bleu)
+    B->>C: POST character API (text_url, webhook_url)
+
+    C-->>B: POST /webhook/character (completed, result_url)
+    B->>C: GET result_url (téléchargement JSON traits)
+    Note right of B: status = success (vert)
+
+    U->>B: Rechargement page → icône verte avec popover
+```
+
+### Icônes de statut
+| Couleur | Statut | Signification |
+|---------|--------|---------------|
+| ⚪ Blanc | `None` | Non analysé |
+| ⬜ Gris | `pending_pdf` | Extraction du texte en cours |
+| 🔵 Bleu | `pending_character` | Analyse des traits en cours |
+| 🟢 Vert | `success` | Terminé (clic pour voir les traits) |
+| 🔴 Rouge | `error` | Erreur (tooltip avec détail) |
+
+### Routes API (webhook_routes.py)
+| Route | Méthode | Description |
+|-------|---------|-------------|
+| `/event/<id>/role/<id>/analyze_traits` | POST | Déclencher l'analyse pour un rôle |
+| `/webhook/pdf2txt` | POST | Callback du service pdf2txt (CSRF exempt) |
+| `/webhook/character` | POST | Callback du service character (CSRF exempt) |
+
+### Configuration (deploy_config_*.yaml)
+```yaml
+pdf2txt:
+  api_url: "https://example.com/api/v1/extract"
+  token: "votre_token"
+
+character:
+  api_url: "https://example.com/api/v1/analyze"
+  token: "votre_token"
+```
 
 ## Système de rôles (RBAC)
 

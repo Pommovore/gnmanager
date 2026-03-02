@@ -25,6 +25,10 @@ Application web de gestion pour les événements de Grandeur Nature (GN).
 - Création de rôles pour chaque événement (type, genre, groupe)
 - Inscription des participants avec statuts (À valider, En attente, Validé, Rejeté)
 - Attribution des rôles (casting)
+- **Analyse des traits de caractère** : Extraction automatique des traits via des services IA externes (PDF → texte → analyse)
+  - Icône de statut colorée : ⚪ non analysé, ⬜ extraction en cours, 🔵 analyse en cours, 🟢 terminé, 🔴 erreur
+  - Déclenchement par bouton (nécessite un PDF lié au rôle)
+  - Traitement asynchrone via webhooks
 
 ### Gestion des Participants (Organisateurs)
 - Tableau complet avec filtres (statut, type, groupe, genre, photo)
@@ -204,7 +208,10 @@ gnmanager/
 │   ├── discord_service.py  # Notifications Discord
 │   ├── notification_service.py # Notifications internes
 │   ├── odt_service.py      # Export trombinoscope ODT
-│   └── image_export_service.py # Export images ZIP
+│   ├── image_export_service.py # Export images ZIP
+│   └── character_service.py # Analyse des traits de caractère (pdf2txt + IA)
+├── utils/
+│   └── deploy_config_loader.py # Chargement de la config de déploiement (services externes)
 ├── config/
 │   ├── deploy_config.yaml
 │   └── db_test_*.csv       # Données de test exportées

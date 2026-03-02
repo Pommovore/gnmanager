@@ -75,6 +75,9 @@ Si vous êtes désigné comme **Organisateur** sur cet événement, vous voyez d
     - Gestion individuelle : Validation, PAF, upload de photo personnalisée.
 - **GForms Import** : Bouton "Importer" pour charger massivement des données depuis un CSV Google Forms.
 - **Rôles** : Création et édition de la liste des rôles (Nom, Type, Genre, Groupe, Liens GDoc/PDF, Commentaire).
+    - **Analyse des traits de caractère** : Bouton pour analyser automatiquement les traits d'un personnage à partir de sa fiche PDF.
+        - ⚪ Blanc : Non analysé | ⬜ Gris : Extraction PDF en cours | 🔵 Bleu : Analyse IA en cours | 🟢 Vert : Terminé (clic pour voir) | 🔴 Rouge : Erreur
+        - Nécessite un lien PDF associé au rôle (bouton grisé sinon).
 - **Casting** : Interface d'attribution des rôles.
     - Tableau matriciel croisant Rôles et Participants.
     - Système de **Scoring** (0 à 10) pour noter l'adéquation d'un joueur à un rôle.
