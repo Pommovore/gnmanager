@@ -523,6 +523,19 @@ GN_ENVIRONMENT={env_name}
     if app_prefix and not force_local:
         env_content += f"APPLICATION_ROOT={app_prefix}\n"
 
+    # Services externes (webhooks d'analyse des traits de caractère)
+    pdf2txt_config = config.get('pdf2txt', {})
+    character_config = config.get('character', {})
+
+    if pdf2txt_config.get('api_url'):
+        env_content += f"WEBHOOK_PDF2TXT_API_URL={pdf2txt_config['api_url']}\n"
+    if pdf2txt_config.get('token'):
+        env_content += f"WEBHOOK_PDF2TXT_API_TOKEN={pdf2txt_config['token']}\n"
+    if character_config.get('api_url'):
+        env_content += f"WEBHOOK_CHARACTER_API_URL={character_config['api_url']}\n"
+    if character_config.get('token'):
+        env_content += f"WEBHOOK_CHARACTER_API_TOKEN={character_config['token']}\n"
+
     # Google Credentials
     google_creds_path = './config/google_credentials.json'
     if not os.path.exists(google_creds_path):

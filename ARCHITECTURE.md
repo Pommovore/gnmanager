@@ -260,16 +260,15 @@ sequenceDiagram
 | `/webhook/pdf2txt` | POST | Callback du service pdf2txt (CSRF exempt) |
 | `/webhook/character` | POST | Callback du service character (CSRF exempt) |
 
-### Configuration (deploy_config_*.yaml)
-```yaml
-pdf2txt:
-  api_url: "https://example.com/api/v1/extract"
-  token: "votre_token"
-
-character:
-  api_url: "https://example.com/api/v1/analyze"
-  token: "votre_token"
+### Configuration (variables d'environnement dans `.env`)
+```env
+WEBHOOK_PDF2TXT_API_URL=https://example.com/api/v1/extract
+WEBHOOK_PDF2TXT_API_TOKEN=votre_token
+WEBHOOK_CHARACTER_API_URL=https://example.com/api/v1/analyze
+WEBHOOK_CHARACTER_API_TOKEN=votre_token
 ```
+
+Ces variables sont générées automatiquement par `fresh_deploy.py` à partir des sections `pdf2txt` et `character` du fichier `deploy_config_*.yaml`.
 
 ## Système de rôles (RBAC)
 

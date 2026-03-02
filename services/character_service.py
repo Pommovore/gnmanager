@@ -27,21 +27,25 @@ def _sanitize_id_texte(name):
 
 def _build_webhook_base_url():
     """
-    Construit l'URL de base pour les webhooks à partir de la config deploy.
+    Construit l'URL de base pour les webhooks à partir des variables d'environnement.
+    Utilise APP_PUBLIC_HOST et APPLICATION_ROOT (déjà présents dans le .env).
     Retourne par ex: https://minimoi.mynetgear.com/gnole_dev
     """
-    machine_name = current_app.config.get('DEPLOY_MACHINE_NAME', '')
-    app_prefix = current_app.config.get('DEPLOY_APP_PREFIX', '/')
+    import os
+    public_host = os.environ.get('APP_PUBLIC_HOST', '')
+    app_root = current_app.config.get('APPLICATION_ROOT', '/')
 
-    if not machine_name:
+    if not public_host:
         # Fallback: utiliser le SERVER_NAME ou localhost
         server = current_app.config.get('SERVER_NAME', 'localhost:5000')
         scheme = 'https' if current_app.config.get('PREFERRED_URL_SCHEME') == 'https' else 'http'
         return f"{scheme}://{server}"
 
-    # Construire l'URL à partir de la config deploy
-    prefix = app_prefix.rstrip('/')
-    return f"https://{machine_name}{prefix}"
+    # Construire l'URL à partir de APP_PUBLIC_HOST + APPLICATION_ROOT
+    prefix = app_root.rstrip('/')
+    scheme = 'https' if 'https' in public_host else 'https'
+    host = public_host.replace('https://', '').replace('http://', '')
+    return f"{scheme}://{host}{prefix}"
 
 
 def request_pdf_extraction(role):
