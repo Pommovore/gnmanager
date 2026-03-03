@@ -39,9 +39,15 @@ def run_remote(ssh, cmd, sudo=False, password=None):
     stdin, stdout, stderr = ssh.exec_command(cmd)
     
     exit_status = stdout.channel.recv_exit_status()
+    out = stdout.read().decode().strip()
+    err = stderr.read().decode().strip()
+
+    if out:
+        print(f"   [OUT] {out}")
+    
     if exit_status != 0:
-        err = stderr.read().decode().strip()
-        print(f"❌ Erreur: {err}")
+        if err:
+            print(f"❌ Erreur: {err}")
         return False
     return True
 
