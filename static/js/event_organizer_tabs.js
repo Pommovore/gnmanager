@@ -820,24 +820,25 @@ document.addEventListener('DOMContentLoaded', function () {
     }
 
     /**
-     * Délégation d'événements sur le conteneur pour gérer les boutons
+     * Délégation d'événements au niveau document pour gérer les boutons
      * analyser et annuler (y compris ceux générés dynamiquement par morphing).
      */
-    const rolesContainer = document.getElementById('roles');
-    if (rolesContainer) {
-        rolesContainer.addEventListener('click', function (e) {
-            const analyzeBtn = e.target.closest('.btn-analyze-traits');
-            if (analyzeBtn && !analyzeBtn.disabled) {
-                handleAnalyzeClick(analyzeBtn);
-                return;
-            }
-            const cancelBtn = e.target.closest('.btn-cancel-traits');
-            if (cancelBtn) {
-                handleCancelClick(cancelBtn);
-                return;
-            }
-        });
-    }
+    document.addEventListener('click', function (e) {
+        const analyzeBtn = e.target.closest('.btn-analyze-traits');
+        if (analyzeBtn && !analyzeBtn.disabled) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleAnalyzeClick(analyzeBtn);
+            return;
+        }
+        const cancelBtn = e.target.closest('.btn-cancel-traits');
+        if (cancelBtn) {
+            e.preventDefault();
+            e.stopPropagation();
+            handleCancelClick(cancelBtn);
+            return;
+        }
+    });
 
     /**
      * Initialisation : détecte les rôles dont l'analyse est en cours
@@ -851,9 +852,6 @@ document.addEventListener('DOMContentLoaded', function () {
         // Vérifier si l'indicateur est en pending (gris = text-secondary, bleu = text-primary)
         const isPending = icon.classList.contains('text-secondary') || icon.classList.contains('text-primary');
         if (!isPending) return;
-
-        // Extraire le roleId depuis l'id de l'indicateur (traits-indicator-123)
-        const roleId = indicator.id.replace('traits-indicator-', '');
 
         // Trouver le bouton analyser correspondant dans la même ligne
         const row = indicator.closest('tr');
