@@ -41,6 +41,7 @@ def update_database():
                 return
 
             columns = [c['name'] for c in inspector.get_columns('role')]
+            print(f"📋 Colonnes actuelles dans 'role': {', '.join(columns)}")
             
             with db.engine.connect() as connection:
                 # 1. Colonne character_traits_status
