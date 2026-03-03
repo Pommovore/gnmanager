@@ -689,67 +689,180 @@ document.addEventListener('DOMContentLoaded', function () {
     });
 
     /**
-     * Gestionnaire de clic sur les boutons d'analyse.
-     * POST vers le backend puis mise à jour immédiate de l'icône en gris (pending_pdf).
-     * Pas de polling : le statut se met à jour au rechargement de la page.
+     * Transforme un bouton analyser en bouton annuler (et vice versa).
      */
-    document.querySelectorAll('.btn-analyze-traits').forEach(btn => {
-        btn.addEventListener('click', function () {
-            const roleId = this.dataset.roleId;
-            const roleEventId = this.dataset.eventId;
-            const roleName = this.dataset.roleName;
+    function morphToCancel(btn) {
+        btn.classList.remove('btn-outline-info', 'btn-analyze-traits');
+        btn.classList.add('btn-outline-danger', 'btn-cancel-traits');
+        btn.querySelector('i').className = 'bi bi-x-circle';
+        // Mettre à jour le tooltip
+        const oldTooltip = bootstrap.Tooltip.getInstance(btn);
+        if (oldTooltip) oldTooltip.dispose();
+        btn.setAttribute('title', "Annuler l'analyse en cours");
+        new bootstrap.Tooltip(btn);
+    }
 
-            if (!confirm(`Lancer l'analyse des traits de caractère pour "${roleName}" ?`)) {
-                return;
+    function morphToAnalyze(btn) {
+        btn.classList.remove('btn-outline-danger', 'btn-cancel-traits');
+        btn.classList.add('btn-outline-info', 'btn-analyze-traits');
+        btn.querySelector('i').className = 'bi bi-person-lines-fill';
+        // Mettre à jour le tooltip
+        const oldTooltip = bootstrap.Tooltip.getInstance(btn);
+        if (oldTooltip) oldTooltip.dispose();
+        btn.setAttribute('title', 'Analyser les traits de caractère');
+        new bootstrap.Tooltip(btn);
+    }
+
+    /**
+     * Gestionnaire de clic sur les boutons d'analyse.
+     * POST vers le backend puis morphing du bouton en bouton annuler.
+     */
+    function handleAnalyzeClick(btn) {
+        const roleId = btn.dataset.roleId;
+        const roleEventId = btn.dataset.eventId;
+        const roleName = btn.dataset.roleName;
+
+        if (!confirm(`Lancer l'analyse des traits de caractère pour "${roleName}" ?`)) {
+            return;
+        }
+
+        fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/analyze_traits`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
             }
-
-            // Lancer l'analyse
-            fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/analyze_traits`, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                }
-            })
-                .then(response => response.json())
-                .then(result => {
-                    if (result.success) {
-                        // Passer l'icône en gris (pending_pdf) immédiatement
-                        const indicator = document.getElementById(`traits-indicator-${roleId}`);
-                        if (indicator) {
-                            indicator.innerHTML = `
-                                <i class="bi bi-info-circle text-secondary"
-                                   data-bs-toggle="tooltip" data-bs-placement="right"
-                                   title="Extraction du texte en cours..."></i>`;
-                            const icon = indicator.querySelector('i');
-                            if (icon) new bootstrap.Tooltip(icon);
-                        }
-                    } else {
-                        // Erreur immédiate : icône rouge
-                        const indicator = document.getElementById(`traits-indicator-${roleId}`);
-                        if (indicator) {
-                            indicator.innerHTML = `
-                                <i class="bi bi-exclamation-circle-fill text-danger"
-                                   data-bs-toggle="tooltip" data-bs-placement="right"
-                                   title="Erreur: ${result.error || 'Erreur inconnue'}"></i>`;
-                            const icon = indicator.querySelector('i');
-                            if (icon) new bootstrap.Tooltip(icon);
-                        }
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Passer l'icône en gris (pending_pdf) immédiatement
+                    const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                    if (indicator) {
+                        indicator.innerHTML = `
+                            <i class="bi bi-info-circle text-secondary"
+                               data-bs-toggle="tooltip" data-bs-placement="right"
+                               title="Extraction du texte en cours..."></i>`;
+                        const icon = indicator.querySelector('i');
+                        if (icon) new bootstrap.Tooltip(icon);
                     }
-                })
-                .catch(error => {
-                    console.error('Erreur lancement analyse:', error);
+                    // Transformer le bouton en bouton annuler
+                    morphToCancel(btn);
+                } else {
+                    // Erreur immédiate : icône rouge
                     const indicator = document.getElementById(`traits-indicator-${roleId}`);
                     if (indicator) {
                         indicator.innerHTML = `
                             <i class="bi bi-exclamation-circle-fill text-danger"
                                data-bs-toggle="tooltip" data-bs-placement="right"
-                               title="Erreur réseau"></i>`;
+                               title="Erreur: ${result.error || 'Erreur inconnue'}"></i>`;
                         const icon = indicator.querySelector('i');
                         if (icon) new bootstrap.Tooltip(icon);
                     }
-                });
+                }
+            })
+            .catch(error => {
+                console.error('Erreur lancement analyse:', error);
+                const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                if (indicator) {
+                    indicator.innerHTML = `
+                        <i class="bi bi-exclamation-circle-fill text-danger"
+                           data-bs-toggle="tooltip" data-bs-placement="right"
+                           title="Erreur réseau"></i>`;
+                    const icon = indicator.querySelector('i');
+                    if (icon) new bootstrap.Tooltip(icon);
+                }
+            });
+    }
+
+    /**
+     * Gestionnaire de clic sur les boutons d'annulation.
+     * POST vers le backend puis morphing du bouton en bouton analyser.
+     */
+    function handleCancelClick(btn) {
+        const roleId = btn.dataset.roleId;
+        const roleEventId = btn.dataset.eventId;
+        const roleName = btn.dataset.roleName;
+
+        if (!confirm(`Annuler l'analyse en cours pour "${roleName}" ?`)) {
+            return;
+        }
+
+        fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/cancel_traits`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+            .then(response => response.json())
+            .then(result => {
+                if (result.success) {
+                    // Remettre l'icône en blanc (non analysé)
+                    const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                    if (indicator) {
+                        indicator.innerHTML = `
+                            <i class="bi bi-info-circle text-light"
+                               data-bs-toggle="tooltip" data-bs-placement="right"
+                               title="Non analysé"></i>`;
+                        const icon = indicator.querySelector('i');
+                        if (icon) new bootstrap.Tooltip(icon);
+                    }
+                    // Retransformer le bouton en bouton analyser
+                    morphToAnalyze(btn);
+                } else {
+                    console.warn('Annulation refusée:', result.error);
+                }
+            })
+            .catch(error => {
+                console.error('Erreur annulation analyse:', error);
+            });
+    }
+
+    /**
+     * Délégation d'événements sur le conteneur pour gérer les boutons
+     * analyser et annuler (y compris ceux générés dynamiquement par morphing).
+     */
+    const rolesContainer = document.getElementById('roles');
+    if (rolesContainer) {
+        rolesContainer.addEventListener('click', function (e) {
+            const analyzeBtn = e.target.closest('.btn-analyze-traits');
+            if (analyzeBtn && !analyzeBtn.disabled) {
+                handleAnalyzeClick(analyzeBtn);
+                return;
+            }
+            const cancelBtn = e.target.closest('.btn-cancel-traits');
+            if (cancelBtn) {
+                handleCancelClick(cancelBtn);
+                return;
+            }
         });
+    }
+
+    /**
+     * Initialisation : détecte les rôles dont l'analyse est en cours
+     * (indicateur gris ou bleu) et transforme leur bouton analyser en annuler.
+     * Couvre le cas où la page est rechargée alors qu'une analyse est en cours.
+     */
+    document.querySelectorAll('[id^="traits-indicator-"]').forEach(indicator => {
+        const icon = indicator.querySelector('i');
+        if (!icon) return;
+
+        // Vérifier si l'indicateur est en pending (gris = text-secondary, bleu = text-primary)
+        const isPending = icon.classList.contains('text-secondary') || icon.classList.contains('text-primary');
+        if (!isPending) return;
+
+        // Extraire le roleId depuis l'id de l'indicateur (traits-indicator-123)
+        const roleId = indicator.id.replace('traits-indicator-', '');
+
+        // Trouver le bouton analyser correspondant dans la même ligne
+        const row = indicator.closest('tr');
+        if (!row) return;
+
+        const analyzeBtn = row.querySelector('.btn-analyze-traits');
+        if (analyzeBtn) {
+            morphToCancel(analyzeBtn);
+        }
     });
 
 });

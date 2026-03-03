@@ -529,6 +529,14 @@
                                 {% endif %}
                             </td>
                             <td class="text-center text-nowrap">
+                                {% if role.character_traits_status in ('pending_pdf', 'pending_character') %}
+                                <button type="button" class="btn btn-sm btn-outline-danger me-1 btn-cancel-traits"
+                                    data-role-id="{{ role.id }}" data-event-id="{{ event.id }}"
+                                    data-role-name="{{ role.name }}" title="Annuler l'analyse en cours"
+                                    data-bs-toggle="tooltip">
+                                    <i class="bi bi-x-circle"></i>
+                                </button>
+                                {% else %}
                                 <button type="button" class="btn btn-sm btn-outline-info me-1 btn-analyze-traits"
                                     data-role-id="{{ role.id }}" data-event-id="{{ event.id }}"
                                     data-role-name="{{ role.name }}" {% if not role.pdf_url %}disabled{% endif %}
@@ -536,6 +544,7 @@
                                     data-bs-toggle="tooltip">
                                     <i class="bi bi-person-lines-fill"></i>
                                 </button>
+                                {% endif %}
                                 <button type="button" class="btn btn-sm btn-outline-secondary me-1"
                                     data-bs-toggle="modal" data-bs-target="#editRoleModal{{ role.id }}"
                                     title="Modifier ce rôle">

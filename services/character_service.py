@@ -72,26 +72,37 @@ def request_pdf_extraction(role):
     base_url = _build_webhook_base_url()
     webhook_url = f"{base_url}/webhook/pdf2txt"
 
-    logger.info(f"📄 Envoi de la requête pdf2txt pour le rôle '{role.name}' "
-                f"(id_texte={id_texte}, pdf_url={role.pdf_url})")
-    logger.info(f"   Webhook URL: {webhook_url}")
+    request_headers = {'token': token}
+    request_data = {
+        'id_texte': id_texte,
+        'webhook_url': webhook_url,
+        'ia_validate': 'true',
+        'pdf_url': role.pdf_url
+    }
+
+    logger.info(f"📄 ═══ APPEL PDF2TXT ═══")
+    logger.info(f"   URL API:      {api_url}")
+    logger.info(f"   Rôle:         '{role.name}' (id_texte={id_texte})")
+    logger.info(f"   PDF URL:      {role.pdf_url}")
+    logger.info(f"   Webhook URL:  {webhook_url}")
+    logger.info(f"   Headers:      {request_headers}")
+    logger.info(f"   Data:         {request_data}")
 
     try:
         response = requests.post(
             api_url,
-            headers={'token': token},
-            data={
-                'id_texte': id_texte,
-                'webhook_url': webhook_url,
-                'ia_validate': 'true',
-                'pdf_url': role.pdf_url
-            },
+            headers=request_headers,
+            data=request_data,
             timeout=30
         )
 
+        logger.info(f"   ─── RÉPONSE PDF2TXT ───")
+        logger.info(f"   Status:       {response.status_code}")
+        logger.info(f"   Headers:      {dict(response.headers)}")
+        logger.info(f"   Body:         {response.text[:500]}")
+
         if response.status_code in (200, 201, 202):
-            logger.info(f"✅ Requête pdf2txt envoyée avec succès pour '{role.name}' "
-                        f"(status={response.status_code})")
+            logger.info(f"✅ Requête pdf2txt envoyée avec succès pour '{role.name}'")
             return True, "Extraction PDF lancée"
         else:
             error_msg = f"Erreur pdf2txt: HTTP {response.status_code} - {response.text[:200]}"
@@ -127,28 +138,39 @@ def request_character_analysis(text_url, request_id):
     base_url = _build_webhook_base_url()
     webhook_url = f"{base_url}/webhook/character"
 
-    logger.info(f"🧠 Envoi de la requête character pour request_id='{request_id}' "
-                f"(text_url={text_url})")
-    logger.info(f"   Webhook URL: {webhook_url}")
+    request_headers = {
+        'token': token,
+        'Content-Type': 'application/json',
+        'webhook': webhook_url
+    }
+    request_body = {
+        'text': text_url,
+        'request_id': request_id
+    }
+
+    logger.info(f"🧠 ═══ APPEL CHARACTER ═══")
+    logger.info(f"   URL API:      {api_url}")
+    logger.info(f"   Request ID:   {request_id}")
+    logger.info(f"   Text URL:     {text_url}")
+    logger.info(f"   Webhook URL:  {webhook_url}")
+    logger.info(f"   Headers:      {request_headers}")
+    logger.info(f"   Body JSON:    {json.dumps(request_body)}")
 
     try:
         response = requests.post(
             api_url,
-            headers={
-                'token': token,
-                'Content-Type': 'application/json',
-                'webhook': webhook_url
-            },
-            json={
-                'text': text_url,
-                'request_id': request_id
-            },
+            headers=request_headers,
+            json=request_body,
             timeout=30
         )
 
+        logger.info(f"   ─── RÉPONSE CHARACTER ───")
+        logger.info(f"   Status:       {response.status_code}")
+        logger.info(f"   Headers:      {dict(response.headers)}")
+        logger.info(f"   Body:         {response.text[:500]}")
+
         if response.status_code in (200, 201, 202):
-            logger.info(f"✅ Requête character envoyée avec succès pour '{request_id}' "
-                        f"(status={response.status_code})")
+            logger.info(f"✅ Requête character envoyée avec succès pour '{request_id}'")
             return True, "Analyse des traits lancée"
         else:
             error_msg = f"Erreur character: HTTP {response.status_code} - {response.text[:200]}"

@@ -364,15 +364,25 @@ def webhook_pdf2txt():
     En cas de succès, lance automatiquement l'analyse des traits de caractère.
     """
     try:
+        # Log brut de la requête entrante
+        logger.info(f"📥 ═══ WEBHOOK PDF2TXT REÇU ═══")
+        logger.info(f"   Method:       {request.method}")
+        logger.info(f"   Content-Type: {request.content_type}")
+        logger.info(f"   Headers:      {dict(request.headers)}")
+        logger.info(f"   Raw Body:     {request.get_data(as_text=True)[:1000]}")
+
         data = request.get_json(force=True)
         if not data:
             logger.error("❌ Webhook pdf2txt: aucun payload JSON reçu")
             return jsonify({"error": "No JSON payload"}), 400
 
+        logger.info(f"   Parsed JSON:  {json.dumps(data, ensure_ascii=False, indent=2)[:1000]}")
+
         etat = data.get('etat', '')
         id_texte = data.get('id_texte', '')
 
-        logger.info(f"📥 Webhook pdf2txt reçu: etat={etat}, id_texte={id_texte}")
+        logger.info(f"   etat='{etat}', id_texte='{id_texte}'")
+        logger.info(f"   Clés reçues:  {list(data.keys())}")
 
         # Retrouver le rôle correspondant
         role = _find_role_by_id_texte(id_texte)
@@ -380,11 +390,19 @@ def webhook_pdf2txt():
             logger.warning(f"⚠️  Aucun rôle trouvé pour id_texte='{id_texte}'")
             return jsonify({"error": f"Rôle introuvable pour id_texte={id_texte}"}), 404
 
+        logger.info(f"   Rôle trouvé:  '{role.name}' (id={role.id}, event_id={role.event_id})")
+
+        # Ignorer si l'analyse a été annulée
+        if role.character_traits_status == 'cancelled':
+            logger.info(f"⏭️  Webhook pdf2txt ignoré pour '{role.name}': analyse annulée")
+            return jsonify({"status": "ignored", "reason": "cancelled"}), 200
+
         if etat == 'succès':
             text_url = data.get('url', '')
             extrait = data.get('extrait', '')
-            logger.info(f"✅ Extraction PDF réussie pour '{role.name}'. "
-                        f"URL texte: {text_url}, Extrait: {extrait[:100]}...")
+            logger.info(f"✅ Extraction PDF réussie pour '{role.name}'")
+            logger.info(f"   URL texte:    {text_url}")
+            logger.info(f"   Extrait:      {extrait[:200]}")
 
             # Passer en statut 'pending_character' (icône bleue)
             role.character_traits_status = 'pending_character'
@@ -413,6 +431,7 @@ def webhook_pdf2txt():
 
         else:
             logger.warning(f"⚠️  Webhook pdf2txt: état inconnu '{etat}' pour '{role.name}'")
+            logger.warning(f"   Payload complet: {json.dumps(data, ensure_ascii=False)}")
 
         return jsonify({"status": "ok"}), 200
 
@@ -431,15 +450,25 @@ def webhook_character():
     Télécharge le JSON des traits depuis result_url en cas de succès.
     """
     try:
+        # Log brut de la requête entrante
+        logger.info(f"📥 ═══ WEBHOOK CHARACTER REÇU ═══")
+        logger.info(f"   Method:       {request.method}")
+        logger.info(f"   Content-Type: {request.content_type}")
+        logger.info(f"   Headers:      {dict(request.headers)}")
+        logger.info(f"   Raw Body:     {request.get_data(as_text=True)[:1000]}")
+
         data = request.get_json(force=True)
         if not data:
             logger.error("❌ Webhook character: aucun payload JSON reçu")
             return jsonify({"error": "No JSON payload"}), 400
 
+        logger.info(f"   Parsed JSON:  {json.dumps(data, ensure_ascii=False, indent=2)[:1000]}")
+
         status = data.get('status', '')
         request_id = data.get('request_id', '')
 
-        logger.info(f"📥 Webhook character reçu: status={status}, request_id={request_id}")
+        logger.info(f"   status='{status}', request_id='{request_id}'")
+        logger.info(f"   Clés reçues:  {list(data.keys())}")
 
         # Retrouver le rôle correspondant
         role = _find_role_by_id_texte(request_id)
@@ -447,22 +476,35 @@ def webhook_character():
             logger.warning(f"⚠️  Aucun rôle trouvé pour request_id='{request_id}'")
             return jsonify({"error": f"Rôle introuvable pour request_id={request_id}"}), 404
 
+        logger.info(f"   Rôle trouvé:  '{role.name}' (id={role.id}, event_id={role.event_id})")
+
+        # Ignorer si l'analyse a été annulée
+        if role.character_traits_status == 'cancelled':
+            logger.info(f"⏭️  Webhook character ignoré pour '{role.name}': analyse annulée")
+            return jsonify({"status": "ignored", "reason": "cancelled"}), 200
+
         if status == 'completed':
             result_url = data.get('result_url', '')
-            logger.info(f"✅ Analyse character réussie pour '{role.name}'. "
-                        f"Téléchargement depuis: {result_url}")
+            logger.info(f"✅ Analyse character réussie pour '{role.name}'")
+            logger.info(f"   Result URL:   {result_url}")
 
             # Télécharger le JSON des traits depuis result_url
             try:
                 import requests as http_requests
+                logger.info(f"   ─── TÉLÉCHARGEMENT RESULT_URL ───")
+                logger.info(f"   GET {result_url}")
                 resp = http_requests.get(result_url, timeout=15)
+                logger.info(f"   Status:       {resp.status_code}")
+                logger.info(f"   Headers:      {dict(resp.headers)}")
+                logger.info(f"   Body:         {resp.text[:1000]}")
+
                 if resp.status_code == 200:
                     traits_data = resp.json()
                     role.character_traits_status = 'success'
                     role.character_traits_data = json.dumps(traits_data)
                     db.session.commit()
-                    logger.info(f"✅ Traits de caractère sauvegardés pour '{role.name}': "
-                                f"{len(traits_data.get('traits', []))} traits trouvés")
+                    logger.info(f"✅ Traits sauvegardés pour '{role.name}': "
+                                f"{json.dumps(traits_data, ensure_ascii=False)[:500]}")
                 else:
                     error_msg = f"Erreur téléchargement traits: HTTP {resp.status_code}"
                     role.character_traits_status = 'error'
@@ -475,7 +517,8 @@ def webhook_character():
                     'error': f"Erreur téléchargement résultat: {str(e_download)}"
                 })
                 db.session.commit()
-                logger.error(f"❌ Erreur téléchargement traits pour '{role.name}': {e_download}")
+                logger.error(f"❌ Erreur téléchargement traits pour '{role.name}': {e_download}",
+                             exc_info=True)
 
         elif status == 'failed':
             error_msg = data.get('error', 'Erreur inconnue')
@@ -486,6 +529,7 @@ def webhook_character():
 
         else:
             logger.warning(f"⚠️  Webhook character: statut inconnu '{status}' pour '{role.name}'")
+            logger.warning(f"   Payload complet: {json.dumps(data, ensure_ascii=False)}")
 
         return jsonify({"status": "ok"}), 200
 
@@ -539,4 +583,27 @@ def analyze_traits(event_id, role_id):
         return jsonify({"error": message}), 500
 
 
+
+@webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/cancel_traits', methods=['POST'])
+@csrf.exempt
+def cancel_traits(event_id, role_id):
+    """
+    Annule l'analyse des traits de caractère en cours pour un rôle.
+    Met le statut à 'cancelled' pour que les webhooks futurs soient ignorés.
+    """
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first()
+    if not role:
+        return jsonify({"error": "Rôle introuvable"}), 404
+
+    if role.character_traits_status not in ('pending_pdf', 'pending_character'):
+        return jsonify({"error": "Aucune analyse en cours pour ce rôle"}), 409
+
+    previous_status = role.character_traits_status
+    role.character_traits_status = 'cancelled'
+    role.character_traits_data = None
+    db.session.commit()
+
+    logger.info(f"🛑 Analyse annulée pour '{role.name}' "
+                f"(event_id={event_id}, ancien statut={previous_status})")
+    return jsonify({"success": True, "message": "Analyse annulée"}), 200
 
