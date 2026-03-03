@@ -24,6 +24,123 @@ function copyToClipboard(text, element) {
     });
 }
 
+/**
+ * Récupère baseUrl et csrfToken depuis #event-context-data.
+ */
+function _getTraitsContext() {
+    const dataEl = document.getElementById('event-context-data');
+    if (!dataEl) return { baseUrl: '', csrfToken: '' };
+    return {
+        baseUrl: (dataEl.dataset.baseUrl || '').replace(/\/$/, ''),
+        csrfToken: dataEl.dataset.csrfToken || ''
+    };
+}
+
+/**
+ * Lance l'analyse des traits de caractère pour un rôle.
+ * Appelée directement depuis onclick sur le bouton.
+ */
+function launchTraitsAnalysis(btn) {
+    const roleId = btn.dataset.roleId;
+    const roleEventId = btn.dataset.eventId;
+    const roleName = btn.dataset.roleName;
+    const { baseUrl, csrfToken } = _getTraitsContext();
+
+    if (!confirm(`Lancer l'analyse des traits de caractère pour "${roleName}" ?`)) {
+        return;
+    }
+
+    fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/analyze_traits`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Icône grise (pending_pdf)
+                const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                if (indicator) {
+                    indicator.innerHTML = `
+                        <i class="bi bi-info-circle text-secondary"
+                           title="Extraction du texte en cours..."></i>`;
+                }
+                // Transformer le bouton en annuler
+                btn.classList.remove('btn-outline-info', 'btn-analyze-traits');
+                btn.classList.add('btn-outline-danger', 'btn-cancel-traits');
+                btn.querySelector('i').className = 'bi bi-x-circle';
+                btn.setAttribute('title', "Annuler l'analyse en cours");
+                btn.setAttribute('onclick', 'cancelTraitsAnalysis(this)');
+            } else {
+                const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                if (indicator) {
+                    indicator.innerHTML = `
+                        <i class="bi bi-exclamation-circle-fill text-danger"
+                           title="Erreur: ${result.error || 'Erreur inconnue'}"></i>`;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Erreur lancement analyse:', error);
+            const indicator = document.getElementById(`traits-indicator-${roleId}`);
+            if (indicator) {
+                indicator.innerHTML = `
+                    <i class="bi bi-exclamation-circle-fill text-danger"
+                       title="Erreur réseau"></i>`;
+            }
+        });
+}
+
+/**
+ * Annule l'analyse des traits de caractère en cours pour un rôle.
+ * Appelée directement depuis onclick sur le bouton.
+ */
+function cancelTraitsAnalysis(btn) {
+    const roleId = btn.dataset.roleId;
+    const roleEventId = btn.dataset.eventId;
+    const roleName = btn.dataset.roleName;
+    const { baseUrl, csrfToken } = _getTraitsContext();
+
+    if (!confirm(`Annuler l'analyse en cours pour "${roleName}" ?`)) {
+        return;
+    }
+
+    fetch(`${baseUrl}/event/${roleEventId}/role/${roleId}/cancel_traits`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        }
+    })
+        .then(response => response.json())
+        .then(result => {
+            if (result.success) {
+                // Icône blanche (non analysé)
+                const indicator = document.getElementById(`traits-indicator-${roleId}`);
+                if (indicator) {
+                    indicator.innerHTML = `
+                        <i class="bi bi-info-circle text-light"
+                           title="Non analysé"></i>`;
+                }
+                // Retransformer en bouton analyser
+                btn.classList.remove('btn-outline-danger', 'btn-cancel-traits');
+                btn.classList.add('btn-outline-info', 'btn-analyze-traits');
+                btn.querySelector('i').className = 'bi bi-person-lines-fill';
+                btn.setAttribute('title', 'Analyser les traits de caractère');
+                btn.setAttribute('onclick', 'launchTraitsAnalysis(this)');
+            } else {
+                console.warn('Annulation refusée:', result.error);
+                alert('Annulation refusée: ' + (result.error || 'Erreur inconnue'));
+            }
+        })
+        .catch(error => {
+            console.error('Erreur annulation analyse:', error);
+            alert('Erreur réseau lors de l\'annulation');
+        });
+}
+
 document.addEventListener('DOMContentLoaded', function () {
     // Check for context
     let context = window.GN_CONTEXT;
