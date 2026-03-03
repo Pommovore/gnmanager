@@ -1,0 +1,15 @@
+[Unit]
+Description=GNôle Flask Application (Test)
+After=network.target
+
+[Service]
+User=jack
+Group=jack
+WorkingDirectory=/opt/gnole_test
+Environment="PATH=/opt/gnole_test/.venv/bin"
+Environment="GN_ENVIRONMENT=test"
+ExecStart=/home/jack/.local/bin/uv run gunicorn --workers 2 --bind 0.0.0.0:8881 app:create_app()
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

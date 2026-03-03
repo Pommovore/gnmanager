@@ -257,7 +257,7 @@ def main():
     # 6. MIGRATION (Optionnel)
     if args.migrate:
         print("🏗️  Exécution de la migration de base de données...")
-        migration_script = "scripts/update_db_auto_invite.py"
+        migration_script = "scripts/migrate_v0_12_character_traits.py"
         # On vérifie si le script existe
         check_cmd = f"test -f {os.path.join(app_dir, migration_script)}"
         if run_remote(ssh, check_cmd, sudo=True, password=password):
