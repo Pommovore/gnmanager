@@ -786,8 +786,10 @@ document.addEventListener('DOMContentLoaded', function () {
 
     /**
      * Initialise les popovers pour les traits déjà chargés côté serveur (statut success).
+     * Un seul popover visible à la fois : cliquer sur un autre ferme le précédent.
      */
-    document.querySelectorAll('.traits-result-icon[data-bs-toggle="popover"]').forEach(icon => {
+    const traitIcons = document.querySelectorAll('.traits-result-icon[data-bs-toggle="popover"]');
+    traitIcons.forEach(icon => {
         try {
             const rawData = icon.getAttribute('data-bs-content');
             if (rawData) {
@@ -802,6 +804,28 @@ document.addEventListener('DOMContentLoaded', function () {
             }
         } catch (e) {
             console.warn('Erreur parsing traits data pour popover:', e);
+        }
+    });
+
+    // Fermer les autres popovers quand on en ouvre un nouveau
+    traitIcons.forEach(icon => {
+        icon.addEventListener('click', function () {
+            traitIcons.forEach(other => {
+                if (other !== icon) {
+                    const pop = bootstrap.Popover.getInstance(other);
+                    if (pop) pop.hide();
+                }
+            });
+        });
+    });
+
+    // Fermer tous les popovers au clic en dehors
+    document.addEventListener('click', function (e) {
+        if (!e.target.closest('.traits-result-icon') && !e.target.closest('.popover')) {
+            traitIcons.forEach(icon => {
+                const pop = bootstrap.Popover.getInstance(icon);
+                if (pop) pop.hide();
+            });
         }
     });
 
