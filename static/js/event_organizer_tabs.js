@@ -791,11 +791,17 @@ document.addEventListener('DOMContentLoaded', function () {
     const traitIcons = document.querySelectorAll('.traits-result-icon[data-bs-toggle="popover"]');
     traitIcons.forEach(icon => {
         try {
+            // Supprimer le tooltip qui entre en conflit avec le popover
+            const existingTooltip = bootstrap.Tooltip.getInstance(icon);
+            if (existingTooltip) existingTooltip.dispose();
+            icon.removeAttribute('title');
+
             const rawData = icon.getAttribute('data-bs-content');
             if (rawData) {
                 const data = JSON.parse(rawData);
                 const content = formatTraitsContent(data);
                 new bootstrap.Popover(icon, {
+                    title: 'Traits de caractère',
                     content: content,
                     html: true,
                     trigger: 'click',
