@@ -43,8 +43,11 @@ def _build_webhook_base_url():
 
     # Construire l'URL à partir de APP_PUBLIC_HOST + APPLICATION_ROOT
     prefix = app_root.rstrip('/')
-    scheme = 'https' if 'https' in public_host else 'http'
+    # Toujours utiliser HTTPS : l'app est derrière nginx avec SSL en prod et dev
+    scheme = 'https'
     host = public_host.replace('https://', '').replace('http://', '')
+    # Retirer le port (ex: :8880) car les webhooks passent par nginx (port 443)
+    host = host.split(':')[0]
     return f"{scheme}://{host}{prefix}"
 
 
