@@ -68,7 +68,9 @@ def request_pdf_extraction(role):
     if not role.pdf_url:
         return False, "Aucun PDF associé à ce rôle"
 
-    id_texte = _sanitize_id_texte(role.name)
+    # Ajout de l'ID du rôle pour éviter les conflits si plusieurs rôles ont le même nom
+    id_texte_base = _sanitize_id_texte(role.name)
+    id_texte = f"{role.id}_{id_texte_base}"
     base_url = _build_webhook_base_url()
     webhook_url = f"{base_url}/webhook/pdf2txt"
 

@@ -344,14 +344,28 @@ def gform_webhook():
 def _find_role_by_id_texte(id_texte):
     """
     Retrouve un rôle à partir de son id_texte (nom sanitisé).
-    Parcourt tous les rôles et compare le nom sanitisé.
+    Supporte le nouveau format 'id_nom' et l'ancien format 'nom'.
     """
     import re
+    
+    # Nouveau format avec préfixe: "401_ClausShnabel"
+    if '_' in id_texte:
+        try:
+            role_id_str, _ = id_texte.split('_', 1)
+            role_id = int(role_id_str)
+            role = Role.query.get(role_id)
+            if role:
+                return role
+        except ValueError:
+            pass # Fallback sur l'ancien format si le split échoue ou si l'ID n'est pas un entier
+
+    # Ancien format (rétrocompatibilité pour les requêtes déjà envoyées): "ClausShnabel"
     roles = Role.query.all()
     for role in roles:
         sanitized = re.sub(r'[^a-zA-Z0-9]', '', role.name)
         if sanitized == id_texte:
             return role
+            
     return None
 
 
