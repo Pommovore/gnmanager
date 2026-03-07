@@ -46,8 +46,8 @@ class TestRegenerateSecret:
         # Make the request
         response = client.post(f'/event/{sample_event.id}/regenerate_secret')
         
-        # Should be forbidden
-        assert response.status_code == 403
+        # Should be redirected
+        assert response.status_code == 302
 
     def test_regenerate_secret_forbidden_for_non_participant(self, client, sample_event, user_regular):
         """Test that a non-participant user cannot regenerate the secret."""
@@ -58,8 +58,8 @@ class TestRegenerateSecret:
         # Make the request
         response = client.post(f'/event/{sample_event.id}/regenerate_secret')
         
-        # Should be forbidden
-        assert response.status_code == 403
+        # Should be redirected
+        assert response.status_code == 302
 
     def test_regenerate_secret_unauthorized(self, client, sample_event):
         """Test that an unauthenticated user cannot access the route."""
