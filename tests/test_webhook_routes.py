@@ -330,12 +330,18 @@ class TestUserParticipantCreation:
         participant = Participant.query.filter_by(user_id=user.id, event_id=event_sample.id).first()
         assert participant is not None
         assert participant.registration_status == 'À valider'
-        assert 'Question 1: Réponse 1' in participant.global_comment
-        assert 'Question 2: Réponse 2' in participant.global_comment
+        
+        # Vérifier que les réponses sont stockées dans GFormsSubmission
+        from models import GFormsSubmission
+        submission = GFormsSubmission.query.filter_by(event_id=event_sample.id, user_id=user.id).first()
+        assert submission is not None
+        raw = json.loads(submission.raw_data)
+        assert raw.get('Question 1') == 'Réponse 1'
+        assert raw.get('Question 2') == 'Réponse 2'
 
     def test_update_existing_participant_comment(self, client, event_sample, user_regular, db):
-        """Test d'ajout de commentaire pour un participant existant."""
-        from models import Participant
+        """Test qu'un participant existant garde son commentaire et que les réponses sont stockées dans GFormsSubmission."""
+        from models import Participant, GFormsSubmission
         from constants import RegistrationStatus
         
         event_sample.webhook_secret = 'token_user_update'
@@ -367,9 +373,13 @@ class TestUserParticipantCreation:
         
         assert response.status_code == 200
         
-        # Vérifier que le commentaire a été ajouté
+        # Vérifier que le commentaire initial n'est pas modifié
         db.session.refresh(p)
-        assert "Commentaire initial." in p.global_comment
-        assert "--- Import GForm" in p.global_comment
-        assert "Nouvelle Info: Super Important" in p.global_comment
+        assert p.global_comment == "Commentaire initial."
+        
+        # Vérifier que les réponses sont stockées dans GFormsSubmission
+        submission = GFormsSubmission.query.filter_by(event_id=event_sample.id, user_id=user_regular.id).first()
+        assert submission is not None
+        raw = json.loads(submission.raw_data)
+        assert raw.get('Nouvelle Info') == 'Super Important'
 

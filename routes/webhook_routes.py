@@ -538,7 +538,6 @@ def webhook_character():
                 logger.info(f"   GET {result_url}")
                 resp = http_requests.get(result_url, timeout=15)
                 logger.info(f"   Status:       {resp.status_code}")
-                logger.info(f"   Headers:      {dict(resp.headers)}")
                 logger.info(f"   Body:         {resp.text[:1000]}")
 
                 if resp.status_code == 200:
