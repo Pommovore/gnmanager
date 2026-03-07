@@ -5,6 +5,8 @@ from flask import Blueprint, request, jsonify, current_app
 from datetime import datetime
 from models import db, FormResponse, Event, User, Participant, Role, GFormsSubmission, GFormsCategory, GFormsFieldMapping, EventNotification
 from extensions import csrf
+from flask_login import login_required
+from decorators import organizer_required
 from werkzeug.security import generate_password_hash
 import secrets
 from constants import RegistrationStatus, ParticipantType
@@ -343,29 +345,48 @@ def gform_webhook():
 
 def _find_role_by_id_texte(id_texte):
     """
-    Retrouve un rôle à partir de son id_texte (nom sanitisé).
-    Supporte le nouveau format 'id_nom' et l'ancien format 'nom'.
+    Retrouve un rôle à partir de son id_texte.
+    Supporte le nouveau format suffixé 'Nom_roleId_eventId_appRoot'
+    et l'ancien format simple 'Nom' (rétrocompatibilité).
     """
     import re
-    
-    # Nouveau format avec préfixe: "401_ClausShnabel"
+
+    # Nouveau format suffixé: "ClausShnabel_401_14_gnoletest"
+    # ou sans app_root: "ClausShnabel_401_14"
+    parts = id_texte.rsplit('_', 3)  # max 4 segments
+    if len(parts) >= 3:
+        # Essayer d'extraire role_id depuis les parties suffixées
+        # Format avec app_root: [nom, role_id, event_id, app_root]
+        # Format sans app_root: [nom, role_id, event_id]
+        try:
+            if len(parts) == 4:
+                role_id = int(parts[1])
+            else:
+                role_id = int(parts[1])
+            role = Role.query.get(role_id)
+            if role:
+                return role
+        except (ValueError, IndexError):
+            pass  # Fallback sur l'ancien format
+
+    # Ancien format préfixé (rétrocompatibilité transitoire): "401_ClausShnabel"
     if '_' in id_texte:
         try:
-            role_id_str, _ = id_texte.split('_', 1)
+            role_id_str = id_texte.split('_', 1)[0]
             role_id = int(role_id_str)
             role = Role.query.get(role_id)
             if role:
                 return role
         except ValueError:
-            pass # Fallback sur l'ancien format si le split échoue ou si l'ID n'est pas un entier
+            pass
 
-    # Ancien format (rétrocompatibilité pour les requêtes déjà envoyées): "ClausShnabel"
+    # Format legacy (nom seul): "ClausShnabel"
     roles = Role.query.all()
     for role in roles:
         sanitized = re.sub(r'[^a-zA-Z0-9]', '', role.name)
         if sanitized == id_texte:
             return role
-            
+
     return None
 
 
@@ -379,10 +400,14 @@ def webhook_pdf2txt():
     """
     try:
         # Log brut de la requête entrante
+        # Masquer les headers sensibles dans les logs
+        safe_headers = {k: ('***' if k.lower() in ('authorization', 'token', 'cookie') else v)
+                        for k, v in request.headers}
+
         logger.info(f"📥 ═══ WEBHOOK PDF2TXT REÇU ═══")
         logger.info(f"   Method:       {request.method}")
         logger.info(f"   Content-Type: {request.content_type}")
-        logger.info(f"   Headers:      {dict(request.headers)}")
+        logger.info(f"   Headers:      {dict(safe_headers)}")
         logger.info(f"   Raw Body:     {request.get_data(as_text=True)[:1000]}")
 
         data = request.get_json(force=True)
@@ -465,10 +490,14 @@ def webhook_character():
     """
     try:
         # Log brut de la requête entrante
+        # Masquer les headers sensibles dans les logs
+        safe_headers = {k: ('***' if k.lower() in ('authorization', 'token', 'cookie') else v)
+                        for k, v in request.headers}
+
         logger.info(f"📥 ═══ WEBHOOK CHARACTER REÇU ═══")
         logger.info(f"   Method:       {request.method}")
         logger.info(f"   Content-Type: {request.content_type}")
-        logger.info(f"   Headers:      {dict(request.headers)}")
+        logger.info(f"   Headers:      {dict(safe_headers)}")
         logger.info(f"   Raw Body:     {request.get_data(as_text=True)[:1000]}")
 
         data = request.get_json(force=True)
@@ -558,16 +587,15 @@ def webhook_character():
 # ============================================================================
 
 @webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/analyze_traits', methods=['POST'])
+@login_required
+@organizer_required
 @csrf.exempt
 def analyze_traits(event_id, role_id):
     """
     Déclenche l'analyse des traits de caractère pour un rôle.
     Vérifie que le rôle a un pdf_url, puis lance l'extraction PDF.
-    Accès réservé aux organisateurs (vérification via login_required implicite ou token).
+    Accès réservé aux organisateurs.
     """
-    from flask_login import current_user, login_required
-    from decorators import organizer_required
-
     role = Role.query.filter_by(id=role_id, event_id=event_id).first()
     if not role:
         return jsonify({"error": "Rôle introuvable"}), 404
@@ -579,17 +607,20 @@ def analyze_traits(event_id, role_id):
     if role.character_traits_status in ('pending_pdf', 'pending_character'):
         return jsonify({"error": "Une analyse est déjà en cours pour ce rôle"}), 409
 
+    # Mettre le statut à pending_pdf AVANT l'appel API pour éviter la race condition
+    role.character_traits_status = 'pending_pdf'
+    role.character_traits_data = None
+    db.session.commit()
+
     # Lancer l'extraction PDF (étape 1)
     from services.character_service import request_pdf_extraction
     success, message = request_pdf_extraction(role)
 
     if success:
-        role.character_traits_status = 'pending_pdf'
-        role.character_traits_data = None
-        db.session.commit()
         logger.info(f"🚀 Analyse des traits lancée pour '{role.name}' (event_id={event_id})")
         return jsonify({"success": True, "message": message}), 200
     else:
+        # Rollback du statut en cas d'échec de l'appel API
         role.character_traits_status = 'error'
         role.character_traits_data = json.dumps({'error': message})
         db.session.commit()
@@ -599,6 +630,8 @@ def analyze_traits(event_id, role_id):
 
 
 @webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/cancel_traits', methods=['POST'])
+@login_required
+@organizer_required
 @csrf.exempt
 def cancel_traits(event_id, role_id):
     """

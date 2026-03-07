@@ -43,7 +43,7 @@ def _build_webhook_base_url():
 
     # Construire l'URL à partir de APP_PUBLIC_HOST + APPLICATION_ROOT
     prefix = app_root.rstrip('/')
-    scheme = 'https' if 'https' in public_host else 'https'
+    scheme = 'https' if 'https' in public_host else 'http'
     host = public_host.replace('https://', '').replace('http://', '')
     return f"{scheme}://{host}{prefix}"
 
@@ -68,9 +68,11 @@ def request_pdf_extraction(role):
     if not role.pdf_url:
         return False, "Aucun PDF associé à ce rôle"
 
-    # Ajout de l'ID du rôle pour éviter les conflits si plusieurs rôles ont le même nom
+    # Construction d'un id_texte unique et explicite :
+    # nom_sanitisé + ID rôle + ID événement + APPLICATION_ROOT (sans slashes)
     id_texte_base = _sanitize_id_texte(role.name)
-    id_texte = f"{role.id}_{id_texte_base}"
+    app_root = current_app.config.get('APPLICATION_ROOT', '/').replace('/', '')
+    id_texte = f"{id_texte_base}_{role.id}_{role.event_id}_{app_root}" if app_root else f"{id_texte_base}_{role.id}_{role.event_id}"
     base_url = _build_webhook_base_url()
     webhook_url = f"{base_url}/webhook/pdf2txt"
 
@@ -82,12 +84,15 @@ def request_pdf_extraction(role):
         'pdf_url': role.pdf_url
     }
 
+    # Masquer le token dans les logs
+    safe_headers = {k: (v[:8] + '***' if k.lower() == 'token' else v) for k, v in request_headers.items()}
+
     logger.info(f"📄 ═══ APPEL PDF2TXT ═══")
     logger.info(f"   URL API:      {api_url}")
     logger.info(f"   Rôle:         '{role.name}' (id_texte={id_texte})")
     logger.info(f"   PDF URL:      {role.pdf_url}")
     logger.info(f"   Webhook URL:  {webhook_url}")
-    logger.info(f"   Headers:      {request_headers}")
+    logger.info(f"   Headers:      {safe_headers}")
     logger.info(f"   Data:         {request_data}")
 
     try:
@@ -150,12 +155,16 @@ def request_character_analysis(text_url, request_id):
         'request_id': request_id
     }
 
+    # Masquer le token et le webhook dans les logs
+    safe_headers = {k: (v[:8] + '***' if k.lower() in ('token', 'webhook') else v)
+                    for k, v in request_headers.items()}
+
     logger.info(f"🧠 ═══ APPEL CHARACTER ═══")
     logger.info(f"   URL API:      {api_url}")
     logger.info(f"   Request ID:   {request_id}")
     logger.info(f"   Text URL:     {text_url}")
     logger.info(f"   Webhook URL:  {webhook_url}")
-    logger.info(f"   Headers:      {request_headers}")
+    logger.info(f"   Headers:      {safe_headers}")
     logger.info(f"   Body JSON:    {json.dumps(request_body)}")
 
     try:
