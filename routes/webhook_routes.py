@@ -345,12 +345,12 @@ def gform_webhook():
 
 def _find_role_by_id_texte(id_texte):
     """
-    Retrouve un rôle à partir de son id_texte (format colon-separated).
-    Format attendu : "NomSanitisé:RoleID:EventID:AppRoot"
+    Retrouve un rôle à partir de son id_texte (format hyphen-separated).
+    Format attendu : "NomSanitisé-RoleID-EventID-AppRoot"
     """
-    parts = id_texte.split(':')
+    parts = id_texte.split('-')
     if len(parts) >= 2:
-        # Comme NomSanitisé ne contient pas de ':' (via _sanitize_id_texte),
+        # Comme NomSanitisé ne contient pas de '-' (via _sanitize_id_texte),
         # parts[1] est le RoleID.
         try:
             role_id = int(parts[1])

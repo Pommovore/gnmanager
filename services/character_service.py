@@ -75,7 +75,7 @@ def request_pdf_extraction(role):
     # nom_sanitisé + ID rôle + ID événement + APPLICATION_ROOT (sans slashes)
     id_texte_base = _sanitize_id_texte(role.name)
     app_root = current_app.config.get('APPLICATION_ROOT', '/').replace('/', '')
-    id_texte = f"{id_texte_base}:{role.id}:{role.event_id}:{app_root}" if app_root else f"{id_texte_base}:{role.id}:{role.event_id}"
+    id_texte = f"{id_texte_base}-{role.id}-{role.event_id}-{app_root}" if app_root else f"{id_texte_base}-{role.id}-{role.event_id}"
     base_url = _build_webhook_base_url()
     webhook_url = f"{base_url}/webhook/pdf2txt"
 
