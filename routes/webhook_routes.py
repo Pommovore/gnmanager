@@ -345,43 +345,18 @@ def gform_webhook():
 
 def _find_role_by_id_texte(id_texte):
     """
-    Retrouve un rôle à partir de son id_texte.
-    Supporte le nouveau format suffixé 'Nom_roleId_eventId_appRoot'
-    et l'ancien format simple 'Nom' (rétrocompatibilité).
+    Retrouve un rôle à partir de son id_texte (format colon-separated).
+    Format attendu : "NomSanitisé:RoleID:EventID:AppRoot"
     """
-    import re
-
-    # Nouveau format suffixé: "ClausShnabel_401_14_gnoletest"
-    # ou avec underscores dans le suffixe: "PauleGiobert_402_13_gnole_dev"
-    parts = id_texte.split('_')
+    parts = id_texte.split(':')
     if len(parts) >= 2:
-        # Le format attendu est [NomSanitisé, RoleID, EventID, ...]
-        # Comme NomSanitisé ne contient pas d'underscore (via _sanitize_id_texte),
-        # parts[1] doit être le RoleID.
+        # Comme NomSanitisé ne contient pas de ':' (via _sanitize_id_texte),
+        # parts[1] est le RoleID.
         try:
             role_id = int(parts[1])
-            role = Role.query.get(role_id)
-            if role:
-                return role
+            return Role.query.get(role_id)
         except (ValueError, IndexError):
             pass
-
-    # Ancien format préfixé (rétrocompatibilité transitoire): "401_ClausShnabel"
-    if len(parts) >= 2:
-        try:
-            role_id = int(parts[0])
-            role = Role.query.get(role_id)
-            if role:
-                return role
-        except (ValueError, IndexError):
-            pass
-
-    # Format legacy (nom seul): "ClausShnabel"
-    roles = Role.query.all()
-    for role in roles:
-        sanitized = re.sub(r'[^a-zA-Z0-9]', '', role.name)
-        if sanitized == id_texte:
-            return role
 
     return None
 
