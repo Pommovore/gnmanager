@@ -352,32 +352,28 @@ def _find_role_by_id_texte(id_texte):
     import re
 
     # Nouveau format suffixé: "ClausShnabel_401_14_gnoletest"
-    # ou sans app_root: "ClausShnabel_401_14"
-    parts = id_texte.rsplit('_', 3)  # max 4 segments
-    if len(parts) >= 3:
-        # Essayer d'extraire role_id depuis les parties suffixées
-        # Format avec app_root: [nom, role_id, event_id, app_root]
-        # Format sans app_root: [nom, role_id, event_id]
+    # ou avec underscores dans le suffixe: "PauleGiobert_402_13_gnole_dev"
+    parts = id_texte.split('_')
+    if len(parts) >= 2:
+        # Le format attendu est [NomSanitisé, RoleID, EventID, ...]
+        # Comme NomSanitisé ne contient pas d'underscore (via _sanitize_id_texte),
+        # parts[1] doit être le RoleID.
         try:
-            if len(parts) == 4:
-                role_id = int(parts[1])
-            else:
-                role_id = int(parts[1])
+            role_id = int(parts[1])
             role = Role.query.get(role_id)
             if role:
                 return role
         except (ValueError, IndexError):
-            pass  # Fallback sur l'ancien format
+            pass
 
     # Ancien format préfixé (rétrocompatibilité transitoire): "401_ClausShnabel"
-    if '_' in id_texte:
+    if len(parts) >= 2:
         try:
-            role_id_str = id_texte.split('_', 1)[0]
-            role_id = int(role_id_str)
+            role_id = int(parts[0])
             role = Role.query.get(role_id)
             if role:
                 return role
-        except ValueError:
+        except (ValueError, IndexError):
             pass
 
     # Format legacy (nom seul): "ClausShnabel"
