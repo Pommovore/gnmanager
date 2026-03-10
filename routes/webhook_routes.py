@@ -624,3 +624,20 @@ def cancel_traits(event_id, role_id):
                 f"(event_id={event_id}, ancien statut={previous_status})")
     return jsonify({"success": True, "message": "Analyse annulée"}), 200
 
+
+@webhook_bp.route('/event/<int:event_id>/role/<int:role_id>/traits_status', methods=['GET'])
+@login_required
+@organizer_required
+def traits_status(event_id, role_id):
+    """
+    Retourne le statut actuel de l'analyse des traits pour un rôle.
+    Utilisé par le frontend pour le polling en temps réel.
+    """
+    role = Role.query.filter_by(id=role_id, event_id=event_id).first()
+    if not role:
+        return jsonify({"error": "Rôle introuvable"}), 404
+
+    return jsonify({
+        "status": role.character_traits_status or 'none',
+        "traits_data": role.character_traits_data
+    }), 200

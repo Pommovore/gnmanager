@@ -37,6 +37,149 @@ function _getTraitsContext() {
 }
 
 /**
+ * Dictionnaire des timers de polling par roleId.
+ * Clé = roleId, valeur = intervalId retourné par setInterval.
+ */
+const _traitsPollingTimers = {};
+
+/**
+ * Met à jour l'icône #traits-indicator-<roleId> et le bouton d'action
+ * en fonction du statut courant.
+ */
+function _applyTraitsIndicator(roleId, status, traitsDataStr) {
+    const indicator = document.getElementById(`traits-indicator-${roleId}`);
+    const btn = document.querySelector(`[data-role-id="${roleId}"].btn-analyze-traits, [data-role-id="${roleId}"].btn-cancel-traits`);
+
+    if (!indicator) return;
+
+    // Supprimer l'éventuel popover existant sur l'icône courante
+    const oldIcon = indicator.querySelector('i[data-bs-toggle="popover"]');
+    if (oldIcon) {
+        const pop = bootstrap.Popover.getInstance(oldIcon);
+        if (pop) pop.dispose();
+    }
+
+    if (status === 'pending_pdf') {
+        indicator.innerHTML = `<i class="bi bi-info-circle text-secondary" title="Extraction du texte en cours..."></i>`;
+        // Bouton -> annuler
+        if (btn) _setButtonCancel(btn);
+    } else if (status === 'pending_character') {
+        indicator.innerHTML = `<i class="bi bi-info-circle text-primary" title="Analyse des traits en cours..."></i>`;
+        if (btn) _setButtonCancel(btn);
+    } else if (status === 'success') {
+        let traitsData = null;
+        try { traitsData = traitsDataStr ? JSON.parse(traitsDataStr) : null; } catch(e) {}
+        const icon = document.createElement('i');
+        icon.className = 'bi bi-info-circle-fill text-success traits-result-icon';
+        icon.style.cursor = 'pointer';
+        icon.setAttribute('data-role-id', roleId);
+        indicator.innerHTML = '';
+        indicator.appendChild(icon);
+        // Initialiser le popover
+        if (traitsData) {
+            const existingTooltip = bootstrap.Tooltip.getInstance(icon);
+            if (existingTooltip) existingTooltip.dispose();
+            new bootstrap.Popover(icon, {
+                title: 'Traits de caractère',
+                content: _formatTraitsContent(traitsData),
+                html: true,
+                trigger: 'click',
+                placement: 'right'
+            });
+        }
+        // Bouton -> analyser
+        if (btn) _setButtonAnalyze(btn);
+    } else if (status === 'error') {
+        let errMsg = 'Erreur inconnue';
+        try {
+            const d = traitsDataStr ? JSON.parse(traitsDataStr) : {};
+            errMsg = d.error || errMsg;
+        } catch(e) {}
+        indicator.innerHTML = `<i class="bi bi-exclamation-circle-fill text-danger" title="Erreur: ${errMsg}"></i>`;
+        if (btn) _setButtonAnalyze(btn);
+    } else if (status === 'cancelled') {
+        indicator.innerHTML = `<i class="bi bi-dash-circle text-secondary" title="Analyse annulée"></i>`;
+        if (btn) _setButtonAnalyze(btn);
+    } else {
+        indicator.innerHTML = `<i class="bi bi-info-circle text-light" title="Non analysé"></i>`;
+        if (btn) _setButtonAnalyze(btn);
+    }
+
+    // Ré-initialiser le tooltip sur le nouvel élément
+    const newIcon = indicator.querySelector('i');
+    if (newIcon && newIcon.title && !newIcon.dataset.bsToggle) {
+        new bootstrap.Tooltip(newIcon);
+    }
+}
+
+/** Change le bouton en mode "Annuler" */
+function _setButtonCancel(btn) {
+    btn.classList.remove('btn-outline-info', 'btn-analyze-traits');
+    btn.classList.add('btn-outline-danger', 'btn-cancel-traits');
+    btn.querySelector('i').className = 'bi bi-x-circle';
+    btn.setAttribute('title', "Annuler l'analyse en cours");
+    btn.setAttribute('onclick', 'cancelTraitsAnalysis(this)');
+}
+
+/** Change le bouton en mode "Analyser" */
+function _setButtonAnalyze(btn) {
+    btn.classList.remove('btn-outline-danger', 'btn-cancel-traits');
+    btn.classList.add('btn-outline-info', 'btn-analyze-traits');
+    btn.querySelector('i').className = 'bi bi-person-lines-fill';
+    btn.setAttribute('title', 'Analyser les traits de caractère');
+    btn.setAttribute('onclick', 'launchTraitsAnalysis(this)');
+}
+
+/** Formate les traits pour l'affichage dans un popover (version globale, utilisable avant DOMContentLoaded). */
+function _formatTraitsContent(data) {
+    if (!data || !data.traits || data.traits.length === 0) return '<em>Aucun trait détecté</em>';
+    let html = '<div class="small">';
+    data.traits.forEach(t => {
+        const pct = Math.round((t.score || 0) * 100);
+        html += `<div><strong>${t.category || '?'}</strong> (${t.trait || '?'}) = ${pct}%</div>`;
+    });
+    if (data.summary) html += `<hr class="my-1"><div class="fst-italic">${data.summary}</div>`;
+    html += '</div>';
+    return html;
+}
+
+/** Statuts terminaux : on arrête le polling dès qu'on en atteint un. */
+const _TERMINAL_STATUSES = new Set(['success', 'error', 'cancelled', 'none']);
+
+/**
+ * Démarre un polling toutes les 2 secondes pour mettre à jour l'icône d'un rôle.
+ */
+function startTraitsPolling(roleId, eventId) {
+    if (_traitsPollingTimers[roleId]) return; // déjà en cours
+    const { baseUrl } = _getTraitsContext();
+
+    _traitsPollingTimers[roleId] = setInterval(() => {
+        fetch(`${baseUrl}/event/${eventId}/role/${roleId}/traits_status`)
+            .then(r => r.ok ? r.json() : Promise.reject(r.status))
+            .then(data => {
+                _applyTraitsIndicator(roleId, data.status, data.traits_data);
+                if (_TERMINAL_STATUSES.has(data.status)) {
+                    stopTraitsPolling(roleId);
+                }
+            })
+            .catch(err => {
+                console.warn(`Polling traits_status roleId=${roleId} error:`, err);
+                stopTraitsPolling(roleId);
+            });
+    }, 2000);
+}
+
+/**
+ * Arrête le polling pour un rôle donné.
+ */
+function stopTraitsPolling(roleId) {
+    if (_traitsPollingTimers[roleId]) {
+        clearInterval(_traitsPollingTimers[roleId]);
+        delete _traitsPollingTimers[roleId];
+    }
+}
+
+/**
  * Lance l'analyse des traits de caractère pour un rôle.
  * Appelée directement depuis onclick sur le bouton.
  */
@@ -60,36 +203,15 @@ function launchTraitsAnalysis(btn) {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                // Icône grise (pending_pdf)
-                const indicator = document.getElementById(`traits-indicator-${roleId}`);
-                if (indicator) {
-                    indicator.innerHTML = `
-                        <i class="bi bi-info-circle text-secondary"
-                           title="Extraction du texte en cours..."></i>`;
-                }
-                // Transformer le bouton en annuler
-                btn.classList.remove('btn-outline-info', 'btn-analyze-traits');
-                btn.classList.add('btn-outline-danger', 'btn-cancel-traits');
-                btn.querySelector('i').className = 'bi bi-x-circle';
-                btn.setAttribute('title', "Annuler l'analyse en cours");
-                btn.setAttribute('onclick', 'cancelTraitsAnalysis(this)');
+                _applyTraitsIndicator(roleId, 'pending_pdf', null);
+                startTraitsPolling(roleId, roleEventId);
             } else {
-                const indicator = document.getElementById(`traits-indicator-${roleId}`);
-                if (indicator) {
-                    indicator.innerHTML = `
-                        <i class="bi bi-exclamation-circle-fill text-danger"
-                           title="Erreur: ${result.error || 'Erreur inconnue'}"></i>`;
-                }
+                _applyTraitsIndicator(roleId, 'error', JSON.stringify({ error: result.error || 'Erreur inconnue' }));
             }
         })
         .catch(error => {
             console.error('Erreur lancement analyse:', error);
-            const indicator = document.getElementById(`traits-indicator-${roleId}`);
-            if (indicator) {
-                indicator.innerHTML = `
-                    <i class="bi bi-exclamation-circle-fill text-danger"
-                       title="Erreur réseau"></i>`;
-            }
+            _applyTraitsIndicator(roleId, 'error', JSON.stringify({ error: 'Erreur réseau' }));
         });
 }
 
@@ -117,19 +239,8 @@ function cancelTraitsAnalysis(btn) {
         .then(response => response.json())
         .then(result => {
             if (result.success) {
-                // Icône blanche (non analysé)
-                const indicator = document.getElementById(`traits-indicator-${roleId}`);
-                if (indicator) {
-                    indicator.innerHTML = `
-                        <i class="bi bi-info-circle text-light"
-                           title="Non analysé"></i>`;
-                }
-                // Retransformer en bouton analyser
-                btn.classList.remove('btn-outline-danger', 'btn-cancel-traits');
-                btn.classList.add('btn-outline-info', 'btn-analyze-traits');
-                btn.querySelector('i').className = 'bi bi-person-lines-fill';
-                btn.setAttribute('title', 'Analyser les traits de caractère');
-                btn.setAttribute('onclick', 'launchTraitsAnalysis(this)');
+                stopTraitsPolling(roleId);
+                _applyTraitsIndicator(roleId, 'cancelled', null);
             } else {
                 console.warn('Annulation refusée:', result.error);
                 alert('Annulation refusée: ' + (result.error || 'Erreur inconnue'));
@@ -759,30 +870,17 @@ document.addEventListener('DOMContentLoaded', function () {
     attachTrombiLayoutListeners();
 
     // ===================================================================
-    // Analyse des traits de caractère (sans polling)
+    // Analyse des traits de caractère — polling temps réel
     // ===================================================================
 
-    /**
-     * Formate les données de traits pour l'affichage dans un popover.
-     */
-    function formatTraitsContent(data) {
-        if (!data || !data.traits || data.traits.length === 0) {
-            return '<em>Aucun trait détecté</em>';
+    // Auto-démarrer le polling pour les rôles déjà en analyse à l'ouverture de la page
+    document.querySelectorAll('.btn-cancel-traits[data-role-id]').forEach(btn => {
+        const roleId = btn.dataset.roleId;
+        const roleEventId = btn.dataset.eventId;
+        if (roleId && roleEventId) {
+            startTraitsPolling(roleId, roleEventId);
         }
-
-        let html = '<div class="small">';
-        data.traits.forEach(t => {
-            const pct = Math.round((t.score || 0) * 100);
-            html += `<div><strong>${t.category || '?'}</strong>(${t.trait || '?'}) = ${pct}%</div>`;
-        });
-
-        if (data.summary) {
-            html += `<hr class="my-1"><div class="fst-italic">${data.summary}</div>`;
-        }
-
-        html += '</div>';
-        return html;
-    }
+    });
 
     /**
      * Initialise les popovers pour les traits déjà chargés côté serveur (statut success).
@@ -799,7 +897,7 @@ document.addEventListener('DOMContentLoaded', function () {
             const rawData = icon.getAttribute('data-bs-content');
             if (rawData) {
                 const data = JSON.parse(rawData);
-                const content = formatTraitsContent(data);
+                const content = _formatTraitsContent(data);
                 new bootstrap.Popover(icon, {
                     title: 'Traits de caractère',
                     content: content,
