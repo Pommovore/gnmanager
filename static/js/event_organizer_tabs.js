@@ -44,27 +44,28 @@ const _traitsPollingTimers = {};
 
 /**
  * Met à jour l'icône #traits-indicator-<roleId> et le bouton d'action
- * en fonction du statut courant.
- */
-function _applyTraitsIndicator(roleId, status, traitsDataStr) {
+ * en fonction du statut couranfunction _applyTraitsIndicator(roleId, status, traitsDataStr) {
     const indicator = document.getElementById(`traits-indicator-${roleId}`);
     const btn = document.querySelector(`[data-role-id="${roleId}"].btn-analyze-traits, [data-role-id="${roleId}"].btn-cancel-traits`);
 
     if (!indicator) return;
 
-    // Supprimer l'éventuel popover existant sur l'icône courante
-    const oldIcon = indicator.querySelector('i[data-bs-toggle="popover"]');
-    if (oldIcon) {
-        const pop = bootstrap.Popover.getInstance(oldIcon);
+    // Détruire TOUS les widgets Bootstrap (tooltip + popover) sur les icônes existantes
+    // avant de remplacer le innerHTML, pour éviter les infobulles orphelines.
+    indicator.querySelectorAll('i').forEach(el => {
+        const tip = bootstrap.Tooltip.getInstance(el);
+        if (tip) tip.dispose();
+        const pop = bootstrap.Popover.getInstance(el);
         if (pop) pop.dispose();
-    }
+    });
 
     if (status === 'pending_pdf') {
-        indicator.innerHTML = `<i class="bi bi-info-circle text-secondary" title="Extraction du texte en cours..."></i>`;
-        // Bouton -> annuler
+        indicator.innerHTML = `<i class="bi bi-info-circle text-secondary"></i>`;
+        _createTooltip(indicator.querySelector('i'), 'Extraction du texte en cours...');
         if (btn) _setButtonCancel(btn);
     } else if (status === 'pending_character') {
-        indicator.innerHTML = `<i class="bi bi-info-circle text-primary" title="Analyse des traits en cours..."></i>`;
+        indicator.innerHTML = `<i class="bi bi-info-circle text-primary"></i>`;
+        _createTooltip(indicator.querySelector('i'), 'Analyse des traits en cours...');
         if (btn) _setButtonCancel(btn);
     } else if (status === 'success') {
         let traitsData = null;
@@ -75,10 +76,8 @@ function _applyTraitsIndicator(roleId, status, traitsDataStr) {
         icon.setAttribute('data-role-id', roleId);
         indicator.innerHTML = '';
         indicator.appendChild(icon);
-        // Initialiser le popover
+        // Initialiser le popover (pas de tooltip — le popover joue ce rôle)
         if (traitsData) {
-            const existingTooltip = bootstrap.Tooltip.getInstance(icon);
-            if (existingTooltip) existingTooltip.dispose();
             new bootstrap.Popover(icon, {
                 title: 'Traits de caractère',
                 content: _formatTraitsContent(traitsData),
@@ -86,8 +85,17 @@ function _applyTraitsIndicator(roleId, status, traitsDataStr) {
                 trigger: 'click',
                 placement: 'right'
             });
+            // Fermer ce popover si on clique ailleurs
+            icon.addEventListener('click', () => {
+                // Fermer les autres popovers ouverts dans la page
+                document.querySelectorAll('.traits-result-icon').forEach(other => {
+                    if (other !== icon) {
+                        const pop = bootstrap.Popover.getInstance(other);
+                        if (pop) pop.hide();
+                    }
+                });
+            });
         }
-        // Bouton -> analyser
         if (btn) _setButtonAnalyze(btn);
     } else if (status === 'error') {
         let errMsg = 'Erreur inconnue';
@@ -95,21 +103,31 @@ function _applyTraitsIndicator(roleId, status, traitsDataStr) {
             const d = traitsDataStr ? JSON.parse(traitsDataStr) : {};
             errMsg = d.error || errMsg;
         } catch(e) {}
-        indicator.innerHTML = `<i class="bi bi-exclamation-circle-fill text-danger" title="Erreur: ${errMsg}"></i>`;
+        indicator.innerHTML = `<i class="bi bi-exclamation-circle-fill text-danger"></i>`;
+        _createTooltip(indicator.querySelector('i'), `Erreur: ${errMsg}`);
         if (btn) _setButtonAnalyze(btn);
     } else if (status === 'cancelled') {
-        indicator.innerHTML = `<i class="bi bi-dash-circle text-secondary" title="Analyse annulée"></i>`;
+        indicator.innerHTML = `<i class="bi bi-dash-circle text-secondary"></i>`;
+        _createTooltip(indicator.querySelector('i'), 'Analyse annulée');
         if (btn) _setButtonAnalyze(btn);
     } else {
-        indicator.innerHTML = `<i class="bi bi-info-circle text-light" title="Non analysé"></i>`;
+        indicator.innerHTML = `<i class="bi bi-info-circle text-light"></i>`;
+        _createTooltip(indicator.querySelector('i'), 'Non analysé');
         if (btn) _setButtonAnalyze(btn);
     }
+}
 
-    // Ré-initialiser le tooltip sur le nouvel élément
-    const newIcon = indicator.querySelector('i');
-    if (newIcon && newIcon.title && !newIcon.dataset.bsToggle) {
-        new bootstrap.Tooltip(newIcon);
-    }
+/**
+ * Crée un tooltip Bootstrap sur un élément avec déclencheur hover uniquement.
+ * Évite d'utiliser l'attribut title qui peut interférer avec d'autres composants.
+ */
+function _createTooltip(el, text) {
+    if (!el) return;
+    new bootstrap.Tooltip(el, {
+        title: text,
+        trigger: 'hover',
+        placement: 'right'
+    });
 }
 
 /** Change le bouton en mode "Annuler" */
