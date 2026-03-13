@@ -25,4 +25,4 @@ jobs:
           # Le script update_deploy.py gère la mise à jour sans perte de données.
           script: |
             cd /opt/gnmanager
-            uv run python update_deploy.py --dev --systemd --
+            uv run python update_deploy.py --dev --systemd --migrate
