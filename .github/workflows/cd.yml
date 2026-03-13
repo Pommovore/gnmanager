@@ -1,0 +1,28 @@
+name: Deployment
+
+on:
+  push:
+    branches: [ "main" ]
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+
+jobs:
+  deploy:
+    name: "Deploy to Server"
+    runs-on: ubuntu-latest
+    if: ${{ github.event.workflow_run.conclusion == 'success' || github.event_name == 'push' }}
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          # On suppose que l'app est installée dans /opt/gnmanager
+          # Le script update_deploy.py gère la mise à jour sans perte de données.
+          script: |
+            cd /opt/gnmanager
+            uv run python update_deploy.py --dev --systemd --
